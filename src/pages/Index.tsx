@@ -8,6 +8,7 @@ import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { ClientStats } from '@/components/ClientStats';
 import { RetentionMetrics } from '@/components/RetentionMetrics';
 import { ClientCharts } from '@/components/ClientCharts';
+import { FinancialReport } from '@/components/FinancialReport';
 import { SearchBar } from '@/components/SearchBar';
 import { PlanFilter } from '@/components/PlanFilter';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
@@ -281,6 +282,9 @@ const Index = () => {
 
         {/* Charts */}
         <ClientCharts clients={clients} />
+
+        {/* Financial Report */}
+        <FinancialReport clients={clients} />
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

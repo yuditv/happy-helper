@@ -21,6 +21,17 @@ export function ClientStats({ clients }: ClientStatsProps) {
     return acc;
   }, {} as Record<PlanType, number>);
 
+  // Calculate total revenue per plan using custom prices
+  const planRevenue = useMemo(() => {
+    return clients
+      .filter(c => getExpirationStatus(c.expiresAt) !== 'expired')
+      .reduce((acc, client) => {
+        const revenue = client.price !== null ? client.price : 0;
+        acc[client.plan] = (acc[client.plan] || 0) + revenue;
+        return acc;
+      }, {} as Record<PlanType, number>);
+  }, [clients]);
+
   // Calculate MRR (Monthly Recurring Revenue) - use custom price if available
   const mrr = useMemo(() => {
     return clients
@@ -105,8 +116,8 @@ export function ClientStats({ clients }: ClientStatsProps) {
                   <p className="text-xl font-bold text-foreground">
                     {planCounts[plan] || 0}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatCurrency(planMonthlyEquivalent[plan])}/mês
+                  <p className="text-xs font-medium text-primary">
+                    {formatCurrency(planRevenue[plan] || 0)}
                   </p>
                 </div>
                 <p className="text-xs text-muted-foreground">{planLabels[plan]}</p>
