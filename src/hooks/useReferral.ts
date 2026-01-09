@@ -20,10 +20,19 @@ interface Referral {
   completed_at: string | null;
 }
 
+interface ReceivedReferral {
+  id: string;
+  referral_code: string;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export function useReferral() {
   const { user } = useAuth();
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [receivedReferral, setReceivedReferral] = useState<ReceivedReferral | null>(null);
   const [pendingDiscount, setPendingDiscount] = useState<number>(0);
   const [usedDiscounts, setUsedDiscounts] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +41,7 @@ export function useReferral() {
     if (!user) {
       setReferralCode(null);
       setReferrals([]);
+      setReceivedReferral(null);
       setIsLoading(false);
       return;
     }
@@ -43,9 +53,9 @@ export function useReferral() {
       .from('referral_codes')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (codeError && codeError.code !== 'PGRST116') {
+    if (codeError) {
       console.error('Error fetching referral code:', codeError);
     }
 
@@ -66,7 +76,7 @@ export function useReferral() {
       }
     }
 
-    // Fetch referrals made by this user
+    // Fetch referrals made by this user (as referrer)
     const { data: referralsData, error: referralsError } = await supabase
       .from('referrals')
       .select('*')
@@ -89,6 +99,19 @@ export function useReferral() {
         .filter(r => r.discount_used)
         .reduce((acc, r) => acc + Number(r.discount_amount), 0);
       setUsedDiscounts(used);
+    }
+
+    // Fetch referral received by this user (as referred)
+    const { data: receivedData, error: receivedError } = await supabase
+      .from('referrals')
+      .select('id, referral_code, status, created_at, completed_at')
+      .eq('referred_id', user.id)
+      .maybeSingle();
+
+    if (receivedError) {
+      console.error('Error fetching received referral:', receivedError);
+    } else {
+      setReceivedReferral(receivedData);
     }
 
     setIsLoading(false);
@@ -167,10 +190,12 @@ export function useReferral() {
   return {
     referralCode,
     referrals,
+    receivedReferral,
     pendingDiscount,
     usedDiscounts,
     totalReferrals: referrals.length,
     completedReferrals: referrals.filter(r => r.status === 'completed').length,
+    pendingReferrals: referrals.filter(r => r.status === 'pending').length,
     isLoading,
     applyReferralCode,
     markDiscountAsUsed,

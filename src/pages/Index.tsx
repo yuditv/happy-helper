@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useReferralNotifications } from '@/hooks/useReferralNotifications';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientTable } from '@/components/ClientTable';
@@ -46,6 +47,9 @@ const Index = () => {
   const { profile } = useProfile();
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
+  
+  // Check for referral notifications
+  useReferralNotifications();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

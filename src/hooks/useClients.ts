@@ -126,17 +126,40 @@ export function useClients() {
 
     // If first client, complete any pending referral for this user
     if (isFirstClient) {
-      const { error: referralError } = await supabase
+      // First check if there's a pending referral
+      const { data: pendingReferral } = await supabase
         .from('referrals')
-        .update({ 
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
+        .select('referrer_id')
         .eq('referred_id', user.id)
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .maybeSingle();
 
-      if (referralError) {
-        console.error('Error completing referral:', referralError);
+      if (pendingReferral) {
+        // Complete the referral
+        const { error: referralError } = await supabase
+          .from('referrals')
+          .update({ 
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('referred_id', user.id)
+          .eq('status', 'pending');
+
+        if (referralError) {
+          console.error('Error completing referral:', referralError);
+        } else {
+          // Create notification for the referrer
+          await supabase
+            .from('notification_history')
+            .insert({
+              user_id: pendingReferral.referrer_id,
+              client_id: newClient.id,
+              notification_type: 'referral_completed',
+              subject: 'Indicação validada! Você ganhou R$ 10,00 de desconto.',
+              status: 'sent',
+              days_until_expiration: null
+            });
+        }
       }
     }
 
