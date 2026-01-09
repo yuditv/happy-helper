@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Phone, Mail, CreditCard, CalendarDays, DollarSign, Tv, StickyNote } from 'lucide-react';
+import { User, Phone, CreditCard, CalendarDays, DollarSign, Tv, StickyNote } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -29,10 +29,6 @@ const clientSchema = z.object({
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(100, 'Nome deve ter no máximo 100 caracteres')
     .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Nome contém caracteres inválidos'),
-  email: z.string()
-    .trim()
-    .email('Email inválido')
-    .max(255, 'Email muito longo'),
   whatsapp: z.string()
     .min(14, 'WhatsApp inválido')
     .max(16, 'WhatsApp inválido'),
@@ -64,7 +60,6 @@ interface ClientFormProps {
 export function ClientForm({ open, onOpenChange, onSubmit, initialData }: ClientFormProps) {
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [email, setEmail] = useState('');
   const [service, setService] = useState<ServiceType>('IPTV');
   const [plan, setPlan] = useState<PlanType>('monthly');
   const [price, setPrice] = useState('');
@@ -76,7 +71,6 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
     if (initialData) {
       setName(initialData.name);
       setWhatsapp(initialData.whatsapp);
-      setEmail(initialData.email);
       setService(initialData.service);
       setPlan(initialData.plan);
       setPrice(initialData.price?.toString() || '');
@@ -86,7 +80,6 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
     } else {
       setName('');
       setWhatsapp('');
-      setEmail('');
       setService('IPTV');
       setPlan('monthly');
       setPrice('');
@@ -130,7 +123,6 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
     
     const validation = clientSchema.safeParse({
       name: sanitizedName,
-      email: email.trim(),
       whatsapp,
       notes: sanitizedNotes,
       price: price ? parseFloat(price) : null,
@@ -145,7 +137,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
     onSubmit({ 
       name: sanitizedName, 
       whatsapp, 
-      email: email.trim(),
+      email: '',
       service,
       plan,
       price: price ? parseFloat(price) : null,
@@ -193,24 +185,6 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
                 value={whatsapp}
                 onChange={handleWhatsappChange}
                 placeholder="(00) 00000-0000"
-                className="pl-8 h-9 text-sm"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="email" className="text-xs font-medium">
-              E-mail
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="email@exemplo.com"
                 className="pl-8 h-9 text-sm"
                 required
               />
