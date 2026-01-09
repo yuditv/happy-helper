@@ -7,12 +7,13 @@ import { ClientStats } from '@/components/ClientStats';
 import { SearchBar } from '@/components/SearchBar';
 import { PlanFilter } from '@/components/PlanFilter';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
+import { ExpiringClientsAlert } from '@/components/ExpiringClientsAlert';
 import { Button } from '@/components/ui/button';
 import { Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
-  const { clients, addClient, updateClient, deleteClient } = useClients();
+  const { clients, addClient, updateClient, deleteClient, expiringClients, expiredClients } = useClients();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -73,6 +74,10 @@ const Index = () => {
     }
   };
 
+  const handleAlertClientClick = (client: Client) => {
+    handleOpenEdit(client);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -96,7 +101,14 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto px-4 py-8 space-y-6">
+        {/* Expiring Alert */}
+        <ExpiringClientsAlert 
+          expiringClients={expiringClients}
+          expiredClients={expiredClients}
+          onClientClick={handleAlertClientClick}
+        />
+
         {/* Stats */}
         <ClientStats clients={clients} />
 

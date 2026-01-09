@@ -1,5 +1,6 @@
-import { Client, planLabels } from '@/types/client';
+import { Client } from '@/types/client';
 import { PlanBadge } from './PlanBadge';
+import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Phone, Mail, Pencil, Trash2, Calendar } from 'lucide-react';
@@ -20,10 +21,13 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground text-lg truncate mb-1">
+            <h3 className="font-semibold text-foreground text-lg truncate mb-2">
               {client.name}
             </h3>
-            <PlanBadge plan={client.plan} />
+            <div className="flex flex-wrap gap-1.5">
+              <PlanBadge plan={client.plan} />
+              <ExpirationBadge expiresAt={client.expiresAt} />
+            </div>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
@@ -65,7 +69,7 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
           <div className="flex items-center gap-2 text-muted-foreground pt-2 border-t border-border/50">
             <Calendar className="h-4 w-4" />
             <span className="text-xs">
-              Cadastrado em {format(client.createdAt, "dd 'de' MMM, yyyy", { locale: ptBR })}
+              Vence em {format(client.expiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}
             </span>
           </div>
         </div>

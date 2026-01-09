@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Client, PlanType, planLabels } from '@/types/client';
+import { Client, PlanType, planLabels, planDurations } from '@/types/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Phone, Mail, CreditCard } from 'lucide-react';
+import { User, Phone, Mail, CreditCard, CalendarDays } from 'lucide-react';
+import { addMonths, format } from 'date-fns';
 
 interface ClientFormProps {
   open: boolean;
@@ -30,6 +31,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [plan, setPlan] = useState<PlanType>('monthly');
+  const [expiresAt, setExpiresAt] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -37,13 +39,23 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setWhatsapp(initialData.whatsapp);
       setEmail(initialData.email);
       setPlan(initialData.plan);
+      setExpiresAt(format(initialData.expiresAt, 'yyyy-MM-dd'));
     } else {
       setName('');
       setWhatsapp('');
       setEmail('');
       setPlan('monthly');
+      // Set default expiration based on plan
+      setExpiresAt(format(addMonths(new Date(), planDurations['monthly']), 'yyyy-MM-dd'));
     }
   }, [initialData, open]);
+
+  // Update expiration date when plan changes (only for new clients)
+  useEffect(() => {
+    if (!initialData) {
+      setExpiresAt(format(addMonths(new Date(), planDurations[plan]), 'yyyy-MM-dd'));
+    }
+  }, [plan, initialData]);
 
   const formatWhatsapp = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -59,7 +71,13 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ name, whatsapp, email, plan });
+    onSubmit({ 
+      name, 
+      whatsapp, 
+      email, 
+      plan,
+      expiresAt: new Date(expiresAt + 'T23:59:59')
+    });
     onOpenChange(false);
   };
 
@@ -124,24 +142,43 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="plan" className="text-sm font-medium">
-              Plano
-            </Label>
-            <div className="relative">
-              <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-              <Select value={plan} onValueChange={(v) => setPlan(v as PlanType)}>
-                <SelectTrigger className="pl-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(planLabels) as [PlanType, string][]).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="plan" className="text-sm font-medium">
+                Plano
+              </Label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                <Select value={plan} onValueChange={(v) => setPlan(v as PlanType)}>
+                  <SelectTrigger className="pl-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(planLabels) as [PlanType, string][]).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="expiresAt" className="text-sm font-medium">
+                Vencimento
+              </Label>
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="expiresAt"
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
             </div>
           </div>
 
