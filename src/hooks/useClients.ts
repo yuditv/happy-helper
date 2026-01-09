@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Client, PlanType, getExpirationStatus, planDurations } from '@/types/client';
+import { Client, PlanType, getExpirationStatus, planDurations, RenewalRecord } from '@/types/client';
 import { addMonths } from 'date-fns';
 
 const STORAGE_KEY = 'clients';
@@ -15,7 +15,13 @@ export function useClients() {
       setClients(parsed.map((c: Client) => ({ 
         ...c, 
         createdAt: new Date(c.createdAt),
-        expiresAt: new Date(c.expiresAt)
+        expiresAt: new Date(c.expiresAt),
+        renewalHistory: (c.renewalHistory || []).map((r: RenewalRecord) => ({
+          ...r,
+          date: new Date(r.date),
+          previousExpiresAt: new Date(r.previousExpiresAt),
+          newExpiresAt: new Date(r.newExpiresAt),
+        }))
       })));
     }
     setIsLoading(false);
@@ -26,11 +32,12 @@ export function useClients() {
     setClients(newClients);
   };
 
-  const addClient = (data: Omit<Client, 'id' | 'createdAt'>) => {
+  const addClient = (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
     const newClient: Client = {
       ...data,
       id: crypto.randomUUID(),
       createdAt: new Date(),
+      renewalHistory: [],
     };
     saveClients([...clients, newClient]);
     return newClient;
@@ -53,11 +60,22 @@ export function useClients() {
 
     const now = new Date();
     const currentExpiration = client.expiresAt;
-    // If already expired, renew from today. Otherwise, extend from current expiration.
     const baseDate = currentExpiration < now ? now : currentExpiration;
     const newExpiresAt = addMonths(baseDate, planDurations[client.plan]);
 
-    updateClient(id, { expiresAt: newExpiresAt });
+    const renewalRecord: RenewalRecord = {
+      id: crypto.randomUUID(),
+      date: now,
+      previousExpiresAt: currentExpiration,
+      newExpiresAt: newExpiresAt,
+      plan: client.plan,
+    };
+
+    updateClient(id, { 
+      expiresAt: newExpiresAt,
+      renewalHistory: [...client.renewalHistory, renewalRecord]
+    });
+    
     return newExpiresAt;
   };
 

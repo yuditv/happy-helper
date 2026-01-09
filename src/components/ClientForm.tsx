@@ -22,7 +22,7 @@ import { addMonths, format } from 'date-fns';
 interface ClientFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: Omit<Client, 'id' | 'createdAt'>) => void;
+  onSubmit: (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => void;
   initialData?: Client | null;
 }
 

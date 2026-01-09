@@ -8,11 +8,19 @@ import { SearchBar } from '@/components/SearchBar';
 import { PlanFilter } from '@/components/PlanFilter';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { ExpiringClientsAlert } from '@/components/ExpiringClientsAlert';
+import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Users } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Users, Download, FileSpreadsheet, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { exportClientsToCSV, exportRenewalHistoryToCSV } from '@/lib/exportClients';
 
 const Index = () => {
   const { clients, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
@@ -20,6 +28,8 @@ const Index = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType | 'all'>('all');
 
@@ -34,12 +44,16 @@ const Index = () => {
     });
   }, [clients, search, planFilter]);
 
-  const handleAddClient = (data: Omit<Client, 'id' | 'createdAt'>) => {
+  const totalRenewals = useMemo(() => {
+    return clients.reduce((acc, c) => acc + (c.renewalHistory?.length || 0), 0);
+  }, [clients]);
+
+  const handleAddClient = (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
     addClient(data);
     toast.success('Cliente cadastrado com sucesso!');
   };
 
-  const handleEditClient = (data: Omit<Client, 'id' | 'createdAt'>) => {
+  const handleEditClient = (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
     if (editingClient) {
       updateClient(editingClient.id, data);
       setEditingClient(null);
@@ -82,6 +96,29 @@ const Index = () => {
     }
   };
 
+  const handleViewHistory = (client: Client) => {
+    setHistoryClient(client);
+    setHistoryDialogOpen(true);
+  };
+
+  const handleExportClients = () => {
+    if (clients.length === 0) {
+      toast.error('Não há clientes para exportar');
+      return;
+    }
+    exportClientsToCSV(filteredClients);
+    toast.success(`${filteredClients.length} cliente(s) exportado(s) para CSV`);
+  };
+
+  const handleExportRenewals = () => {
+    if (totalRenewals === 0) {
+      toast.error('Não há renovações para exportar');
+      return;
+    }
+    exportRenewalHistoryToCSV(clients);
+    toast.success(`Histórico de renovações exportado para CSV`);
+  };
+
   const handleFormClose = (open: boolean) => {
     setFormOpen(open);
     if (!open) {
@@ -108,10 +145,29 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">Organize seus clientes por plano</p>
               </div>
             </div>
-            <Button onClick={() => setFormOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Novo Cliente</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="hidden sm:flex">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportClients}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Exportar Clientes (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportRenewals}>
+                    <History className="h-4 w-4 mr-2" />
+                    Exportar Renovações (CSV)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button onClick={() => setFormOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Novo Cliente</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -163,6 +219,7 @@ const Index = () => {
                 onEdit={handleOpenEdit}
                 onDelete={handleOpenDelete}
                 onRenew={handleRenewClient}
+                onViewHistory={handleViewHistory}
               />
             ))}
           </div>
@@ -181,6 +238,11 @@ const Index = () => {
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
         clientName={clientToDelete?.name || ''}
+      />
+      <RenewalHistoryDialog
+        client={historyClient}
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
       />
     </div>
   );
