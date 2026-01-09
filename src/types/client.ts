@@ -40,7 +40,7 @@ export const planDurations: Record<PlanType, number> = {
 export const planPrices: Record<PlanType, number> = {
   monthly: 99.90,
   quarterly: 54.99,
-  semiannual: 499.90,
+  semiannual: 99.99,
   annual: 149.99,
 };
 
@@ -48,7 +48,7 @@ export const planPrices: Record<PlanType, number> = {
 export const planMonthlyEquivalent: Record<PlanType, number> = {
   monthly: 99.90,
   quarterly: 54.99 / 3,
-  semiannual: 499.90 / 6,
+  semiannual: 99.99 / 6,
   annual: 149.99 / 12,
 };
 
