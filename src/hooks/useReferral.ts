@@ -37,6 +37,8 @@ export function useReferral() {
   const [pendingDiscount, setPendingDiscount] = useState<number>(0);
   const [usedDiscounts, setUsedDiscounts] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [previousLevel, setPreviousLevel] = useState<string | null>(null);
+  const [levelUpTriggered, setLevelUpTriggered] = useState<boolean>(false);
 
   const fetchReferralData = useCallback(async () => {
     if (!user) {
@@ -100,6 +102,15 @@ export function useReferral() {
         .filter(r => r.discount_used)
         .reduce((acc, r) => acc + Number(r.discount_amount), 0);
       setUsedDiscounts(used);
+
+      // Check for level up
+      const completedCount = (referralsData || []).filter(r => r.status === 'completed').length;
+      const newLevel = getCurrentLevel(completedCount);
+      
+      if (previousLevel !== null && previousLevel !== newLevel.id) {
+        setLevelUpTriggered(true);
+      }
+      setPreviousLevel(newLevel.id);
     }
 
     // Fetch referral received by this user (as referred)
@@ -201,6 +212,11 @@ export function useReferral() {
     return true;
   };
 
+  const completedReferrals = referrals.filter(r => r.status === 'completed').length;
+  const currentLevel = getCurrentLevel(completedReferrals);
+
+  const clearLevelUp = () => setLevelUpTriggered(false);
+
   return {
     referralCode,
     referrals,
@@ -208,8 +224,11 @@ export function useReferral() {
     pendingDiscount,
     usedDiscounts,
     totalReferrals: referrals.length,
-    completedReferrals: referrals.filter(r => r.status === 'completed').length,
+    completedReferrals,
     pendingReferrals: referrals.filter(r => r.status === 'pending').length,
+    currentLevel,
+    levelUpTriggered,
+    clearLevelUp,
     isLoading,
     applyReferralCode,
     markDiscountAsUsed,

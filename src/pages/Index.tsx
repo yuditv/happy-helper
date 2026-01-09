@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useReferralNotifications } from '@/hooks/useReferralNotifications';
 import { useReferral } from '@/hooks/useReferral';
+import LevelUpCelebration from '@/components/LevelUpCelebration';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientTable } from '@/components/ClientTable';
@@ -31,7 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift, Trophy } from 'lucide-react';
 import { openWhatsApp } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -48,7 +49,7 @@ const Index = () => {
   const { profile } = useProfile();
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
-  const { pendingReferrals } = useReferral();
+  const { pendingReferrals, currentLevel, levelUpTriggered, clearLevelUp } = useReferral();
   
   // Check for referral notifications
   useReferralNotifications();
@@ -486,7 +487,13 @@ Qualquer dúvida, estamos à disposição. 😊`;
   }
 
   return (
-    <div className="min-h-screen bg-background cyber-grid">
+    <>
+      {/* Level Up Celebration */}
+      {levelUpTriggered && (
+        <LevelUpCelebration level={currentLevel} onComplete={clearLevelUp} />
+      )}
+      
+      <div className="min-h-screen bg-background cyber-grid">
       {/* Header */}
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container mx-auto px-4 py-4">
@@ -581,6 +588,10 @@ Qualquer dúvida, estamos à disposição. 😊`;
                   <DropdownMenuItem onClick={() => navigate('/scheduled')} className="hover:bg-primary/10">
                     <Clock className="h-4 w-4 mr-2 text-primary" />
                     Agendamentos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/leaderboard')} className="hover:bg-primary/10">
+                    <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                    Ranking
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
                     <Settings className="h-4 w-4 mr-2 text-primary" />
@@ -940,7 +951,8 @@ Qualquer dúvida, estamos à disposição. 😊`;
         progress={bulkMessageProgress}
         isSending={isSendingBulk}
       />
-    </div>
+      </div>
+    </>
   );
 };
 
