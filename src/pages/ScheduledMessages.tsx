@@ -35,7 +35,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageReport } from '@/components/MessageReport';
 import { MessageTemplatesTab } from '@/components/MessageTemplatesTab';
-import { FileText } from 'lucide-react';
+import { BulkDispatcher } from '@/components/BulkDispatcher';
+import { FileText, Zap } from 'lucide-react';
 
 interface ScheduledMessage {
   id: string;
@@ -316,21 +317,29 @@ export default function ScheduledMessages() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        <Tabs defaultValue="messages" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <Tabs defaultValue="dispatcher" className="space-y-6">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+            <TabsTrigger value="dispatcher" className="gap-2">
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">Disparador</span>
+            </TabsTrigger>
             <TabsTrigger value="messages" className="gap-2">
               <Clock className="h-4 w-4" />
-              Agendamentos
+              <span className="hidden sm:inline">Agendamentos</span>
             </TabsTrigger>
             <TabsTrigger value="templates" className="gap-2">
               <FileText className="h-4 w-4" />
-              Templates
+              <span className="hidden sm:inline">Templates</span>
             </TabsTrigger>
             <TabsTrigger value="report" className="gap-2">
               <BarChart3 className="h-4 w-4" />
-              Relatório
+              <span className="hidden sm:inline">Relatório</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dispatcher">
+            <BulkDispatcher onComplete={fetchMessages} />
+          </TabsContent>
 
           <TabsContent value="messages" className="space-y-6">
             {/* Stats */}
