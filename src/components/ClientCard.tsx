@@ -3,7 +3,7 @@ import { PlanBadge } from './PlanBadge';
 import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle, Send } from 'lucide-react';
+import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle, Send, Bell } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -18,10 +18,11 @@ interface ClientCardProps {
   onRenew: (id: string) => void;
   onViewHistory: (client: Client) => void;
   onChangePlan: (client: Client) => void;
+  onViewNotifications: (client: Client) => void;
   getPlanName?: (plan: string) => string;
 }
 
-export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, onChangePlan, getPlanName }: ClientCardProps) {
+export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, onChangePlan, onViewNotifications, getPlanName }: ClientCardProps) {
   const whatsappLink = `https://wa.me/${client.whatsapp.replace(/\D/g, '')}`;
   const status = getExpirationStatus(client.expiresAt);
   const needsAttention = status === 'expiring' || status === 'expired';
@@ -29,17 +30,36 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
   const daysRemaining = getDaysUntilExpiration(client.expiresAt);
   const planName = getPlanName ? getPlanName(client.plan) : planLabels[client.plan];
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
     const message = generateExpirationMessage({
       client,
       planName,
       daysRemaining,
     });
     openWhatsApp(client.whatsapp, message);
+    
+    // Record WhatsApp notification (best effort, don't block on failure)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('notification_history').insert({
+          client_id: client.id,
+          user_id: user.id,
+          notification_type: 'whatsapp',
+          subject: `Lembrete WhatsApp - ${daysRemaining < 0 ? 'Plano expirado' : daysRemaining === 0 ? 'Vence hoje' : `Vence em ${daysRemaining} dias`}`,
+          status: 'sent',
+          days_until_expiration: daysRemaining,
+        });
+      }
+    } catch (error) {
+      console.error('Error recording WhatsApp notification:', error);
+    }
   };
 
   const handleSendEmail = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase.functions.invoke('send-expiration-reminder', {
         body: {
           clientId: client.id,
@@ -52,6 +72,24 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
       });
 
       if (error) throw error;
+
+      // Record email notification
+      if (user) {
+        const subject = daysRemaining < 0 
+          ? `⚠️ ${client.name}, seu plano ${planName} venceu!`
+          : daysRemaining === 0
+          ? `🔔 ${client.name}, seu plano ${planName} vence hoje!`
+          : `📅 ${client.name}, seu plano ${planName} vence em ${daysRemaining} dia(s)`;
+
+        await supabase.from('notification_history').insert({
+          client_id: client.id,
+          user_id: user.id,
+          notification_type: 'email',
+          subject,
+          status: 'sent',
+          days_until_expiration: daysRemaining,
+        });
+      }
 
       toast.success(`Email de lembrete enviado para ${client.email}`);
     } catch (error: any) {
@@ -81,13 +119,22 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
             </div>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-blue-600"
+              onClick={() => onViewNotifications(client)}
+              title="Ver notificações"
+            >
+              <Bell className="h-4 w-4" />
+            </Button>
             {hasHistory && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-primary"
                 onClick={() => onViewHistory(client)}
-                title="Ver histórico"
+                title="Ver histórico de renovações"
               >
                 <History className="h-4 w-4" />
               </Button>

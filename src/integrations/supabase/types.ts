@@ -50,6 +50,47 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_history: {
+        Row: {
+          client_id: string
+          created_at: string
+          days_until_expiration: number | null
+          id: string
+          notification_type: string
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          days_until_expiration?: number | null
+          id?: string
+          notification_type?: string
+          status?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          days_until_expiration?: number | null
+          id?: string
+          notification_type?: string
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_settings: {
         Row: {
           created_at: string
