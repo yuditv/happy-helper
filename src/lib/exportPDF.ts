@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Client, planLabels, getExpirationStatus, formatCurrency, planPrices, planMonthlyEquivalent } from '@/types/client';
+import { Client, planLabels, getExpirationStatus, formatCurrency, planPrices, planMonthlyEquivalent, planDurations } from '@/types/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -39,15 +39,26 @@ function calculateMetrics(clients: Client[]): RetentionMetrics {
     : 0;
 
   const mrr = activeClients.reduce((acc, client) => {
-    return acc + planMonthlyEquivalent[client.plan];
+    const monthlyValue = client.price !== null 
+      ? client.price / planDurations[client.plan]
+      : planMonthlyEquivalent[client.plan];
+    return acc + monthlyValue;
   }, 0);
 
   const atRiskMrr = expiringClients.reduce((acc, client) => {
-    return acc + planMonthlyEquivalent[client.plan];
+    const monthlyValue = client.price !== null 
+      ? client.price / planDurations[client.plan]
+      : planMonthlyEquivalent[client.plan];
+    return acc + monthlyValue;
   }, 0);
 
   const avgMonthlyRevenue = clients.length > 0 
-    ? clients.reduce((acc, c) => acc + planMonthlyEquivalent[c.plan], 0) / clients.length 
+    ? clients.reduce((acc, c) => {
+        const monthlyValue = c.price !== null 
+          ? c.price / planDurations[c.plan]
+          : planMonthlyEquivalent[c.plan];
+        return acc + monthlyValue;
+      }, 0) / clients.length 
     : 0;
 
   const ltv = avgMonthlyRevenue * 12; // Simplified LTV estimate

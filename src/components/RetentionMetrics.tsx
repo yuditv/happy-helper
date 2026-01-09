@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Client, getExpirationStatus, formatCurrency, planMonthlyEquivalent } from '@/types/client';
+import { Client, getExpirationStatus, formatCurrency, planMonthlyEquivalent, planDurations } from '@/types/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Users, RefreshCw, AlertTriangle, DollarSign } from 'lucide-react';
 import { differenceInMonths, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -36,19 +36,28 @@ export function RetentionMetrics({ clients }: RetentionMetricsProps) {
       ? (expiringClients.length / clients.length) * 100 
       : 0;
 
-    // MRR calculation
+    // MRR calculation - using custom price divided by plan duration
     const mrr = activeClients.reduce((acc, client) => {
-      return acc + planMonthlyEquivalent[client.plan];
+      const monthlyValue = client.price !== null 
+        ? client.price / planDurations[client.plan]
+        : planMonthlyEquivalent[client.plan];
+      return acc + monthlyValue;
     }, 0);
 
     // At-risk MRR (clients expiring soon)
     const atRiskMrr = expiringClients.reduce((acc, client) => {
-      return acc + planMonthlyEquivalent[client.plan];
+      const monthlyValue = client.price !== null 
+        ? client.price / planDurations[client.plan]
+        : planMonthlyEquivalent[client.plan];
+      return acc + monthlyValue;
     }, 0);
 
     // Lost MRR (expired clients)
     const lostMrr = expiredClients.reduce((acc, client) => {
-      return acc + planMonthlyEquivalent[client.plan];
+      const monthlyValue = client.price !== null 
+        ? client.price / planDurations[client.plan]
+        : planMonthlyEquivalent[client.plan];
+      return acc + monthlyValue;
     }, 0);
 
     // Renewals this month
@@ -73,7 +82,12 @@ export function RetentionMetrics({ clients }: RetentionMetricsProps) {
     }, 0) / Math.max(clients.length, 1);
 
     const avgMonthlyRevenue = clients.length > 0 
-      ? clients.reduce((acc, c) => acc + planMonthlyEquivalent[c.plan], 0) / clients.length 
+      ? clients.reduce((acc, c) => {
+          const monthlyValue = c.price !== null 
+            ? c.price / planDurations[c.plan]
+            : planMonthlyEquivalent[c.plan];
+          return acc + monthlyValue;
+        }, 0) / clients.length 
       : 0;
 
     const ltv = avgMonthsAsCustomer * avgMonthlyRevenue;
