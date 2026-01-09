@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useClients } from '@/hooks/useClients';
+import { useAuth } from '@/hooks/useAuth';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientForm } from '@/components/ClientForm';
 import { ClientStats } from '@/components/ClientStats';
+import { ClientCharts } from '@/components/ClientCharts';
 import { SearchBar } from '@/components/SearchBar';
 import { PlanFilter } from '@/components/PlanFilter';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
@@ -14,16 +16,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { exportClientsToCSV, exportRenewalHistoryToCSV } from '@/lib/exportClients';
 
 const Index = () => {
-  const { clients, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
+  const { user, signOut } = useAuth();
+  const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -48,14 +52,18 @@ const Index = () => {
     return clients.reduce((acc, c) => acc + (c.renewalHistory?.length || 0), 0);
   }, [clients]);
 
-  const handleAddClient = (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
-    addClient(data);
-    toast.success('Cliente cadastrado com sucesso!');
+  const handleAddClient = async (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
+    const result = await addClient(data);
+    if (result) {
+      toast.success('Cliente cadastrado com sucesso!');
+    } else {
+      toast.error('Erro ao cadastrar cliente');
+    }
   };
 
-  const handleEditClient = (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
+  const handleEditClient = async (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
     if (editingClient) {
-      updateClient(editingClient.id, data);
+      await updateClient(editingClient.id, data);
       setEditingClient(null);
       toast.success('Cliente atualizado com sucesso!');
     }
@@ -74,25 +82,27 @@ const Index = () => {
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (clientToDelete) {
-      deleteClient(clientToDelete.id);
+      await deleteClient(clientToDelete.id);
       setClientToDelete(null);
       setDeleteDialogOpen(false);
       toast.success('Cliente excluído com sucesso!');
     }
   };
 
-  const handleRenewClient = (id: string) => {
+  const handleRenewClient = async (id: string) => {
     const client = clients.find(c => c.id === id);
     if (!client) return;
 
-    const newExpiresAt = renewClient(id);
+    const newExpiresAt = await renewClient(id);
     if (newExpiresAt) {
       toast.success(
         `Plano ${planLabels[client.plan]} renovado! Novo vencimento: ${format(newExpiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}`,
         { duration: 4000 }
       );
+    } else {
+      toast.error('Erro ao renovar plano');
     }
   };
 
@@ -130,6 +140,19 @@ const Index = () => {
     handleOpenEdit(client);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Logout realizado com sucesso!');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -163,10 +186,29 @@ const Index = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
               <Button onClick={() => setFormOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Novo Cliente</span>
               </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <User className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    {user?.email}
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -182,6 +224,9 @@ const Index = () => {
 
         {/* Stats */}
         <ClientStats clients={clients} />
+
+        {/* Charts */}
+        <ClientCharts clients={clients} />
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
