@@ -127,6 +127,33 @@ export type Database = {
           },
         ]
       }
+      phone_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone_numbers: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone_numbers?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone_numbers?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_settings: {
         Row: {
           created_at: string
