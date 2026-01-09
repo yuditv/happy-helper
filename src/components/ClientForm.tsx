@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Client, PlanType, planLabels, planDurations, planPrices, formatCurrency } from '@/types/client';
+import { Client, PlanType, planLabels, planDurations } from '@/types/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Phone, Mail, CreditCard, CalendarDays } from 'lucide-react';
+import { User, Phone, Mail, CreditCard, CalendarDays, DollarSign } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
 
 interface ClientFormProps {
@@ -31,6 +31,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [plan, setPlan] = useState<PlanType>('monthly');
+  const [price, setPrice] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
 
   useEffect(() => {
@@ -39,12 +40,14 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setWhatsapp(initialData.whatsapp);
       setEmail(initialData.email);
       setPlan(initialData.plan);
+      setPrice(initialData.price?.toString() || '');
       setExpiresAt(format(initialData.expiresAt, 'yyyy-MM-dd'));
     } else {
       setName('');
       setWhatsapp('');
       setEmail('');
       setPlan('monthly');
+      setPrice('');
       // Set default expiration based on plan
       setExpiresAt(format(addMonths(new Date(), planDurations['monthly']), 'yyyy-MM-dd'));
     }
@@ -69,6 +72,11 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
     setWhatsapp(formatWhatsapp(e.target.value));
   };
 
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+    setPrice(value);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({ 
@@ -76,6 +84,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       whatsapp, 
       email, 
       plan,
+      price: price ? parseFloat(price) : null,
       expiresAt: new Date(expiresAt + 'T23:59:59')
     });
     onOpenChange(false);
@@ -156,7 +165,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
                   <SelectContent>
                     {(Object.entries(planLabels) as [PlanType, string][]).map(([value, label]) => (
                       <SelectItem key={value} value={value}>
-                        {label} - {formatCurrency(planPrices[value])}
+                        {label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -165,20 +174,38 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="expiresAt" className="text-sm font-medium">
-                Vencimento
+              <Label htmlFor="price" className="text-sm font-medium">
+                Valor (R$)
               </Label>
               <div className="relative">
-                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="expiresAt"
-                  type="date"
-                  value={expiresAt}
-                  onChange={(e) => setExpiresAt(e.target.value)}
+                  id="price"
+                  type="text"
+                  inputMode="decimal"
+                  value={price}
+                  onChange={handlePriceChange}
+                  placeholder="0.00"
                   className="pl-10"
-                  required
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="expiresAt" className="text-sm font-medium">
+              Vencimento
+            </Label>
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="expiresAt"
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className="pl-10"
+                required
+              />
             </div>
           </div>
 

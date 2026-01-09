@@ -16,6 +16,7 @@ export interface Client {
   whatsapp: string;
   email: string;
   plan: PlanType;
+  price: number | null;
   createdAt: Date;
   expiresAt: Date;
   renewalHistory: RenewalRecord[];
