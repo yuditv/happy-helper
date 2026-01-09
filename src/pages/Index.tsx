@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -53,9 +53,13 @@ const Index = () => {
   const [notificationClient, setNotificationClient] = useState<Client | null>(null);
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'expiresAt' | 'plan'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const clientsPerPage = 12;
 
-  const filteredClients = useMemo(() => {
-    return clients.filter((client) => {
+  const filteredAndSortedClients = useMemo(() => {
+    const filtered = clients.filter((client) => {
       const matchesSearch =
         client.name.toLowerCase().includes(search.toLowerCase()) ||
         client.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -63,7 +67,36 @@ const Index = () => {
       const matchesPlan = planFilter === 'all' || client.plan === planFilter;
       return matchesSearch && matchesPlan;
     });
-  }, [clients, search, planFilter]);
+
+    // Sort clients
+    const planOrder: Record<PlanType, number> = { monthly: 1, quarterly: 2, semiannual: 3, annual: 4 };
+    
+    return filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name, 'pt-BR');
+      } else if (sortBy === 'expiresAt') {
+        comparison = a.expiresAt.getTime() - b.expiresAt.getTime();
+      } else if (sortBy === 'plan') {
+        comparison = planOrder[a.plan] - planOrder[b.plan];
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [clients, search, planFilter, sortBy, sortOrder]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedClients.length / clientsPerPage);
+  const paginatedClients = useMemo(() => {
+    const startIndex = (currentPage - 1) * clientsPerPage;
+    return filteredAndSortedClients.slice(startIndex, startIndex + clientsPerPage);
+  }, [filteredAndSortedClients, currentPage, clientsPerPage]);
+
+  // Reset page when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [search, planFilter, sortBy, sortOrder]);
 
   const totalRenewals = useMemo(() => {
     return clients.reduce((acc, c) => acc + (c.renewalHistory?.length || 0), 0);
@@ -154,8 +187,8 @@ const Index = () => {
       toast.error('Não há clientes para exportar');
       return;
     }
-    exportClientsToCSV(filteredClients);
-    toast.success(`${filteredClients.length} cliente(s) exportado(s) para CSV`);
+    exportClientsToCSV(filteredAndSortedClients);
+    toast.success(`${filteredAndSortedClients.length} cliente(s) exportado(s) para CSV`);
   };
 
   const handleExportRenewals = () => {
@@ -315,14 +348,41 @@ const Index = () => {
           <ClientStats clients={clients} />
         </div>
 
-        {/* Filters */}
+        {/* Filters & Sort */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between glass-card p-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <SearchBar value={search} onChange={setSearch} />
-          <PlanFilter selected={planFilter} onSelect={setPlanFilter} />
+          <div className="flex flex-wrap gap-2 items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 glass-card border-primary/30 hover:border-primary">
+                  <ArrowUpDown className="h-4 w-4" />
+                  <span className="hidden sm:inline">Ordenar:</span>
+                  <span className="font-medium">
+                    {sortBy === 'name' ? 'Nome' : sortBy === 'expiresAt' ? 'Vencimento' : 'Plano'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({sortOrder === 'asc' ? '↑' : '↓'})
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="glass-card border-border/50">
+                <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc'); }}>
+                  Nome {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setSortBy('expiresAt'); setSortOrder(sortBy === 'expiresAt' && sortOrder === 'asc' ? 'desc' : 'asc'); }}>
+                  Vencimento {sortBy === 'expiresAt' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setSortBy('plan'); setSortOrder(sortBy === 'plan' && sortOrder === 'asc' ? 'desc' : 'asc'); }}>
+                  Plano {sortBy === 'plan' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <PlanFilter selected={planFilter} onSelect={setPlanFilter} />
+          </div>
         </div>
 
         {/* Client Grid */}
-        {filteredClients.length === 0 ? (
+        {filteredAndSortedClients.length === 0 ? (
           <div className="text-center py-20 glass-card rounded-2xl">
             <div className="relative inline-block">
               <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 mx-auto flex items-center justify-center mb-6 float">
@@ -346,26 +406,86 @@ const Index = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filteredClients.map((client, index) => (
-              <div 
-                key={client.id} 
-                className="animate-fade-in"
-                style={{ animationDelay: `${0.05 * index}s` }}
-              >
-                <ClientCard
-                  client={client}
-                  onEdit={handleOpenEdit}
-                  onDelete={handleOpenDelete}
-                  onRenew={handleRenewClient}
-                  onViewHistory={handleViewHistory}
-                  onChangePlan={handleOpenChangePlan}
-                  onViewNotifications={handleViewNotifications}
-                  getPlanName={getPlanName}
-                />
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {paginatedClients.map((client, index) => (
+                <div 
+                  key={client.id} 
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${0.05 * index}s` }}
+                >
+                  <ClientCard
+                    client={client}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleOpenDelete}
+                    onRenew={handleRenewClient}
+                    onViewHistory={handleViewHistory}
+                    onChangePlan={handleOpenChangePlan}
+                    onViewNotifications={handleViewNotifications}
+                    getPlanName={getPlanName}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="glass-card border-primary/30 hover:border-primary"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      if (totalPages <= 7) return true;
+                      if (page === 1 || page === totalPages) return true;
+                      if (Math.abs(page - currentPage) <= 1) return true;
+                      return false;
+                    })
+                    .map((page, index, arr) => {
+                      const showEllipsis = index > 0 && page - arr[index - 1] > 1;
+                      return (
+                        <span key={page} className="flex items-center">
+                          {showEllipsis && <span className="px-2 text-muted-foreground">...</span>}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className={currentPage === page 
+                              ? "btn-futuristic text-primary-foreground min-w-[36px]" 
+                              : "glass-card border-primary/30 hover:border-primary min-w-[36px]"
+                            }
+                          >
+                            {page}
+                          </Button>
+                        </span>
+                      );
+                    })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="glass-card border-primary/30 hover:border-primary"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                <span className="text-sm text-muted-foreground ml-2">
+                  {filteredAndSortedClients.length} cliente(s)
+                </span>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         {/* Retention Metrics */}
