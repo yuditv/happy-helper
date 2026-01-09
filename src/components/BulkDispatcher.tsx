@@ -141,6 +141,12 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
 
   const handlePreviewSend = () => {
     playSendSound();
+    
+    // Haptic feedback (vibration)
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+    
     setShowMessageSent(true);
     setShowTypingAnimation(false);
     setTimeout(() => {
