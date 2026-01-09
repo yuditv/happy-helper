@@ -29,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock } from 'lucide-react';
 import { openWhatsApp } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -557,6 +557,10 @@ Qualquer dúvida, estamos à disposição. 😊`;
                   <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
                     <User className="h-4 w-4 mr-2 text-primary" />
                     Meu Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/scheduled')} className="hover:bg-primary/10">
+                    <Clock className="h-4 w-4 mr-2 text-accent" />
+                    Agendamentos
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
                     <Settings className="h-4 w-4 mr-2 text-primary" />
