@@ -4,7 +4,7 @@ import { PlanBadge } from './PlanBadge';
 import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle, Send, Bell } from 'lucide-react';
+import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle, Send, Bell, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -216,6 +216,15 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
             <Mail className="h-4 w-4" />
             <span className="truncate">{client.email}</span>
           </a>
+          
+          {/* Notes section */}
+          {client.notes && (
+            <div className="flex items-start gap-2 text-muted-foreground bg-secondary/30 rounded-lg p-2 mt-2">
+              <StickyNote className="h-4 w-4 flex-shrink-0 mt-0.5 text-primary" />
+              <p className="text-xs leading-relaxed line-clamp-2">{client.notes}</p>
+            </div>
+          )}
+          
           <div className="pt-2 border-t border-border/50 space-y-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-muted-foreground">

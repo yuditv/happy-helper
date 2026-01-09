@@ -3,6 +3,7 @@ import { Client, PlanType, ServiceType, planLabels, planDurations, serviceLabels
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Phone, Mail, CreditCard, CalendarDays, DollarSign, Tv } from 'lucide-react';
+import { User, Phone, Mail, CreditCard, CalendarDays, DollarSign, Tv, StickyNote } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
 
 interface ClientFormProps {
@@ -33,6 +34,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   const [service, setService] = useState<ServiceType>('IPTV');
   const [plan, setPlan] = useState<PlanType>('monthly');
   const [price, setPrice] = useState('');
+  const [notes, setNotes] = useState('');
   const [createdAt, setCreatedAt] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
 
@@ -44,6 +46,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setService(initialData.service);
       setPlan(initialData.plan);
       setPrice(initialData.price?.toString() || '');
+      setNotes(initialData.notes || '');
       setCreatedAt(format(initialData.createdAt, 'yyyy-MM-dd'));
       setExpiresAt(format(initialData.expiresAt, 'yyyy-MM-dd'));
     } else {
@@ -53,6 +56,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setService('IPTV');
       setPlan('monthly');
       setPrice('');
+      setNotes('');
       setCreatedAt(format(new Date(), 'yyyy-MM-dd'));
       // Set default expiration based on plan
       setExpiresAt(format(addMonths(new Date(), planDurations['monthly']), 'yyyy-MM-dd'));
@@ -92,6 +96,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       service,
       plan,
       price: price ? parseFloat(price) : null,
+      notes: notes.trim() || null,
       createdAt: new Date(createdAt + 'T00:00:00'),
       expiresAt: new Date(expiresAt + 'T23:59:59')
     });
@@ -255,6 +260,24 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
                 />
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes" className="text-sm font-medium">
+              Anotações (opcional)
+            </Label>
+            <div className="relative">
+              <StickyNote className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Adicione observações sobre o cliente..."
+                className="pl-10 min-h-[80px] resize-none"
+                maxLength={500}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-right">{notes.length}/500</p>
           </div>
 
           <div className="flex gap-3 pt-4">

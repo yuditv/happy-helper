@@ -25,6 +25,7 @@ export interface Client {
   service: ServiceType;
   plan: PlanType;
   price: number | null;
+  notes: string | null;
   createdAt: Date;
   expiresAt: Date;
   renewalHistory: RenewalRecord[];
