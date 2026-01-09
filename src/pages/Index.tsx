@@ -284,7 +284,7 @@ Qualquer dúvida, estamos à disposição. 😊`;
     clearSelection();
   };
 
-  const handleScheduleBulkMessage = async (customMessage: string, scheduledAt: Date) => {
+  const handleScheduleBulkMessage = async (customMessage: string, options: { scheduledAt: Date; recurrenceType: 'none' | 'daily' | 'weekly' | 'monthly'; recurrenceEndDate?: Date }) => {
     const selectedClientsList = clients.filter(c => selectedClients.has(c.id));
     const total = selectedClientsList.length;
     
@@ -310,8 +310,10 @@ Qualquer dúvida, estamos à disposição. 😊`;
           client_id: client.id,
           message_type: bulkMessageMode,
           custom_message: customMessage,
-          scheduled_at: scheduledAt.toISOString(),
+          scheduled_at: options.scheduledAt.toISOString(),
           status: 'pending',
+          recurrence_type: options.recurrenceType,
+          recurrence_end_date: options.recurrenceEndDate?.toISOString() || null,
         });
 
         if (error) {
@@ -330,8 +332,9 @@ Qualquer dúvida, estamos à disposição. 😊`;
 
     setIsSendingBulk(false);
     
+    const recurrenceLabel = options.recurrenceType !== 'none' ? ' (recorrente)' : '';
     if (successCount > 0) {
-      toast.success(`${successCount} mensagem(ns) agendada(s) para ${format(scheduledAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}!`);
+      toast.success(`${successCount} mensagem(ns) agendada(s)${recurrenceLabel} para ${format(options.scheduledAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}!`);
     }
     if (failCount > 0) {
       toast.error(`${failCount} agendamento(s) falhou(aram)`);

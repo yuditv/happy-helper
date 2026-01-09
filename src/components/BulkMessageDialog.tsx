@@ -7,10 +7,19 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { MessageCircle, Send, Loader2, CheckCircle, XCircle, Clock, CalendarIcon } from 'lucide-react';
+import { MessageCircle, Send, Loader2, CheckCircle, XCircle, Clock, CalendarIcon, Repeat } from 'lucide-react';
+
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly';
+
+interface ScheduleOptions {
+  scheduledAt: Date;
+  recurrenceType: RecurrenceType;
+  recurrenceEndDate?: Date;
+}
 
 interface BulkMessageDialogProps {
   open: boolean;
@@ -19,10 +28,17 @@ interface BulkMessageDialogProps {
   mode: 'whatsapp' | 'email';
   defaultMessage: string;
   onSend: (message: string) => Promise<void>;
-  onSchedule?: (message: string, scheduledAt: Date) => Promise<void>;
+  onSchedule?: (message: string, options: ScheduleOptions) => Promise<void>;
   progress?: { current: number; total: number; success: number; failed: number };
   isSending?: boolean;
 }
+
+const recurrenceLabels: Record<RecurrenceType, string> = {
+  none: 'Sem repetição',
+  daily: 'Diariamente',
+  weekly: 'Semanalmente',
+  monthly: 'Mensalmente',
+};
 
 export function BulkMessageDialog({
   open,
@@ -39,6 +55,8 @@ export function BulkMessageDialog({
   const [isScheduleMode, setIsScheduleMode] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [scheduledTime, setScheduledTime] = useState('09:00');
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('none');
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>();
 
   useEffect(() => {
     if (open) {
@@ -46,6 +64,8 @@ export function BulkMessageDialog({
       setIsScheduleMode(false);
       setScheduledDate(undefined);
       setScheduledTime('09:00');
+      setRecurrenceType('none');
+      setRecurrenceEndDate(undefined);
     }
   }, [open, defaultMessage]);
 
@@ -54,7 +74,11 @@ export function BulkMessageDialog({
       const [hours, minutes] = scheduledTime.split(':').map(Number);
       const scheduledAt = new Date(scheduledDate);
       scheduledAt.setHours(hours, minutes, 0, 0);
-      await onSchedule(message, scheduledAt);
+      await onSchedule(message, {
+        scheduledAt,
+        recurrenceType,
+        recurrenceEndDate,
+      });
     } else {
       await onSend(message);
     }
@@ -70,10 +94,11 @@ export function BulkMessageDialog({
   const isComplete = progress && progress.current === progress.total;
 
   const isScheduleValid = !isScheduleMode || (scheduledDate && scheduledTime);
+  const isRecurrenceValid = recurrenceType === 'none' || recurrenceEndDate;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {mode === 'whatsapp' ? (
@@ -127,43 +152,103 @@ export function BulkMessageDialog({
                 </div>
 
                 {isScheduleMode && (
-                  <div className="grid grid-cols-2 gap-3 animate-fade-in">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Data</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !scheduledDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {scheduledDate ? format(scheduledDate, "dd/MM/yyyy") : "Selecione"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={scheduledDate}
-                            onSelect={setScheduledDate}
-                            disabled={(date) => date < new Date()}
-                            initialFocus
-                            locale={ptBR}
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                  <div className="space-y-3 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Data</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !scheduledDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {scheduledDate ? format(scheduledDate, "dd/MM/yyyy") : "Selecione"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={scheduledDate}
+                              onSelect={setScheduledDate}
+                              disabled={(date) => date < new Date()}
+                              initialFocus
+                              locale={ptBR}
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Horário</Label>
+                        <Input
+                          type="time"
+                          value={scheduledTime}
+                          onChange={(e) => setScheduledTime(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Horário</Label>
-                      <Input
-                        type="time"
-                        value={scheduledTime}
-                        onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full"
-                      />
+
+                    {/* Recurrence options */}
+                    <div className="space-y-3 pt-2 border-t border-dashed">
+                      <div className="flex items-center gap-2">
+                        <Repeat className="h-4 w-4 text-muted-foreground" />
+                        <Label className="text-xs font-medium">Repetição</Label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Frequência</Label>
+                          <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as RecurrenceType)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(recurrenceLabels).map(([key, label]) => (
+                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {recurrenceType !== 'none' && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Até</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !recurrenceEndDate && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {recurrenceEndDate ? format(recurrenceEndDate, "dd/MM/yyyy") : "Selecione"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={recurrenceEndDate}
+                                  onSelect={setRecurrenceEndDate}
+                                  disabled={(date) => date < (scheduledDate || new Date())}
+                                  initialFocus
+                                  locale={ptBR}
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        )}
+                      </div>
+                      {recurrenceType !== 'none' && (
+                        <p className="text-xs text-muted-foreground">
+                          O envio será repetido {recurrenceLabels[recurrenceType].toLowerCase()} até a data final.
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -225,7 +310,7 @@ export function BulkMessageDialog({
               </Button>
               <Button
                 onClick={handleSend}
-                disabled={isSending || !message.trim() || !isScheduleValid}
+                disabled={isSending || !message.trim() || !isScheduleValid || !isRecurrenceValid}
                 className={mode === 'whatsapp' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}
               >
                 {isSending ? (
@@ -238,7 +323,7 @@ export function BulkMessageDialog({
                     {isScheduleMode ? (
                       <>
                         <Clock className="h-4 w-4" />
-                        Agendar
+                        {recurrenceType !== 'none' ? 'Agendar recorrente' : 'Agendar'}
                       </>
                     ) : (
                       <>

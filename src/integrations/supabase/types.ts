@@ -260,6 +260,9 @@ export type Database = {
           error_message: string | null
           id: string
           message_type: string
+          parent_id: string | null
+          recurrence_end_date: string | null
+          recurrence_type: string | null
           scheduled_at: string
           sent_at: string | null
           status: string
@@ -273,6 +276,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_type: string
+          parent_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_type?: string | null
           scheduled_at: string
           sent_at?: string | null
           status?: string
@@ -286,6 +292,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_type?: string
+          parent_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_type?: string | null
           scheduled_at?: string
           sent_at?: string | null
           status?: string
@@ -298,6 +307,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_messages"
             referencedColumns: ["id"]
           },
         ]

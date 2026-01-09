@@ -28,8 +28,12 @@ import {
   AlertCircle,
   Loader2,
   Bell,
-  BellOff
+  BellOff,
+  Repeat,
+  BarChart3
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MessageReport } from '@/components/MessageReport';
 
 interface ScheduledMessage {
   id: string;
@@ -41,12 +45,21 @@ interface ScheduledMessage {
   sent_at: string | null;
   error_message: string | null;
   created_at: string;
+  recurrence_type?: 'none' | 'daily' | 'weekly' | 'monthly';
+  recurrence_end_date?: string | null;
   client?: {
     name: string;
     email: string;
     whatsapp: string;
   };
 }
+
+const recurrenceLabels: Record<string, string> = {
+  none: 'Sem repetição',
+  daily: 'Diário',
+  weekly: 'Semanal',
+  monthly: 'Mensal',
+};
 
 export default function ScheduledMessages() {
   const navigate = useNavigate();
@@ -301,33 +314,46 @@ export default function ScheduledMessages() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setFilter('all')}>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold">{messages.length}</div>
-              <p className="text-sm text-muted-foreground">Total</p>
-            </CardContent>
-          </Card>
-          <Card className={cn("cursor-pointer hover:border-amber-500/50 transition-colors", filter === 'pending' && "border-amber-500")} onClick={() => setFilter('pending')}>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-amber-500">{pendingCount}</div>
-              <p className="text-sm text-muted-foreground">Pendentes</p>
-            </CardContent>
-          </Card>
-          <Card className={cn("cursor-pointer hover:border-green-500/50 transition-colors", filter === 'sent' && "border-green-500")} onClick={() => setFilter('sent')}>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-green-500">{sentCount}</div>
-              <p className="text-sm text-muted-foreground">Enviados</p>
-            </CardContent>
-          </Card>
-          <Card className={cn("cursor-pointer hover:border-red-500/50 transition-colors", filter === 'failed' && "border-red-500")} onClick={() => setFilter('failed')}>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-red-500">{failedCount}</div>
-              <p className="text-sm text-muted-foreground">Falharam</p>
-            </CardContent>
-          </Card>
-        </div>
+        <Tabs defaultValue="messages" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="messages" className="gap-2">
+              <Clock className="h-4 w-4" />
+              Agendamentos
+            </TabsTrigger>
+            <TabsTrigger value="report" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Relatório
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="messages" className="space-y-6">
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setFilter('all')}>
+                <CardContent className="pt-4">
+                  <div className="text-2xl font-bold">{messages.length}</div>
+                  <p className="text-sm text-muted-foreground">Total</p>
+                </CardContent>
+              </Card>
+              <Card className={cn("cursor-pointer hover:border-amber-500/50 transition-colors", filter === 'pending' && "border-amber-500")} onClick={() => setFilter('pending')}>
+                <CardContent className="pt-4">
+                  <div className="text-2xl font-bold text-amber-500">{pendingCount}</div>
+                  <p className="text-sm text-muted-foreground">Pendentes</p>
+                </CardContent>
+              </Card>
+              <Card className={cn("cursor-pointer hover:border-green-500/50 transition-colors", filter === 'sent' && "border-green-500")} onClick={() => setFilter('sent')}>
+                <CardContent className="pt-4">
+                  <div className="text-2xl font-bold text-green-500">{sentCount}</div>
+                  <p className="text-sm text-muted-foreground">Enviados</p>
+                </CardContent>
+              </Card>
+              <Card className={cn("cursor-pointer hover:border-red-500/50 transition-colors", filter === 'failed' && "border-red-500")} onClick={() => setFilter('failed')}>
+                <CardContent className="pt-4">
+                  <div className="text-2xl font-bold text-red-500">{failedCount}</div>
+                  <p className="text-sm text-muted-foreground">Falharam</p>
+                </CardContent>
+              </Card>
+            </div>
 
         {/* Messages List */}
         {filteredMessages.length === 0 ? (
@@ -366,15 +392,27 @@ export default function ScheduledMessages() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium">{message.client?.name || 'Cliente removido'}</span>
                           {getStatusBadge(message.status)}
+                          {message.recurrence_type && message.recurrence_type !== 'none' && (
+                            <Badge variant="outline" className="border-purple-500/50 text-purple-500 text-xs">
+                              <Repeat className="h-3 w-3 mr-1" />
+                              {recurrenceLabels[message.recurrence_type]}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
                           {message.message_type === 'whatsapp' ? message.client?.whatsapp : message.client?.email}
                         </p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="h-3 w-3" />
                             {format(new Date(message.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                           </span>
+                          {message.recurrence_end_date && (
+                            <span className="flex items-center gap-1">
+                              <Repeat className="h-3 w-3" />
+                              Até: {format(new Date(message.recurrence_end_date), "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                          )}
                           {message.sent_at && (
                             <span className="flex items-center gap-1">
                               <CheckCircle className="h-3 w-3" />
@@ -421,6 +459,12 @@ export default function ScheduledMessages() {
             ))}
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="report">
+            <MessageReport />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Edit Dialog */}
