@@ -39,17 +39,17 @@ export const planDurations: Record<PlanType, number> = {
 // Preços em reais
 export const planPrices: Record<PlanType, number> = {
   monthly: 99.90,
-  quarterly: 269.90,
+  quarterly: 54.99,
   semiannual: 499.90,
-  annual: 899.90,
+  annual: 149.99,
 };
 
 // Preço mensal equivalente (para cálculo de MRR)
 export const planMonthlyEquivalent: Record<PlanType, number> = {
   monthly: 99.90,
-  quarterly: 269.90 / 3,
+  quarterly: 54.99 / 3,
   semiannual: 499.90 / 6,
-  annual: 899.90 / 12,
+  annual: 149.99 / 12,
 };
 
 export const formatCurrency = (value: number): string => {
