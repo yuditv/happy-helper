@@ -44,7 +44,9 @@ import {
   FolderOpen,
   Trash2,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 interface PhoneGroup {
@@ -110,6 +112,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Preview state
+  const [previewTheme, setPreviewTheme] = useState<'dark' | 'light'>('dark');
+  const [showTypingAnimation, setShowTypingAnimation] = useState(true);
   
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
@@ -860,24 +866,55 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
 
         {/* Message Preview - Phone Mockup */}
         {customMessage.trim() && (
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <MessageCircle className="h-3 w-3" />
-              Prévia da mensagem
-            </Label>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <MessageCircle className="h-3 w-3" />
+                Prévia da mensagem
+              </Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPreviewTheme(previewTheme === 'dark' ? 'light' : 'dark')}
+                  className="h-7 px-2 gap-1"
+                >
+                  {previewTheme === 'dark' ? (
+                    <>
+                      <Sun className="h-3 w-3" />
+                      <span className="text-xs">Claro</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-3 w-3" />
+                      <span className="text-xs">Escuro</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
             
             {/* Phone Frame */}
             <div className="flex justify-center">
-              <div className="relative w-[280px] h-[500px] bg-black rounded-[40px] p-2 shadow-2xl border-4 border-gray-800">
+              <div className="relative w-[280px] h-[520px] bg-black rounded-[40px] p-2 shadow-2xl border-4 border-gray-800">
                 {/* Phone notch */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-2xl z-20" />
                 
                 {/* Phone screen */}
-                <div className="w-full h-full bg-[#0B141A] rounded-[32px] overflow-hidden flex flex-col">
+                <div className={cn(
+                  "w-full h-full rounded-[32px] overflow-hidden flex flex-col transition-colors duration-300",
+                  previewTheme === 'dark' ? "bg-[#0B141A]" : "bg-[#EFEAE2]"
+                )}>
                   {/* WhatsApp Header */}
-                  <div className="bg-[#1F2C33] px-3 py-2 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                      <Users className="h-4 w-4 text-gray-300" />
+                  <div className={cn(
+                    "px-3 py-2 flex items-center gap-3 transition-colors duration-300",
+                    previewTheme === 'dark' ? "bg-[#1F2C33]" : "bg-[#008069]"
+                  )}>
+                    <div className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center",
+                      previewTheme === 'dark' ? "bg-gray-600" : "bg-white/20"
+                    )}>
+                      <Users className={cn("h-4 w-4", previewTheme === 'dark' ? "text-gray-300" : "text-white")} />
                     </div>
                     <div className="flex-1">
                       <p className="text-white text-sm font-medium truncate">
@@ -886,21 +923,57 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                           : 'Destinatário'
                         }
                       </p>
-                      <p className="text-gray-400 text-xs">online</p>
+                      <p className={cn(
+                        "text-xs transition-colors",
+                        previewTheme === 'dark' ? "text-gray-400" : "text-white/80"
+                      )}>
+                        {showTypingAnimation ? 'digitando...' : 'online'}
+                      </p>
                     </div>
                   </div>
                   
                   {/* Chat background */}
                   <div 
-                    className="flex-1 p-3 overflow-y-auto"
+                    className="flex-1 p-3 overflow-y-auto flex flex-col justify-end gap-2"
                     style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                      backgroundColor: '#0B141A'
+                      backgroundImage: previewTheme === 'dark' 
+                        ? `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+                        : `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                      backgroundColor: previewTheme === 'dark' ? '#0B141A' : '#EFEAE2'
                     }}
                   >
+                    {/* Typing indicator */}
+                    {showTypingAnimation && (
+                      <div className={cn(
+                        "p-3 rounded-lg max-w-[70%] shadow-sm rounded-tl-none animate-fade-in",
+                        previewTheme === 'dark' ? "bg-[#1F2C33]" : "bg-white"
+                      )}>
+                        <div className="flex items-center gap-1">
+                          <div className={cn(
+                            "w-2 h-2 rounded-full animate-bounce",
+                            previewTheme === 'dark' ? "bg-gray-400" : "bg-gray-500"
+                          )} style={{ animationDelay: '0ms' }} />
+                          <div className={cn(
+                            "w-2 h-2 rounded-full animate-bounce",
+                            previewTheme === 'dark' ? "bg-gray-400" : "bg-gray-500"
+                          )} style={{ animationDelay: '150ms' }} />
+                          <div className={cn(
+                            "w-2 h-2 rounded-full animate-bounce",
+                            previewTheme === 'dark' ? "bg-gray-400" : "bg-gray-500"
+                          )} style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Message bubble */}
-                    <div className="bg-[#005C4B] p-3 rounded-lg max-w-[90%] ml-auto shadow-md rounded-tr-none">
-                      <p className="text-[13px] text-white whitespace-pre-wrap leading-relaxed">
+                    <div className={cn(
+                      "p-3 rounded-lg max-w-[90%] ml-auto shadow-md rounded-tr-none animate-fade-in",
+                      previewTheme === 'dark' ? "bg-[#005C4B]" : "bg-[#D9FDD3]"
+                    )}>
+                      <p className={cn(
+                        "text-[13px] whitespace-pre-wrap leading-relaxed",
+                        previewTheme === 'dark' ? "text-white" : "text-gray-800"
+                      )}>
                         {targetMode === 'clients' && filteredClients.length > 0
                           ? customMessage
                               .replace(/{nome}/g, filteredClients[0]?.name || 'João')
@@ -911,7 +984,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                         }
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
-                        <span className="text-[10px] text-gray-300">
+                        <span className={cn(
+                          "text-[10px]",
+                          previewTheme === 'dark' ? "text-gray-300" : "text-gray-500"
+                        )}>
                           {format(new Date(), 'HH:mm')}
                         </span>
                         <svg className="w-4 h-3 text-blue-400" viewBox="0 0 16 11" fill="currentColor">
@@ -922,9 +998,18 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                   </div>
                   
                   {/* Input bar */}
-                  <div className="bg-[#1F2C33] px-3 py-2 flex items-center gap-2">
-                    <div className="flex-1 bg-[#2A3942] rounded-full px-4 py-2">
-                      <span className="text-gray-500 text-sm">Mensagem</span>
+                  <div className={cn(
+                    "px-3 py-2 flex items-center gap-2 transition-colors duration-300",
+                    previewTheme === 'dark' ? "bg-[#1F2C33]" : "bg-[#F0F2F5]"
+                  )}>
+                    <div className={cn(
+                      "flex-1 rounded-full px-4 py-2 transition-colors duration-300",
+                      previewTheme === 'dark' ? "bg-[#2A3942]" : "bg-white"
+                    )}>
+                      <span className={cn(
+                        "text-sm",
+                        previewTheme === 'dark' ? "text-gray-500" : "text-gray-400"
+                      )}>Mensagem</span>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center">
                       <Send className="h-5 w-5 text-white" />
