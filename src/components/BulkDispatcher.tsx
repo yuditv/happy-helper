@@ -361,6 +361,18 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: 0 });
       }
 
+      // Save to history
+      await supabase.from('bulk_dispatch_history').insert({
+        user_id: user!.id,
+        dispatch_type: 'whatsapp',
+        target_type: 'numbers',
+        total_recipients: phoneNumbers.length,
+        success_count: successCount,
+        failed_count: 0,
+        message_content: customMessage,
+        phone_group_id: selectedGroupId || null,
+      });
+
       toast.success(`WhatsApp aberto para ${successCount} número(s)!`);
       setIsSending(false);
       onComplete?.();
@@ -454,6 +466,18 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         }
         setProgress({ current: i + 1, total: selectedClients.length, success: successCount, failed: failCount });
       }
+
+      // Save to history
+      await supabase.from('bulk_dispatch_history').insert({
+        user_id: user!.id,
+        dispatch_type: messageMode,
+        target_type: 'clients',
+        total_recipients: selectedClients.length,
+        success_count: successCount,
+        failed_count: failCount,
+        message_content: customMessage,
+        client_filter: clientFilter,
+      });
 
       if (messageMode === 'whatsapp') {
         toast.success(`WhatsApp aberto para ${successCount} cliente(s)!`);
@@ -833,6 +857,36 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             }
           </p>
         </div>
+
+        {/* Message Preview */}
+        {customMessage.trim() && (
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+              <MessageCircle className="h-3 w-3" />
+              Prévia da mensagem
+            </Label>
+            <div className="bg-[#075E54] p-4 rounded-lg">
+              <div className="bg-[#DCF8C6] p-3 rounded-lg max-w-[85%] ml-auto shadow-sm">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  {targetMode === 'clients' && filteredClients.length > 0
+                    ? customMessage
+                        .replace(/{nome}/g, filteredClients[0]?.name || 'João')
+                        .replace(/{plano}/g, filteredClients[0]?.plan ? getPlanName(filteredClients[0].plan) : 'Mensal')
+                        .replace(/{dias}/g, String(Math.abs(getDaysUntilExpiration(filteredClients[0]?.expiresAt || new Date()))))
+                        .replace(/{vencimento}/g, format(filteredClients[0]?.expiresAt || new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }))
+                    : customMessage
+                  }
+                </p>
+                <p className="text-[10px] text-gray-500 text-right mt-1">
+                  {format(new Date(), 'HH:mm')}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground italic">
+              Prévia estilo WhatsApp {targetMode === 'clients' && filteredClients.length > 0 ? `(exemplo com: ${filteredClients[0]?.name})` : ''}
+            </p>
+          </div>
+        )}
 
         {/* Progress */}
         {isSending && (

@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      bulk_dispatch_history: {
+        Row: {
+          client_filter: string | null
+          created_at: string
+          dispatch_type: string
+          failed_count: number
+          id: string
+          message_content: string | null
+          phone_group_id: string | null
+          success_count: number
+          target_type: string
+          total_recipients: number
+          user_id: string
+        }
+        Insert: {
+          client_filter?: string | null
+          created_at?: string
+          dispatch_type?: string
+          failed_count?: number
+          id?: string
+          message_content?: string | null
+          phone_group_id?: string | null
+          success_count?: number
+          target_type?: string
+          total_recipients?: number
+          user_id: string
+        }
+        Update: {
+          client_filter?: string | null
+          created_at?: string
+          dispatch_type?: string
+          failed_count?: number
+          id?: string
+          message_content?: string | null
+          phone_group_id?: string | null
+          success_count?: number
+          target_type?: string
+          total_recipients?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_dispatch_history_phone_group_id_fkey"
+            columns: ["phone_group_id"]
+            isOneToOne: false
+            referencedRelation: "phone_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string
