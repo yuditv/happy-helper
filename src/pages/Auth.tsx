@@ -6,20 +6,23 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Users, Mail, Lock, Loader2 } from 'lucide-react';
+import { Users, Mail, Lock, Loader2, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'A senha deve ter pelo menos 6 caracteres');
+const whatsappSchema = z.string().min(10, 'WhatsApp deve ter pelo menos 10 dígitos').regex(/^[0-9]+$/, 'WhatsApp deve conter apenas números');
 
 export default function Auth() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
 
-  const validateForm = () => {
+  const validateForm = (isSignUp = false) => {
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
       toast.error(emailResult.error.errors[0].message);
@@ -30,6 +33,19 @@ export default function Auth() {
       toast.error(passwordResult.error.errors[0].message);
       return false;
     }
+    
+    if (isSignUp) {
+      if (password !== confirmPassword) {
+        toast.error('As senhas não coincidem');
+        return false;
+      }
+      const whatsappResult = whatsappSchema.safeParse(whatsapp);
+      if (!whatsappResult.success) {
+        toast.error(whatsappResult.error.errors[0].message);
+        return false;
+      }
+    }
+    
     return true;
   };
 
@@ -55,7 +71,7 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm(true)) return;
 
     setIsLoading(true);
     const redirectUrl = `${window.location.origin}/`;
@@ -64,7 +80,10 @@ export default function Auth() {
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl
+        emailRedirectTo: redirectUrl,
+        data: {
+          whatsapp: whatsapp
+        }
       }
     });
 
@@ -157,6 +176,21 @@ export default function Auth() {
                   </div>
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="signup-whatsapp">WhatsApp</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-whatsapp"
+                      type="tel"
+                      placeholder="11999999999"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ''))}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="signup-password">Senha</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -166,6 +200,21 @@ export default function Auth() {
                       placeholder="Mínimo 6 caracteres"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-confirm-password">Confirmar Senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-confirm-password"
+                      type="password"
+                      placeholder="Repita a senha"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                       className="pl-10"
                       required
                     />
