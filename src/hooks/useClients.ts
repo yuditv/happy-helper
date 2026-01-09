@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Client, PlanType } from '@/types/client';
+import { useState, useEffect, useMemo } from 'react';
+import { Client, PlanType, getExpirationStatus } from '@/types/client';
 
 const STORAGE_KEY = 'clients';
 
@@ -11,7 +11,11 @@ export function useClients() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      setClients(parsed.map((c: Client) => ({ ...c, createdAt: new Date(c.createdAt) })));
+      setClients(parsed.map((c: Client) => ({ 
+        ...c, 
+        createdAt: new Date(c.createdAt),
+        expiresAt: new Date(c.expiresAt)
+      })));
     }
     setIsLoading(false);
   }, []);
@@ -46,6 +50,14 @@ export function useClients() {
     return clients.filter(c => c.plan === plan);
   };
 
+  const expiringClients = useMemo(() => {
+    return clients.filter(c => getExpirationStatus(c.expiresAt) === 'expiring');
+  }, [clients]);
+
+  const expiredClients = useMemo(() => {
+    return clients.filter(c => getExpirationStatus(c.expiresAt) === 'expired');
+  }, [clients]);
+
   return {
     clients,
     isLoading,
@@ -53,5 +65,7 @@ export function useClients() {
     updateClient,
     deleteClient,
     getClientsByPlan,
+    expiringClients,
+    expiredClients,
   };
 }
