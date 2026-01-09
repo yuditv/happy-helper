@@ -858,32 +858,87 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           </p>
         </div>
 
-        {/* Message Preview */}
+        {/* Message Preview - Phone Mockup */}
         {customMessage.trim() && (
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
               <MessageCircle className="h-3 w-3" />
               Prévia da mensagem
             </Label>
-            <div className="bg-[#075E54] p-4 rounded-lg">
-              <div className="bg-[#DCF8C6] p-3 rounded-lg max-w-[85%] ml-auto shadow-sm">
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                  {targetMode === 'clients' && filteredClients.length > 0
-                    ? customMessage
-                        .replace(/{nome}/g, filteredClients[0]?.name || 'João')
-                        .replace(/{plano}/g, filteredClients[0]?.plan ? getPlanName(filteredClients[0].plan) : 'Mensal')
-                        .replace(/{dias}/g, String(Math.abs(getDaysUntilExpiration(filteredClients[0]?.expiresAt || new Date()))))
-                        .replace(/{vencimento}/g, format(filteredClients[0]?.expiresAt || new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }))
-                    : customMessage
-                  }
-                </p>
-                <p className="text-[10px] text-gray-500 text-right mt-1">
-                  {format(new Date(), 'HH:mm')}
-                </p>
+            
+            {/* Phone Frame */}
+            <div className="flex justify-center">
+              <div className="relative w-[280px] h-[500px] bg-black rounded-[40px] p-2 shadow-2xl border-4 border-gray-800">
+                {/* Phone notch */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-2xl z-20" />
+                
+                {/* Phone screen */}
+                <div className="w-full h-full bg-[#0B141A] rounded-[32px] overflow-hidden flex flex-col">
+                  {/* WhatsApp Header */}
+                  <div className="bg-[#1F2C33] px-3 py-2 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-gray-300" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm font-medium truncate">
+                        {targetMode === 'clients' && filteredClients.length > 0
+                          ? filteredClients[0]?.name
+                          : 'Destinatário'
+                        }
+                      </p>
+                      <p className="text-gray-400 text-xs">online</p>
+                    </div>
+                  </div>
+                  
+                  {/* Chat background */}
+                  <div 
+                    className="flex-1 p-3 overflow-y-auto"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                      backgroundColor: '#0B141A'
+                    }}
+                  >
+                    {/* Message bubble */}
+                    <div className="bg-[#005C4B] p-3 rounded-lg max-w-[90%] ml-auto shadow-md rounded-tr-none">
+                      <p className="text-[13px] text-white whitespace-pre-wrap leading-relaxed">
+                        {targetMode === 'clients' && filteredClients.length > 0
+                          ? customMessage
+                              .replace(/{nome}/g, filteredClients[0]?.name || 'João')
+                              .replace(/{plano}/g, filteredClients[0]?.plan ? getPlanName(filteredClients[0].plan) : 'Mensal')
+                              .replace(/{dias}/g, String(Math.abs(getDaysUntilExpiration(filteredClients[0]?.expiresAt || new Date()))))
+                              .replace(/{vencimento}/g, format(filteredClients[0]?.expiresAt || new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }))
+                          : customMessage
+                        }
+                      </p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <span className="text-[10px] text-gray-300">
+                          {format(new Date(), 'HH:mm')}
+                        </span>
+                        <svg className="w-4 h-3 text-blue-400" viewBox="0 0 16 11" fill="currentColor">
+                          <path d="M11.071.653a.457.457 0 0 0-.304-.102.493.493 0 0 0-.381.178l-6.19 7.636-2.405-2.272a.463.463 0 0 0-.336-.146.47.47 0 0 0-.343.146l-.311.31a.445.445 0 0 0-.14.337c0 .136.047.25.14.343l2.996 2.996a.724.724 0 0 0 .241.178.644.644 0 0 0 .724-.14l6.67-8.227a.46.46 0 0 0 .102-.39.485.485 0 0 0-.178-.336l-.285-.311zm3.618 0a.457.457 0 0 0-.304-.102.493.493 0 0 0-.381.178l-6.19 7.636-1.026-.968-.96.96 1.704 1.704a.724.724 0 0 0 .241.178.644.644 0 0 0 .724-.14l6.67-8.227a.46.46 0 0 0 .102-.39.485.485 0 0 0-.178-.336l-.285-.311-.117-.182z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Input bar */}
+                  <div className="bg-[#1F2C33] px-3 py-2 flex items-center gap-2">
+                    <div className="flex-1 bg-[#2A3942] rounded-full px-4 py-2">
+                      <span className="text-gray-500 text-sm">Mensagem</span>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center">
+                      <Send className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground italic">
-              Prévia estilo WhatsApp {targetMode === 'clients' && filteredClients.length > 0 ? `(exemplo com: ${filteredClients[0]?.name})` : ''}
+            
+            <p className="text-xs text-muted-foreground italic text-center">
+              {targetMode === 'clients' && filteredClients.length > 0 
+                ? `Exemplo com: ${filteredClients[0]?.name}` 
+                : 'Prévia de como a mensagem aparecerá'
+              }
             </p>
           </div>
         )}
