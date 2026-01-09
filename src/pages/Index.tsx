@@ -22,12 +22,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { exportClientsToCSV, exportRenewalHistoryToCSV } from '@/lib/exportClients';
+import { exportReportToPDF } from '@/lib/exportPDF';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -153,6 +154,15 @@ const Index = () => {
     toast.success(`Histórico de renovações exportado para CSV`);
   };
 
+  const handleExportPDF = () => {
+    if (clients.length === 0) {
+      toast.error('Não há clientes para exportar');
+      return;
+    }
+    exportReportToPDF(clients, getPlanName);
+    toast.success('Relatório exportado para PDF');
+  };
+
   const handleFormClose = (open: boolean) => {
     setFormOpen(open);
     if (!open) {
@@ -207,6 +217,11 @@ const Index = () => {
                   <DropdownMenuItem onClick={handleExportRenewals}>
                     <History className="h-4 w-4 mr-2" />
                     Exportar Renovações (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleExportPDF}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Relatório Completo (PDF)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
