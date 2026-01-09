@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, User, Phone, Save } from 'lucide-react';
+import { ArrowLeft, Camera, User, Phone, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +22,7 @@ const unformatWhatsApp = (value: string): string => {
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { profile, isLoading, isSaving, updateProfile, uploadAvatar } = useProfile();
+  const { profile, isLoading, isSaving, updateProfile, uploadAvatar, removeAvatar } = useProfile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [displayName, setDisplayName] = useState('');
@@ -101,14 +101,28 @@ export default function Profile() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
                   onChange={handleFileChange}
                   className="hidden"
                 />
               </div>
-              <p className="text-sm text-muted-foreground">
-                Clique na foto para alterar
-              </p>
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Clique na foto para alterar (máx. 5MB)
+                </p>
+                {profile?.avatar_url && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeAvatar}
+                    disabled={isSaving}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Remover foto
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -86,6 +86,28 @@ export function useProfile() {
   const uploadAvatar = async (file: File) => {
     if (!user) return;
 
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ 
+        title: 'Tipo de arquivo inválido', 
+        description: 'Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast({ 
+        title: 'Arquivo muito grande', 
+        description: 'O tamanho máximo permitido é 5MB.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const fileExt = file.name.split('.').pop();
@@ -121,12 +143,42 @@ export function useProfile() {
     }
   };
 
+  const removeAvatar = async () => {
+    if (!user || !profile?.avatar_url) return;
+
+    setIsSaving(true);
+    try {
+      // Extract file path from URL
+      const urlParts = profile.avatar_url.split('/avatars/');
+      if (urlParts[1]) {
+        const filePath = urlParts[1].split('?')[0]; // Remove query params
+        await supabase.storage.from('avatars').remove([filePath]);
+      }
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => prev ? { ...prev, avatar_url: null } : null);
+      toast({ title: 'Foto de perfil removida!' });
+    } catch (error: any) {
+      console.error('Error removing avatar:', error);
+      toast({ title: 'Erro ao remover foto', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return {
     profile,
     isLoading,
     isSaving,
     updateProfile,
     uploadAvatar,
+    removeAvatar,
     refetch: fetchProfile
   };
 }
