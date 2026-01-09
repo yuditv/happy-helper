@@ -50,6 +50,36 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_settings: {
+        Row: {
+          created_at: string
+          id: string
+          plan_key: string
+          plan_name: string
+          plan_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_key: string
+          plan_name: string
+          plan_price: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_key?: string
+          plan_name?: string
+          plan_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       renewal_history: {
         Row: {
           client_id: string

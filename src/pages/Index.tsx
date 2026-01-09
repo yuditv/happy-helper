@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientForm } from '@/components/ClientForm';
+import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { ClientStats } from '@/components/ClientStats';
 import { ClientCharts } from '@/components/ClientCharts';
 import { SearchBar } from '@/components/SearchBar';
@@ -20,14 +21,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { exportClientsToCSV, exportRenewalHistoryToCSV } from '@/lib/exportClients';
 
 const Index = () => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -222,6 +226,10 @@ const Index = () => {
                     {user?.email}
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configurações
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Sair
@@ -285,6 +293,7 @@ const Index = () => {
                 onRenew={handleRenewClient}
                 onViewHistory={handleViewHistory}
                 onChangePlan={handleOpenChangePlan}
+                getPlanName={getPlanName}
               />
             ))}
           </div>

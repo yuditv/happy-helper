@@ -1,12 +1,13 @@
-import { Client, planLabels, getExpirationStatus, planPrices, formatCurrency } from '@/types/client';
+import { Client, planLabels, getExpirationStatus, getDaysUntilExpiration, planPrices, formatCurrency } from '@/types/client';
 import { PlanBadge } from './PlanBadge';
 import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft } from 'lucide-react';
+import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { generateExpirationMessage, openWhatsApp } from '@/lib/whatsapp';
 
 interface ClientCardProps {
   client: Client;
@@ -15,13 +16,25 @@ interface ClientCardProps {
   onRenew: (id: string) => void;
   onViewHistory: (client: Client) => void;
   onChangePlan: (client: Client) => void;
+  getPlanName?: (plan: string) => string;
 }
 
-export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, onChangePlan }: ClientCardProps) {
+export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, onChangePlan, getPlanName }: ClientCardProps) {
   const whatsappLink = `https://wa.me/${client.whatsapp.replace(/\D/g, '')}`;
   const status = getExpirationStatus(client.expiresAt);
   const needsAttention = status === 'expiring' || status === 'expired';
   const hasHistory = client.renewalHistory && client.renewalHistory.length > 0;
+  const daysRemaining = getDaysUntilExpiration(client.expiresAt);
+  const planName = getPlanName ? getPlanName(client.plan) : planLabels[client.plan];
+
+  const handleSendWhatsApp = () => {
+    const message = generateExpirationMessage({
+      client,
+      planName,
+      daysRemaining,
+    });
+    openWhatsApp(client.whatsapp, message);
+  };
 
   return (
     <Card className={cn(
@@ -112,29 +125,42 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 mt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5"
-            onClick={() => onChangePlan(client)}
-          >
-            <ArrowRightLeft className="h-3.5 w-3.5" />
-            Trocar Plano
-          </Button>
-          <Button
-            variant={needsAttention ? "default" : "outline"}
-            size="sm"
-            className={cn(
-              "flex-1 gap-1.5",
-              needsAttention && status === 'expired' && "bg-destructive hover:bg-destructive/90",
-              needsAttention && status === 'expiring' && "bg-plan-annual hover:bg-plan-annual/90"
-            )}
-            onClick={() => onRenew(client.id)}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Renovar
-          </Button>
+        <div className="flex flex-col gap-2 mt-4">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1.5"
+              onClick={() => onChangePlan(client)}
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              Trocar Plano
+            </Button>
+            <Button
+              variant={needsAttention ? "default" : "outline"}
+              size="sm"
+              className={cn(
+                "flex-1 gap-1.5",
+                needsAttention && status === 'expired' && "bg-destructive hover:bg-destructive/90",
+                needsAttention && status === 'expiring' && "bg-plan-annual hover:bg-plan-annual/90"
+              )}
+              onClick={() => onRenew(client.id)}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Renovar
+            </Button>
+          </div>
+          {needsAttention && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-green-600 border-green-600/30 hover:bg-green-600/10"
+              onClick={handleSendWhatsApp}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Enviar Lembrete WhatsApp
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
