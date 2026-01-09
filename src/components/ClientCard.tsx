@@ -3,7 +3,7 @@ import { PlanBadge } from './PlanBadge';
 import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw } from 'lucide-react';
+import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -13,12 +13,14 @@ interface ClientCardProps {
   onEdit: (client: Client) => void;
   onDelete: (id: string) => void;
   onRenew: (id: string) => void;
+  onViewHistory: (client: Client) => void;
 }
 
-export function ClientCard({ client, onEdit, onDelete, onRenew }: ClientCardProps) {
+export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory }: ClientCardProps) {
   const whatsappLink = `https://wa.me/${client.whatsapp.replace(/\D/g, '')}`;
   const status = getExpirationStatus(client.expiresAt);
   const needsAttention = status === 'expiring' || status === 'expired';
+  const hasHistory = client.renewalHistory && client.renewalHistory.length > 0;
 
   return (
     <Card className={cn(
@@ -38,6 +40,17 @@ export function ClientCard({ client, onEdit, onDelete, onRenew }: ClientCardProp
             </div>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {hasHistory && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                onClick={() => onViewHistory(client)}
+                title="Ver histórico"
+              >
+                <History className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -74,11 +87,21 @@ export function ClientCard({ client, onEdit, onDelete, onRenew }: ClientCardProp
             <Mail className="h-4 w-4" />
             <span className="truncate">{client.email}</span>
           </a>
-          <div className="flex items-center gap-2 text-muted-foreground pt-2 border-t border-border/50">
-            <Calendar className="h-4 w-4" />
-            <span className="text-xs">
-              Vence em {format(client.expiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}
-            </span>
+          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span className="text-xs">
+                Vence em {format(client.expiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}
+              </span>
+            </div>
+            {hasHistory && (
+              <button
+                onClick={() => onViewHistory(client)}
+                className="text-xs text-primary hover:underline"
+              >
+                {client.renewalHistory.length} renovação{client.renewalHistory.length > 1 ? 'ões' : ''}
+              </button>
+            )}
           </div>
         </div>
 

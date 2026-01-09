@@ -2,6 +2,14 @@ export type PlanType = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
 export type ExpirationStatus = 'active' | 'expiring' | 'expired';
 
+export interface RenewalRecord {
+  id: string;
+  date: Date;
+  previousExpiresAt: Date;
+  newExpiresAt: Date;
+  plan: PlanType;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -10,6 +18,7 @@ export interface Client {
   plan: PlanType;
   createdAt: Date;
   expiresAt: Date;
+  renewalHistory: RenewalRecord[];
 }
 
 export const planLabels: Record<PlanType, string> = {
