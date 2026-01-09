@@ -116,6 +116,38 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   // Preview state
   const [previewTheme, setPreviewTheme] = useState<'dark' | 'light'>('dark');
   const [showTypingAnimation, setShowTypingAnimation] = useState(true);
+  const [showMessageSent, setShowMessageSent] = useState(false);
+
+  // Play send sound effect
+  const playSendSound = () => {
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    
+    // Create a "pop" sound
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.15);
+  };
+
+  const handlePreviewSend = () => {
+    playSendSound();
+    setShowMessageSent(true);
+    setShowTypingAnimation(false);
+    setTimeout(() => {
+      setShowMessageSent(false);
+      setShowTypingAnimation(true);
+    }, 2000);
+  };
   
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
@@ -1011,9 +1043,15 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                         previewTheme === 'dark' ? "text-gray-500" : "text-gray-400"
                       )}>Mensagem</span>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center">
+                    <button 
+                      onClick={handlePreviewSend}
+                      className={cn(
+                        "w-10 h-10 rounded-full bg-[#00A884] flex items-center justify-center transition-transform active:scale-90 hover:bg-[#008f72]",
+                        showMessageSent && "animate-pulse"
+                      )}
+                    >
                       <Send className="h-5 w-5 text-white" />
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
