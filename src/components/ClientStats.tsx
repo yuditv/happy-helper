@@ -57,65 +57,65 @@ export function ClientStats({ clients }: ClientStatsProps) {
   const atRiskClients = clients.filter(c => ['expiring', 'expired'].includes(getExpirationStatus(c.expiresAt))).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 overflow-hidden">
       {/* Main Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <div className="stat-card group shimmer">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow">
-                <Users className="h-7 w-7 text-primary-foreground" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow">
+                <Users className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
               </div>
               <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-accent flex items-center justify-center">
                 <Activity className="h-2.5 w-2.5 text-accent-foreground" />
               </div>
             </div>
-            <div>
-              <p className="text-3xl font-bold text-gradient">{totalClients}</p>
-              <p className="text-sm text-muted-foreground">Total de Clientes</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gradient truncate">{totalClients}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Total de Clientes</p>
             </div>
           </div>
         </div>
 
         <div className="stat-card group shimmer">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-plan-semiannual to-accent flex items-center justify-center shadow-[0_0_20px_hsl(160_100%_45%/0.4)]">
-                <DollarSign className="h-7 w-7 text-primary-foreground" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-gradient-to-br from-plan-semiannual to-accent flex items-center justify-center shadow-[0_0_20px_hsl(160_100%_45%/0.4)]">
+                <DollarSign className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
               </div>
               <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-plan-semiannual flex items-center justify-center">
                 <Zap className="h-2.5 w-2.5 text-primary-foreground" />
               </div>
             </div>
-            <div>
-              <p className="text-3xl font-bold text-gradient">{formatCurrency(mrr)}</p>
-              <p className="text-sm text-muted-foreground">MRR (Receita Mensal)</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gradient truncate">{formatCurrency(mrr)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">MRR (Receita Mensal)</p>
             </div>
           </div>
         </div>
 
         <div className="stat-card group shimmer">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-plan-quarterly to-primary flex items-center justify-center shadow-[0_0_20px_hsl(200_100%_50%/0.4)]">
-                <TrendingUp className="h-7 w-7 text-primary-foreground" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-gradient-to-br from-plan-quarterly to-primary flex items-center justify-center shadow-[0_0_20px_hsl(200_100%_50%/0.4)]">
+                <TrendingUp className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
               </div>
               <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-plan-quarterly flex items-center justify-center">
                 <Shield className="h-2.5 w-2.5 text-primary-foreground" />
               </div>
             </div>
-            <div>
-              <p className="text-3xl font-bold text-gradient">{activeClients}</p>
-              <p className="text-sm text-muted-foreground">Clientes Ativos</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gradient truncate">{activeClients}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Clientes Ativos</p>
             </div>
           </div>
         </div>
 
         <div className="stat-card group shimmer">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-destructive to-plan-annual flex items-center justify-center shadow-[0_0_20px_hsl(0_84%_60%/0.4)]">
-                <AlertTriangle className="h-7 w-7 text-primary-foreground" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-gradient-to-br from-destructive to-plan-annual flex items-center justify-center shadow-[0_0_20px_hsl(0_84%_60%/0.4)]">
+                <AlertTriangle className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
               </div>
               {atRiskClients > 0 && (
                 <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive flex items-center justify-center animate-pulse">
@@ -123,38 +123,38 @@ export function ClientStats({ clients }: ClientStatsProps) {
                 </div>
               )}
             </div>
-            <div>
-              <p className="text-3xl font-bold text-destructive">{atRiskClients}</p>
-              <p className="text-sm text-muted-foreground">Próximo de Expirar</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl sm:text-3xl font-bold text-destructive truncate">{atRiskClients}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Próximo de Expirar</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Plan breakdown */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {(Object.keys(planLabels) as PlanType[]).map((plan) => (
           <div
             key={plan}
             className={`stat-card group hover:${planGlows[plan]} transition-all duration-300`}
           >
-            <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${planColors[plan]} flex items-center justify-center`}>
-                <span className="text-lg font-bold text-primary-foreground">{planCounts[plan] || 0}</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br ${planColors[plan]} flex items-center justify-center flex-shrink-0`}>
+                <span className="text-base sm:text-lg font-bold text-primary-foreground">{planCounts[plan] || 0}</span>
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between">
-                  <p className="text-lg font-bold text-foreground">
+                  <p className="text-sm sm:text-lg font-bold text-foreground truncate">
                     {planLabels[plan]}
                   </p>
                 </div>
-                <p className="text-sm font-medium text-primary">
+                <p className="text-xs sm:text-sm font-medium text-primary truncate">
                   {formatCurrency(planRevenue[plan] || 0)}
                 </p>
               </div>
             </div>
             {/* Progress bar showing plan distribution */}
-            <div className="mt-3 h-1 rounded-full bg-muted/30 overflow-hidden">
+            <div className="mt-2 sm:mt-3 h-1 rounded-full bg-muted/30 overflow-hidden">
               <div 
                 className={`h-full bg-gradient-to-r ${planColors[plan]} transition-all duration-500`}
                 style={{ width: `${totalClients > 0 ? ((planCounts[plan] || 0) / totalClients) * 100 : 0}%` }}
