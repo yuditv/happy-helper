@@ -83,6 +83,24 @@ Aproveite para renovar com antecedência e garantir a continuidade dos serviços
 
 Qualquer dúvida, estamos à disposição. 😊`;
 
+// Random auto-replies for the preview
+const autoReplies = [
+  "Obrigado pela mensagem! Vou verificar agora. 👍",
+  "Ótimo, já estou providenciando! 😊",
+  "Perfeito! Qualquer coisa é só chamar. ✅",
+  "Recebi! Vou analisar e já te respondo. 📩",
+  "Maravilha! Agradeço o contato! 🙌",
+  "Entendido! Vou dar uma olhada aqui. 🔍",
+  "Top! Já vou resolver isso pra você. 💪",
+  "Anotado! Em breve te dou um retorno. 📝",
+  "Show! Muito obrigado pelo aviso! 🎉",
+  "Beleza! Fico no aguardo então. ⏳",
+];
+
+const getRandomReply = () => {
+  return autoReplies[Math.floor(Math.random() * autoReplies.length)];
+};
+
 export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const { user } = useAuth();
   const { clients } = useClients();
@@ -119,6 +137,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [showMessageSent, setShowMessageSent] = useState(false);
   const [showReplyAnimation, setShowReplyAnimation] = useState(false);
   const [showReplyMessage, setShowReplyMessage] = useState(false);
+  const [currentReply, setCurrentReply] = useState('');
 
   // Play send sound effect
   const playSendSound = () => {
@@ -159,9 +178,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       setShowReplyAnimation(true);
     }, 1000);
     
-    // After 2.5s, show reply message
+    // After 2.5s, show reply message with random reply
     setTimeout(() => {
       setShowReplyAnimation(false);
+      setCurrentReply(getRandomReply());
       setShowReplyMessage(true);
       // Play receive sound
       const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -1098,7 +1118,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                           "text-[13px] leading-relaxed",
                           previewTheme === 'dark' ? "text-white" : "text-gray-800"
                         )}>
-                          Oi! Recebi sua mensagem, obrigado! 👍
+                          {currentReply || "Obrigado pela mensagem! 👍"}
                         </p>
                         <div className="flex items-center justify-end gap-1 mt-1">
                           <span className={cn(
