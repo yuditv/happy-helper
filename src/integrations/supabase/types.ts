@@ -252,6 +252,56 @@ export type Database = {
           },
         ]
       }
+      scheduled_messages: {
+        Row: {
+          client_id: string
+          created_at: string
+          custom_message: string | null
+          error_message: string | null
+          id: string
+          message_type: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          custom_message?: string | null
+          error_message?: string | null
+          id?: string
+          message_type: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          custom_message?: string | null
+          error_message?: string | null
+          id?: string
+          message_type?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -284,6 +284,62 @@ Qualquer dúvida, estamos à disposição. 😊`;
     clearSelection();
   };
 
+  const handleScheduleBulkMessage = async (customMessage: string, scheduledAt: Date) => {
+    const selectedClientsList = clients.filter(c => selectedClients.has(c.id));
+    const total = selectedClientsList.length;
+    
+    setIsSendingBulk(true);
+    setBulkMessageProgress({ current: 0, total, success: 0, failed: 0 });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('Usuário não autenticado');
+      setIsSendingBulk(false);
+      return;
+    }
+
+    for (let i = 0; i < selectedClientsList.length; i++) {
+      const client = selectedClientsList[i];
+      
+      try {
+        const { error } = await supabase.from('scheduled_messages').insert({
+          user_id: user.id,
+          client_id: client.id,
+          message_type: bulkMessageMode,
+          custom_message: customMessage,
+          scheduled_at: scheduledAt.toISOString(),
+          status: 'pending',
+        });
+
+        if (error) {
+          failCount++;
+          console.error(`Failed to schedule message for ${client.name}:`, error);
+        } else {
+          successCount++;
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`Error scheduling message for ${client.name}:`, error);
+      }
+      
+      setBulkMessageProgress({ current: i + 1, total, success: successCount, failed: failCount });
+    }
+
+    setIsSendingBulk(false);
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} mensagem(ns) agendada(s) para ${format(scheduledAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}!`);
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} agendamento(s) falhou(aram)`);
+    }
+    
+    clearSelection();
+  };
+
   const handleAddClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
     const result = await addClient(data);
     if (result) {
@@ -856,6 +912,7 @@ Qualquer dúvida, estamos à disposição. 😊`;
         mode={bulkMessageMode}
         defaultMessage={getDefaultBulkMessage(bulkMessageMode)}
         onSend={handleBulkMessageSend}
+        onSchedule={handleScheduleBulkMessage}
         progress={bulkMessageProgress}
         isSending={isSendingBulk}
       />
