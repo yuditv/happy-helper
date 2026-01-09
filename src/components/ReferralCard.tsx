@@ -14,7 +14,9 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
-  Ticket
+  Ticket,
+  Clock,
+  UserCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/types/client';
@@ -25,9 +27,11 @@ export function ReferralCard() {
   const { 
     referralCode, 
     referrals, 
+    receivedReferral,
     pendingDiscount, 
     totalReferrals,
     completedReferrals,
+    pendingReferrals,
     isLoading,
     applyReferralCode 
   } = useReferral();
@@ -191,37 +195,75 @@ export function ReferralCard() {
           </div>
         </div>
 
-        {/* Apply Code Section */}
-        <div className="space-y-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowApplyCode(!showApplyCode)}
-            className="w-full justify-between text-muted-foreground hover:text-foreground"
-          >
-            <span>Usar código de indicação</span>
-            {showApplyCode ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-          
-          {showApplyCode && (
-            <div className="flex gap-2 animate-fade-in">
-              <Input
-                value={inputCode}
-                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-                placeholder="Digite o código"
-                className="font-mono tracking-wider"
-                maxLength={8}
-              />
-              <Button 
-                onClick={handleApplyCode} 
-                disabled={isApplying}
-                className="btn-futuristic"
-              >
-                {isApplying ? 'Aplicando...' : 'Aplicar'}
-              </Button>
+        {/* Received Referral Status */}
+        {receivedReferral && (
+          <div className={`rounded-lg p-4 border ${
+            receivedReferral.status === 'completed' 
+              ? 'bg-plan-semiannual/10 border-plan-semiannual/30' 
+              : 'bg-yellow-500/10 border-yellow-500/30'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                receivedReferral.status === 'completed' 
+                  ? 'bg-plan-semiannual/20' 
+                  : 'bg-yellow-500/20'
+              }`}>
+                {receivedReferral.status === 'completed' 
+                  ? <UserCheck className="h-5 w-5 text-plan-semiannual" />
+                  : <Clock className="h-5 w-5 text-yellow-500" />
+                }
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {receivedReferral.status === 'completed' 
+                    ? 'Indicação validada!' 
+                    : 'Indicação pendente'
+                  }
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {receivedReferral.status === 'completed' 
+                    ? `Você usou o código ${receivedReferral.referral_code} e a indicação foi concluída.`
+                    : `Você usou o código ${receivedReferral.referral_code}. Adicione seu primeiro cliente para validar.`
+                  }
+                </p>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Apply Code Section - only show if no received referral */}
+        {!receivedReferral && (
+          <div className="space-y-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowApplyCode(!showApplyCode)}
+              className="w-full justify-between text-muted-foreground hover:text-foreground"
+            >
+              <span>Usar código de indicação</span>
+              {showApplyCode ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            
+            {showApplyCode && (
+              <div className="flex gap-2 animate-fade-in">
+                <Input
+                  value={inputCode}
+                  onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                  placeholder="Digite o código"
+                  className="font-mono tracking-wider"
+                  maxLength={8}
+                />
+                <Button 
+                  onClick={handleApplyCode} 
+                  disabled={isApplying}
+                  className="btn-futuristic"
+                >
+                  {isApplying ? 'Aplicando...' : 'Aplicar'}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Referral History */}
         {referrals.length > 0 && (
