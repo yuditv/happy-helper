@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -33,11 +34,16 @@ import {
   CheckCircle,
   AlertTriangle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Phone,
+  Plus,
+  X,
+  UserPlus
 } from 'lucide-react';
 
 type MessageMode = 'whatsapp' | 'email';
 type SendMode = 'immediate' | 'scheduled';
+type TargetMode = 'clients' | 'numbers';
 type ClientFilter = 'all' | 'expiring7' | 'expiring3' | 'expiring1' | 'expired';
 
 const filterLabels: Record<ClientFilter, string> = {
@@ -48,7 +54,13 @@ const filterLabels: Record<ClientFilter, string> = {
   expired: 'Já vencidos',
 };
 
-const defaultMessage = `Olá {nome}! 👋
+const defaultMessage = `Olá! 👋
+
+Temos uma oferta especial para você!
+
+Entre em contato para saber mais. 😊`;
+
+const defaultClientMessage = `Olá {nome}! 👋
 
 Seu plano *{plano}* vence em *{dias} dia(s)* ({vencimento}).
 
@@ -63,15 +75,30 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   
   const [messageMode, setMessageMode] = useState<MessageMode>('whatsapp');
   const [sendMode, setSendMode] = useState<SendMode>('immediate');
+  const [targetMode, setTargetMode] = useState<TargetMode>('clients');
   const [clientFilter, setClientFilter] = useState<ClientFilter>('expiring7');
-  const [customMessage, setCustomMessage] = useState(defaultMessage);
+  const [customMessage, setCustomMessage] = useState(defaultClientMessage);
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [scheduledTime, setScheduledTime] = useState('09:00');
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
   const [showClientList, setShowClientList] = useState(false);
   
+  // Custom numbers state
+  const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
+  const [newNumber, setNewNumber] = useState('');
+  
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
+
+  // Update message template when target mode changes
+  useEffect(() => {
+    if (targetMode === 'numbers') {
+      setCustomMessage(defaultMessage);
+      setMessageMode('whatsapp'); // Force WhatsApp for custom numbers
+    } else {
+      setCustomMessage(defaultClientMessage);
+    }
+  }, [targetMode]);
 
   // Filter clients based on selection
   const filteredClients = clients.filter(client => {
@@ -105,9 +132,50 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const selectAll = () => setSelectedClientIds(new Set(filteredClients.map(c => c.id)));
   const deselectAll = () => setSelectedClientIds(new Set());
 
+  // Phone number management
+  const addPhoneNumber = () => {
+    const cleaned = newNumber.replace(/\D/g, '');
+    if (cleaned.length < 10) {
+      toast.error('Número inválido. Use formato: DDD + número');
+      return;
+    }
+    if (phoneNumbers.includes(cleaned)) {
+      toast.error('Número já adicionado');
+      return;
+    }
+    setPhoneNumbers(prev => [...prev, cleaned]);
+    setNewNumber('');
+  };
+
+  const removePhoneNumber = (number: string) => {
+    setPhoneNumbers(prev => prev.filter(n => n !== number));
+  };
+
+  const formatPhoneDisplay = (number: string) => {
+    if (number.length === 11) {
+      return `(${number.slice(0, 2)}) ${number.slice(2, 7)}-${number.slice(7)}`;
+    }
+    if (number.length === 10) {
+      return `(${number.slice(0, 2)}) ${number.slice(2, 6)}-${number.slice(6)}`;
+    }
+    return number;
+  };
+
+  const parseNumbersFromText = (text: string) => {
+    const numbers = text.split(/[\n,;]+/).map(n => n.replace(/\D/g, '')).filter(n => n.length >= 10);
+    const uniqueNumbers = [...new Set([...phoneNumbers, ...numbers])];
+    setPhoneNumbers(uniqueNumbers);
+    toast.success(`${numbers.length} número(s) adicionado(s)`);
+  };
+
   const handleSend = async () => {
-    if (selectedClientIds.size === 0) {
+    if (targetMode === 'clients' && selectedClientIds.size === 0) {
       toast.error('Selecione pelo menos um cliente');
+      return;
+    }
+
+    if (targetMode === 'numbers' && phoneNumbers.length === 0) {
+      toast.error('Adicione pelo menos um número');
       return;
     }
 
@@ -116,6 +184,28 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       return;
     }
 
+    if (targetMode === 'numbers') {
+      // Send to custom phone numbers
+      setIsSending(true);
+      setProgress({ current: 0, total: phoneNumbers.length, success: 0, failed: 0 });
+
+      let successCount = 0;
+
+      for (let i = 0; i < phoneNumbers.length; i++) {
+        const number = phoneNumbers[i];
+        await new Promise(resolve => setTimeout(resolve, 500));
+        openWhatsApp(number, customMessage);
+        successCount++;
+        setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: 0 });
+      }
+
+      toast.success(`WhatsApp aberto para ${successCount} número(s)!`);
+      setIsSending(false);
+      onComplete?.();
+      return;
+    }
+
+    // Original client-based logic
     const selectedClients = clients.filter(c => selectedClientIds.has(c.id));
     setIsSending(true);
     setProgress({ current: 0, total: selectedClients.length, success: 0, failed: 0 });
@@ -225,15 +315,32 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           Disparador em Massa
         </CardTitle>
         <CardDescription>
-          Envie mensagens para múltiplos clientes de uma vez
+          Envie mensagens para clientes ou números personalizados
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Mode Selection */}
+        {/* Target Mode Selection */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Enviar para</Label>
+          <Tabs value={targetMode} onValueChange={(v) => setTargetMode(v as TargetMode)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="clients" className="gap-2">
+                <Users className="h-4 w-4" />
+                Meus Clientes
+              </TabsTrigger>
+              <TabsTrigger value="numbers" className="gap-2">
+                <Phone className="h-4 w-4" />
+                Números Avulsos
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Mode Selection - only show email option for clients */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Canal de envio</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={cn("grid gap-2", targetMode === 'clients' ? "grid-cols-2" : "grid-cols-1")}>
               <Button
                 variant={messageMode === 'whatsapp' ? 'default' : 'outline'}
                 size="sm"
@@ -243,113 +350,198 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                 <MessageCircle className="h-4 w-4" />
                 WhatsApp
               </Button>
-              <Button
-                variant={messageMode === 'email' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setMessageMode('email')}
-                className="gap-2"
-              >
-                <Mail className="h-4 w-4" />
-                Email
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Modo de envio</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant={sendMode === 'immediate' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSendMode('immediate')}
-                className="gap-2"
-              >
-                <Send className="h-4 w-4" />
-                Agora
-              </Button>
-              <Button
-                variant={sendMode === 'scheduled' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSendMode('scheduled')}
-                className="gap-2"
-              >
-                <Clock className="h-4 w-4" />
-                Agendar
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Client Filter */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground flex items-center gap-1">
-            <Filter className="h-3 w-3" />
-            Filtrar clientes
-          </Label>
-          <Select value={clientFilter} onValueChange={(v) => setClientFilter(v as ClientFilter)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(filterLabels).map(([key, label]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Selected Clients */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              Clientes selecionados
-            </Label>
-            <Badge variant="secondary">{selectedClientIds.size} de {filteredClients.length}</Badge>
-          </div>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-between"
-            onClick={() => setShowClientList(!showClientList)}
-          >
-            <span>Ver lista de clientes</span>
-            {showClientList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-
-          {showClientList && (
-            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-              <div className="flex gap-2 mb-2">
-                <Button variant="outline" size="sm" onClick={selectAll}>Selecionar todos</Button>
-                <Button variant="outline" size="sm" onClick={deselectAll}>Limpar seleção</Button>
-              </div>
-              {filteredClients.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhum cliente encontrado com este filtro
-                </p>
-              ) : (
-                filteredClients.map(client => (
-                  <div key={client.id} className="flex items-center gap-2">
-                    <Checkbox
-                      id={client.id}
-                      checked={selectedClientIds.has(client.id)}
-                      onCheckedChange={() => toggleClient(client.id)}
-                    />
-                    <Label htmlFor={client.id} className="text-sm flex-1 cursor-pointer">
-                      {client.name}
-                      <span className="text-xs text-muted-foreground ml-2">
-                        ({getDaysUntilExpiration(client.expiresAt)}d)
-                      </span>
-                    </Label>
-                  </div>
-                ))
+              {targetMode === 'clients' && (
+                <Button
+                  variant={messageMode === 'email' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMessageMode('email')}
+                  className="gap-2"
+                >
+                  <Mail className="h-4 w-4" />
+                  Email
+                </Button>
               )}
+            </div>
+          </div>
+          {targetMode === 'clients' && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Modo de envio</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={sendMode === 'immediate' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSendMode('immediate')}
+                  className="gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  Agora
+                </Button>
+                <Button
+                  variant={sendMode === 'scheduled' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSendMode('scheduled')}
+                  className="gap-2"
+                >
+                  <Clock className="h-4 w-4" />
+                  Agendar
+                </Button>
+              </div>
             </div>
           )}
         </div>
 
+        {/* Custom Numbers Section */}
+        {targetMode === 'numbers' && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                Adicionar números
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={newNumber}
+                  onChange={(e) => setNewNumber(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                  onKeyDown={(e) => e.key === 'Enter' && addPhoneNumber()}
+                />
+                <Button onClick={addPhoneNumber} size="icon" variant="outline">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Pressione Enter ou clique em + para adicionar
+              </p>
+            </div>
+
+            {/* Bulk add numbers */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Adicionar vários números</Label>
+              <Textarea
+                placeholder="Cole aqui vários números separados por vírgula, ponto e vírgula ou quebra de linha..."
+                rows={3}
+                onBlur={(e) => {
+                  if (e.target.value.trim()) {
+                    parseNumbersFromText(e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+              />
+            </div>
+
+            {/* Numbers List */}
+            {phoneNumbers.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">
+                    Números adicionados
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{phoneNumbers.length}</Badge>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setPhoneNumbers([])}
+                      className="text-destructive hover:text-destructive h-6 px-2"
+                    >
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
+                <div className="border rounded-lg p-3 max-h-32 overflow-y-auto flex flex-wrap gap-2">
+                  {phoneNumbers.map((number) => (
+                    <Badge key={number} variant="secondary" className="gap-1 pr-1">
+                      {formatPhoneDisplay(number)}
+                      <button
+                        onClick={() => removePhoneNumber(number)}
+                        className="ml-1 hover:bg-destructive/20 rounded p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Client Selection Section */}
+        {targetMode === 'clients' && (
+          <>
+            {/* Client Filter */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Filter className="h-3 w-3" />
+                Filtrar clientes
+              </Label>
+              <Select value={clientFilter} onValueChange={(v) => setClientFilter(v as ClientFilter)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(filterLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Selected Clients */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  Clientes selecionados
+                </Label>
+                <Badge variant="secondary">{selectedClientIds.size} de {filteredClients.length}</Badge>
+              </div>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-between"
+                onClick={() => setShowClientList(!showClientList)}
+              >
+                <span>Ver lista de clientes</span>
+                {showClientList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+
+              {showClientList && (
+                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                  <div className="flex gap-2 mb-2">
+                    <Button variant="outline" size="sm" onClick={selectAll}>Selecionar todos</Button>
+                    <Button variant="outline" size="sm" onClick={deselectAll}>Limpar seleção</Button>
+                  </div>
+                  {filteredClients.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum cliente encontrado com este filtro
+                    </p>
+                  ) : (
+                    filteredClients.map(client => (
+                      <div key={client.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={client.id}
+                          checked={selectedClientIds.has(client.id)}
+                          onCheckedChange={() => toggleClient(client.id)}
+                        />
+                        <Label htmlFor={client.id} className="text-sm flex-1 cursor-pointer">
+                          {client.name}
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({getDaysUntilExpiration(client.expiresAt)}d)
+                          </span>
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         {/* Schedule Options */}
-        {sendMode === 'scheduled' && (
+        {sendMode === 'scheduled' && targetMode === 'clients' && (
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">Data</Label>
@@ -399,7 +591,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             placeholder="Escreva sua mensagem..."
           />
           <p className="text-xs text-muted-foreground">
-            Variáveis: {'{nome}'}, {'{plano}'}, {'{dias}'}, {'{vencimento}'}
+            {targetMode === 'clients' 
+              ? <>Variáveis: {'{nome}'}, {'{plano}'}, {'{dias}'}, {'{vencimento}'}</>
+              : 'Escreva a mensagem que será enviada para todos os números'
+            }
           </p>
         </div>
 
@@ -429,12 +624,17 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           className="w-full gap-2"
           size="lg"
           onClick={handleSend}
-          disabled={isSending || selectedClientIds.size === 0}
+          disabled={isSending || (targetMode === 'clients' ? selectedClientIds.size === 0 : phoneNumbers.length === 0)}
         >
           {isSending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Enviando...
+            </>
+          ) : targetMode === 'numbers' ? (
+            <>
+              <Send className="h-4 w-4" />
+              Enviar para {phoneNumbers.length} número(s)
             </>
           ) : sendMode === 'scheduled' ? (
             <>
