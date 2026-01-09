@@ -57,6 +57,18 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        plan: {
+          monthly: "hsl(var(--plan-monthly))",
+          quarterly: "hsl(var(--plan-quarterly))",
+          semiannual: "hsl(var(--plan-semiannual))",
+          annual: "hsl(var(--plan-annual))",
+        },
+      },
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+        xl: "var(--shadow-xl)",
       },
       borderRadius: {
         lg: "var(--radius)",
