@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import ScheduledMessages from "./pages/ScheduledMessages";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,11 @@ const AppRoutes = () => (
     <Route path="/scheduled" element={
       <ProtectedRoute>
         <ScheduledMessages />
+      </ProtectedRoute>
+    } />
+    <Route path="/dashboard" element={
+      <ProtectedRoute>
+        <Dashboard />
       </ProtectedRoute>
     } />
     <Route path="*" element={<NotFound />} />
