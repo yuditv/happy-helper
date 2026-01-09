@@ -65,7 +65,7 @@ const Index = () => {
     return clients.reduce((acc, c) => acc + (c.renewalHistory?.length || 0), 0);
   }, [clients]);
 
-  const handleAddClient = async (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
+  const handleAddClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
     const result = await addClient(data);
     if (result) {
       toast.success('Cliente cadastrado com sucesso!');
@@ -74,7 +74,7 @@ const Index = () => {
     }
   };
 
-  const handleEditClient = async (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
+  const handleEditClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
     if (editingClient) {
       await updateClient(editingClient.id, data);
       setEditingClient(null);

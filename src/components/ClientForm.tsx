@@ -22,7 +22,7 @@ import { addMonths, format } from 'date-fns';
 interface ClientFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => void;
+  onSubmit: (data: Omit<Client, 'id' | 'renewalHistory'>) => void;
   initialData?: Client | null;
 }
 
@@ -33,6 +33,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   const [service, setService] = useState<ServiceType>('IPTV');
   const [plan, setPlan] = useState<PlanType>('monthly');
   const [price, setPrice] = useState('');
+  const [createdAt, setCreatedAt] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setService(initialData.service);
       setPlan(initialData.plan);
       setPrice(initialData.price?.toString() || '');
+      setCreatedAt(format(initialData.createdAt, 'yyyy-MM-dd'));
       setExpiresAt(format(initialData.expiresAt, 'yyyy-MM-dd'));
     } else {
       setName('');
@@ -51,6 +53,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setService('IPTV');
       setPlan('monthly');
       setPrice('');
+      setCreatedAt(format(new Date(), 'yyyy-MM-dd'));
       // Set default expiration based on plan
       setExpiresAt(format(addMonths(new Date(), planDurations['monthly']), 'yyyy-MM-dd'));
     }
@@ -89,6 +92,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       service,
       plan,
       price: price ? parseFloat(price) : null,
+      createdAt: new Date(createdAt + 'T00:00:00'),
       expiresAt: new Date(expiresAt + 'T23:59:59')
     });
     onOpenChange(false);
@@ -217,20 +221,39 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="expiresAt" className="text-sm font-medium">
-              Vencimento
-            </Label>
-            <div className="relative">
-              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="expiresAt"
-                type="date"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
-                className="pl-10"
-                required
-              />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="createdAt" className="text-sm font-medium">
+                Data de Cadastro
+              </Label>
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="createdAt"
+                  type="date"
+                  value={createdAt}
+                  onChange={(e) => setCreatedAt(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="expiresAt" className="text-sm font-medium">
+                Data de Vencimento
+              </Label>
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="expiresAt"
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
             </div>
           </div>
 
