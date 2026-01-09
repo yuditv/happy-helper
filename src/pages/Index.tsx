@@ -11,6 +11,7 @@ import { PlanFilter } from '@/components/PlanFilter';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { ExpiringClientsAlert } from '@/components/ExpiringClientsAlert';
 import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
+import { ChangePlanDialog } from '@/components/ChangePlanDialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -34,6 +35,8 @@ const Index = () => {
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
+  const [changePlanDialogOpen, setChangePlanDialogOpen] = useState(false);
+  const [changePlanClient, setChangePlanClient] = useState<Client | null>(null);
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType | 'all'>('all');
 
@@ -109,6 +112,22 @@ const Index = () => {
   const handleViewHistory = (client: Client) => {
     setHistoryClient(client);
     setHistoryDialogOpen(true);
+  };
+
+  const handleOpenChangePlan = (client: Client) => {
+    setChangePlanClient(client);
+    setChangePlanDialogOpen(true);
+  };
+
+  const handleConfirmChangePlan = async (clientId: string, newPlan: PlanType, newExpiresAt: Date) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    await updateClient(clientId, { plan: newPlan, expiresAt: newExpiresAt });
+    toast.success(
+      `Plano alterado para ${planLabels[newPlan]}! Novo vencimento: ${format(newExpiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}`,
+      { duration: 4000 }
+    );
   };
 
   const handleExportClients = () => {
@@ -265,6 +284,7 @@ const Index = () => {
                 onDelete={handleOpenDelete}
                 onRenew={handleRenewClient}
                 onViewHistory={handleViewHistory}
+                onChangePlan={handleOpenChangePlan}
               />
             ))}
           </div>
@@ -288,6 +308,12 @@ const Index = () => {
         client={historyClient}
         open={historyDialogOpen}
         onOpenChange={setHistoryDialogOpen}
+      />
+      <ChangePlanDialog
+        client={changePlanClient}
+        open={changePlanDialogOpen}
+        onOpenChange={setChangePlanDialogOpen}
+        onConfirm={handleConfirmChangePlan}
       />
     </div>
   );
