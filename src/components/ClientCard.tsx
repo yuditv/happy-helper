@@ -1,23 +1,31 @@
-import { Client } from '@/types/client';
+import { Client, planLabels, getExpirationStatus } from '@/types/client';
 import { PlanBadge } from './PlanBadge';
 import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, Pencil, Trash2, Calendar } from 'lucide-react';
+import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface ClientCardProps {
   client: Client;
   onEdit: (client: Client) => void;
   onDelete: (id: string) => void;
+  onRenew: (id: string) => void;
 }
 
-export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
+export function ClientCard({ client, onEdit, onDelete, onRenew }: ClientCardProps) {
   const whatsappLink = `https://wa.me/${client.whatsapp.replace(/\D/g, '')}`;
+  const status = getExpirationStatus(client.expiresAt);
+  const needsAttention = status === 'expiring' || status === 'expired';
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 border-border/50 bg-card">
+    <Card className={cn(
+      "group hover:shadow-lg transition-all duration-300 border-border/50 bg-card",
+      status === 'expired' && "border-destructive/30 bg-destructive/5",
+      status === 'expiring' && "border-plan-annual/30 bg-plan-annual/5"
+    )}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
@@ -73,6 +81,21 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
             </span>
           </div>
         </div>
+
+        {/* Renew Button */}
+        <Button
+          variant={needsAttention ? "default" : "outline"}
+          size="sm"
+          className={cn(
+            "w-full mt-4 gap-2",
+            needsAttention && status === 'expired' && "bg-destructive hover:bg-destructive/90",
+            needsAttention && status === 'expiring' && "bg-plan-annual hover:bg-plan-annual/90"
+          )}
+          onClick={() => onRenew(client.id)}
+        >
+          <RefreshCw className="h-4 w-4" />
+          Renovar {planLabels[client.plan]}
+        </Button>
       </CardContent>
     </Card>
   );

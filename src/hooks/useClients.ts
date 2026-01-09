@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Client, PlanType, getExpirationStatus } from '@/types/client';
+import { Client, PlanType, getExpirationStatus, planDurations } from '@/types/client';
+import { addMonths } from 'date-fns';
 
 const STORAGE_KEY = 'clients';
 
@@ -46,6 +47,20 @@ export function useClients() {
     saveClients(clients.filter(c => c.id !== id));
   };
 
+  const renewClient = (id: string) => {
+    const client = clients.find(c => c.id === id);
+    if (!client) return;
+
+    const now = new Date();
+    const currentExpiration = client.expiresAt;
+    // If already expired, renew from today. Otherwise, extend from current expiration.
+    const baseDate = currentExpiration < now ? now : currentExpiration;
+    const newExpiresAt = addMonths(baseDate, planDurations[client.plan]);
+
+    updateClient(id, { expiresAt: newExpiresAt });
+    return newExpiresAt;
+  };
+
   const getClientsByPlan = (plan: PlanType) => {
     return clients.filter(c => c.plan === plan);
   };
@@ -64,6 +79,7 @@ export function useClients() {
     addClient,
     updateClient,
     deleteClient,
+    renewClient,
     getClientsByPlan,
     expiringClients,
     expiredClients,

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useClients } from '@/hooks/useClients';
-import { Client, PlanType } from '@/types/client';
+import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientForm } from '@/components/ClientForm';
 import { ClientStats } from '@/components/ClientStats';
@@ -11,9 +11,11 @@ import { ExpiringClientsAlert } from '@/components/ExpiringClientsAlert';
 import { Button } from '@/components/ui/button';
 import { Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const Index = () => {
-  const { clients, addClient, updateClient, deleteClient, expiringClients, expiredClients } = useClients();
+  const { clients, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -64,6 +66,19 @@ const Index = () => {
       setClientToDelete(null);
       setDeleteDialogOpen(false);
       toast.success('Cliente excluído com sucesso!');
+    }
+  };
+
+  const handleRenewClient = (id: string) => {
+    const client = clients.find(c => c.id === id);
+    if (!client) return;
+
+    const newExpiresAt = renewClient(id);
+    if (newExpiresAt) {
+      toast.success(
+        `Plano ${planLabels[client.plan]} renovado! Novo vencimento: ${format(newExpiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}`,
+        { duration: 4000 }
+      );
     }
   };
 
@@ -147,6 +162,7 @@ const Index = () => {
                 client={client}
                 onEdit={handleOpenEdit}
                 onDelete={handleOpenDelete}
+                onRenew={handleRenewClient}
               />
             ))}
           </div>
