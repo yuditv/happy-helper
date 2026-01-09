@@ -8,105 +8,117 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 230 25% 7%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 230 25% 10%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 230 25% 10%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 50%;
+    --primary: 260 100% 65%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 230 25% 15%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 230 25% 15%;
+    --muted-foreground: 230 20% 55%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 200 100% 50%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 50%;
+    --border: 230 25% 18%;
+    --input: 230 25% 15%;
+    --ring: 260 100% 65%;
 
     --radius: 0.75rem;
 
-    /* Plan colors */
-    --plan-monthly: 280 65% 60%;
-    --plan-quarterly: 217 91% 50%;
-    --plan-semiannual: 142 71% 45%;
-    --plan-annual: 35 92% 50%;
+    /* Plan colors - Neon style */
+    --plan-monthly: 280 100% 65%;
+    --plan-quarterly: 200 100% 50%;
+    --plan-semiannual: 160 100% 45%;
+    --plan-annual: 35 100% 55%;
+
+    /* Futuristic gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(260 100% 65%) 0%, hsl(200 100% 50%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(200 100% 50%) 0%, hsl(160 100% 45%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(35 100% 55%) 0%, hsl(0 84% 60%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(230 25% 12%) 0%, hsl(230 25% 8%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(260 100% 65% / 0.15) 0%, transparent 70%);
+
+    /* Glow effects */
+    --glow-primary: 0 0 20px hsl(260 100% 65% / 0.5), 0 0 40px hsl(260 100% 65% / 0.3);
+    --glow-accent: 0 0 20px hsl(200 100% 50% / 0.5), 0 0 40px hsl(200 100% 50% / 0.3);
+    --glow-success: 0 0 20px hsl(160 100% 45% / 0.5), 0 0 40px hsl(160 100% 45% / 0.3);
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.1), 0 2px 4px -2px hsl(222 47% 11% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.1), 0 4px 6px -4px hsl(222 47% 11% / 0.1);
-    --shadow-xl: 0 20px 25px -5px hsl(222 47% 11% / 0.1), 0 8px 10px -6px hsl(222 47% 11% / 0.1);
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.3);
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217 91% 50%;
+    --sidebar-background: 230 25% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 260 100% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 230 25% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 230 25% 18%;
+    --sidebar-ring: 260 100% 65%;
   }
 
   .dark {
-    --background: 222 47% 6%;
+    --background: 230 25% 7%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 8%;
+    --card: 230 25% 10%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 8%;
+    --popover: 230 25% 10%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 260 100% 65%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
+    --secondary: 230 25% 15%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 230 25% 15%;
+    --muted-foreground: 230 20% 55%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 200 100% 50%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 230 25% 18%;
+    --input: 230 25% 15%;
+    --ring: 260 100% 65%;
 
-    --plan-monthly: 280 65% 65%;
-    --plan-quarterly: 217 91% 60%;
-    --plan-semiannual: 142 71% 50%;
-    --plan-annual: 35 92% 55%;
+    --plan-monthly: 280 100% 65%;
+    --plan-quarterly: 200 100% 50%;
+    --plan-semiannual: 160 100% 45%;
+    --plan-annual: 35 100% 55%;
 
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
     --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
     --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.3);
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 230 25% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 260 100% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 230 25% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 230 25% 18%;
+    --sidebar-ring: 260 100% 65%;
   }
 }
 
@@ -117,5 +129,193 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(260 100% 65% / 0.15), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(200 100% 50% / 0.1), transparent);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  /* Futuristic glassmorphism card */
+  .glass-card {
+    @apply relative overflow-hidden rounded-xl;
+    background: linear-gradient(145deg, hsl(230 25% 12% / 0.8) 0%, hsl(230 25% 8% / 0.9) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(230 25% 25% / 0.3);
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, hsl(260 100% 65% / 0.05) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* Neon glow effect */
+  .neon-glow {
+    box-shadow: var(--glow-primary);
+  }
+
+  .neon-glow-accent {
+    box-shadow: var(--glow-accent);
+  }
+
+  /* Animated gradient border */
+  .gradient-border {
+    @apply relative;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, hsl(260 100% 65%), hsl(200 100% 50%), hsl(160 100% 45%));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* Futuristic button */
+  .btn-futuristic {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, hsl(260 100% 65%) 0%, hsl(260 100% 50%) 100%);
+    box-shadow: 0 0 20px hsl(260 100% 65% / 0.4);
+    transition: all 0.3s ease;
+  }
+
+  .btn-futuristic:hover {
+    box-shadow: 0 0 30px hsl(260 100% 65% / 0.6), 0 0 60px hsl(260 100% 65% / 0.3);
+    transform: translateY(-2px);
+  }
+
+  .btn-futuristic::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 0%, hsl(0 0% 100% / 0.1) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.5s ease;
+  }
+
+  .btn-futuristic:hover::before {
+    transform: translateX(100%);
+  }
+
+  /* Stat card with glow */
+  .stat-card {
+    @apply relative overflow-hidden rounded-xl p-6;
+    background: linear-gradient(145deg, hsl(230 25% 12%) 0%, hsl(230 25% 8%) 100%);
+    border: 1px solid hsl(230 25% 20% / 0.5);
+    transition: all 0.3s ease;
+  }
+
+  .stat-card:hover {
+    border-color: hsl(260 100% 65% / 0.5);
+    box-shadow: 0 0 30px hsl(260 100% 65% / 0.15);
+    transform: translateY(-2px);
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(260 100% 65% / 0.5), transparent);
+  }
+
+  /* Animated pulse ring */
+  .pulse-ring {
+    @apply relative;
+  }
+
+  .pulse-ring::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    border: 2px solid hsl(260 100% 65% / 0.3);
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1.1);
+      opacity: 0;
+    }
+  }
+
+  /* Floating animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(0 0% 100% / 0.05) 50%,
+      transparent 100%
+    );
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Cyberpunk grid background */
+  .cyber-grid {
+    background-image: 
+      linear-gradient(hsl(230 25% 15% / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(230 25% 15% / 0.5) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+}
+
+@layer utilities {
+  /* Text gradient */
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(260 100% 70%) 0%, hsl(200 100% 60%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow text */
+  .glow-text {
+    text-shadow: 0 0 10px hsl(260 100% 65% / 0.5), 0 0 20px hsl(260 100% 65% / 0.3);
   }
 }
