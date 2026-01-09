@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ReferralLevelCard } from './ReferralLevelCard';
+import { getCurrentLevel, formatCurrency as formatLevelCurrency } from '@/lib/referralLevels';
 import { 
   Gift, 
   Copy, 
@@ -16,7 +18,8 @@ import {
   ChevronUp,
   Ticket,
   Clock,
-  UserCheck
+  UserCheck,
+  Trophy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/types/client';
@@ -41,6 +44,9 @@ export function ReferralCard() {
   const [inputCode, setInputCode] = useState('');
   const [isApplying, setIsApplying] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showLevels, setShowLevels] = useState(false);
+
+  const currentLevel = getCurrentLevel(completedReferrals);
 
   const handleCopyCode = async () => {
     if (!referralCode) return;
@@ -112,12 +118,19 @@ export function ReferralCard() {
       <div className="h-1 bg-gradient-to-r from-primary via-accent to-plan-semiannual" />
       
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Gift className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="text-gradient">Sistema de Indicação</span>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Gift className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="text-gradient">Sistema de Indicação</span>
+          </CardTitle>
+          {/* Current Level Badge */}
+          <Badge className={`${currentLevel.bgColor} ${currentLevel.color} border ${currentLevel.borderColor} gap-1`}>
+            <span>{currentLevel.icon}</span>
+            {currentLevel.name}
+          </Badge>
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-6">
@@ -147,6 +160,26 @@ export function ReferralCard() {
             <p className="text-xs text-muted-foreground">Desconto</p>
           </div>
         </div>
+
+        {/* Level Progress Section */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowLevels(!showLevels)}
+          className="w-full justify-between text-muted-foreground hover:text-foreground"
+        >
+          <span className="flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-primary" />
+            Níveis e Recompensas
+          </span>
+          {showLevels ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+
+        {showLevels && (
+          <div className="animate-fade-in">
+            <ReferralLevelCard completedReferrals={completedReferrals} />
+          </div>
+        )}
 
         {/* Referral Code Section */}
         <div className="space-y-3">
@@ -188,8 +221,10 @@ export function ReferralCard() {
             <div>
               <p className="text-sm font-medium text-foreground">Como funciona?</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Compartilhe seu código com amigos. Quando eles se cadastrarem e assinarem um plano (adicionar primeiro cliente), 
-                você ganha <span className="text-primary font-semibold">R$ 10,00 de desconto</span> na próxima mensalidade!
+                Compartilhe seu código com amigos. Quando eles assinarem um plano, 
+                você ganha <span className={`font-semibold ${currentLevel.color}`}>
+                  {formatLevelCurrency(currentLevel.discountPerReferral)} de desconto
+                </span> na próxima mensalidade! Suba de nível para ganhar mais!
               </p>
             </div>
           </div>
