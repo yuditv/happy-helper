@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientForm } from '@/components/ClientForm';
@@ -18,6 +19,7 @@ import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
 import { ChangePlanDialog } from '@/components/ChangePlanDialog';
 import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialog';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +38,7 @@ import { exportReportToPDF } from '@/lib/exportPDF';
 const Index = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { profile } = useProfile();
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
   const [formOpen, setFormOpen] = useState(false);
@@ -254,14 +257,31 @@ const Index = () => {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300">
-                    <User className="h-4 w-4" />
+                  <Button variant="outline" size="icon" className="glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300 p-0 overflow-hidden">
+                    {profile?.avatar_url ? (
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={profile.avatar_url} alt="Avatar" />
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                          {profile.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="glass-card border-border/50">
-                  <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border/50">
-                    <span className="text-xs text-primary">Logado como</span>
-                    <p className="font-medium text-foreground truncate max-w-[200px]">{user?.email}</p>
+                  <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border/50 flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-foreground truncate max-w-[150px]">{profile?.display_name || 'Usuário'}</p>
+                      <span className="text-xs text-muted-foreground truncate block max-w-[150px]">{user?.email}</span>
+                    </div>
                   </div>
                   <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
                     <User className="h-4 w-4 mr-2 text-primary" />
