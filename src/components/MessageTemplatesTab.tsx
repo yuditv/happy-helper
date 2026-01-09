@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Save, RotateCcw, MessageSquare, Mail, Info } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Save, RotateCcw, MessageSquare, Mail, Info, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -10,13 +10,33 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMessageTemplates, templateLabels, templateVariables, MessageTemplate } from '@/hooks/useMessageTemplates';
 
+// Sample data for preview
+const sampleData = {
+  nome: 'João Silva',
+  plano: 'Trimestral',
+  dias: '5',
+  data_vencimento: '15/01/2026',
+  valor: 'R$ 54,99'
+};
+
+function replaceWithSampleData(content: string): string {
+  return content
+    .replace(/\{nome\}/g, sampleData.nome)
+    .replace(/\{plano\}/g, sampleData.plano)
+    .replace(/\{dias\}/g, sampleData.dias)
+    .replace(/\{data_vencimento\}/g, sampleData.data_vencimento)
+    .replace(/\{valor\}/g, sampleData.valor);
+}
+
 export function MessageTemplatesTab() {
   const { templates, isLoading, saveTemplate, resetTemplate } = useMessageTemplates();
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const handleEdit = (template: MessageTemplate) => {
     setEditingTemplate({ ...template });
+    setShowPreview(false);
   };
 
   const handleSave = async () => {
@@ -25,6 +45,7 @@ export function MessageTemplatesTab() {
     const success = await saveTemplate(editingTemplate);
     if (success) {
       setEditingTemplate(null);
+      setShowPreview(false);
     }
     setIsSaving(false);
   };
@@ -32,10 +53,12 @@ export function MessageTemplatesTab() {
   const handleReset = async (templateType: string) => {
     await resetTemplate(templateType);
     setEditingTemplate(null);
+    setShowPreview(false);
   };
 
   const handleCancel = () => {
     setEditingTemplate(null);
+    setShowPreview(false);
   };
 
   const insertVariable = (variable: string) => {
@@ -45,6 +68,16 @@ export function MessageTemplatesTab() {
       content: editingTemplate.content + variable
     });
   };
+
+  const previewContent = useMemo(() => {
+    if (!editingTemplate) return '';
+    return replaceWithSampleData(editingTemplate.content);
+  }, [editingTemplate?.content]);
+
+  const previewSubject = useMemo(() => {
+    if (!editingTemplate?.subject) return '';
+    return replaceWithSampleData(editingTemplate.subject);
+  }, [editingTemplate?.subject]);
 
   if (isLoading) {
     return (
@@ -90,6 +123,9 @@ export function MessageTemplatesTab() {
               </TooltipProvider>
             ))}
           </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Exemplo: {sampleData.nome} | {sampleData.plano} | {sampleData.dias} dias | {sampleData.data_vencimento} | {sampleData.valor}
+          </p>
         </CardContent>
       </Card>
 
@@ -118,7 +154,18 @@ export function MessageTemplatesTab() {
                 {editingTemplate?.templateType === template.templateType ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Mensagem</Label>
+                      <div className="flex items-center justify-between">
+                        <Label>Mensagem</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowPreview(!showPreview)}
+                          className="gap-1.5"
+                        >
+                          <Eye className="h-4 w-4" />
+                          {showPreview ? 'Ocultar Preview' : 'Ver Preview'}
+                        </Button>
+                      </div>
                       <Textarea
                         value={editingTemplate.content}
                         onChange={(e) => setEditingTemplate({ ...editingTemplate, content: e.target.value })}
@@ -126,6 +173,16 @@ export function MessageTemplatesTab() {
                         placeholder="Digite a mensagem..."
                       />
                     </div>
+                    
+                    {showPreview && (
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">Preview com dados de exemplo:</Label>
+                        <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 whitespace-pre-wrap text-sm">
+                          {previewContent}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2 flex-wrap">
                       <Button onClick={handleSave} disabled={isSaving}>
                         <Save className="h-4 w-4 mr-2" />
@@ -178,7 +235,18 @@ export function MessageTemplatesTab() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Corpo do Email</Label>
+                      <div className="flex items-center justify-between">
+                        <Label>Corpo do Email</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowPreview(!showPreview)}
+                          className="gap-1.5"
+                        >
+                          <Eye className="h-4 w-4" />
+                          {showPreview ? 'Ocultar Preview' : 'Ver Preview'}
+                        </Button>
+                      </div>
                       <Textarea
                         value={editingTemplate.content}
                         onChange={(e) => setEditingTemplate({ ...editingTemplate, content: e.target.value })}
@@ -186,6 +254,24 @@ export function MessageTemplatesTab() {
                         placeholder="Digite o conteúdo do email..."
                       />
                     </div>
+                    
+                    {showPreview && (
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">Preview com dados de exemplo:</Label>
+                        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-2">
+                          {previewSubject && (
+                            <div>
+                              <span className="text-xs text-muted-foreground">Assunto:</span>
+                              <p className="font-medium">{previewSubject}</p>
+                            </div>
+                          )}
+                          <div className="whitespace-pre-wrap text-sm border-t border-blue-500/20 pt-2 mt-2">
+                            {previewContent}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2 flex-wrap">
                       <Button onClick={handleSave} disabled={isSaving}>
                         <Save className="h-4 w-4 mr-2" />
