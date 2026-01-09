@@ -315,28 +315,8 @@ const Index = () => {
           <ClientStats clients={clients} />
         </div>
 
-        {/* Retention Metrics */}
-        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <RetentionMetrics clients={clients} />
-        </div>
-
-        {/* Charts */}
-        <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          <ClientCharts clients={clients} />
-        </div>
-
-        {/* Financial Report & Referral */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-          <div className="lg:col-span-2">
-            <FinancialReport clients={clients} />
-          </div>
-          <div>
-            <ReferralCard />
-          </div>
-        </div>
-
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between glass-card p-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between glass-card p-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <SearchBar value={search} onChange={setSearch} />
           <PlanFilter selected={planFilter} onSelect={setPlanFilter} />
         </div>
@@ -387,6 +367,26 @@ const Index = () => {
             ))}
           </div>
         )}
+
+        {/* Retention Metrics */}
+        <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <RetentionMetrics clients={clients} />
+        </div>
+
+        {/* Charts */}
+        <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <ClientCharts clients={clients} />
+        </div>
+
+        {/* Financial Report & Referral */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <div className="lg:col-span-2">
+            <FinancialReport clients={clients} />
+          </div>
+          <div>
+            <ReferralCard />
+          </div>
+        </div>
       </main>
 
       {/* Forms & Dialogs */}
