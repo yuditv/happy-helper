@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
+import { ClientTable } from '@/components/ClientTable';
 import { ClientForm } from '@/components/ClientForm';
 import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { ClientStats } from '@/components/ClientStats';
@@ -27,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -56,7 +57,8 @@ const Index = () => {
   const [sortBy, setSortBy] = useState<'name' | 'expiresAt' | 'plan'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const clientsPerPage = 12;
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const clientsPerPage = viewMode === 'grid' ? 12 : 20;
 
   const filteredAndSortedClients = useMemo(() => {
     const filtered = clients.filter((client) => {
@@ -352,6 +354,26 @@ const Index = () => {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between glass-card p-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <SearchBar value={search} onChange={setSearch} />
           <div className="flex flex-wrap gap-2 items-center">
+            {/* View Mode Toggle */}
+            <div className="flex items-center border border-border/50 rounded-lg overflow-hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`rounded-none px-3 ${viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={`rounded-none px-3 ${viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 glass-card border-primary/30 hover:border-primary">
@@ -365,7 +387,7 @@ const Index = () => {
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="glass-card border-border/50">
+              <DropdownMenuContent align="end" className="bg-background border-border/50 z-50">
                 <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc'); }}>
                   Nome {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </DropdownMenuItem>
@@ -407,26 +429,39 @@ const Index = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {paginatedClients.map((client, index) => (
-                <div 
-                  key={client.id} 
-                  className="animate-fade-in"
-                  style={{ animationDelay: `${0.05 * index}s` }}
-                >
-                  <ClientCard
-                    client={client}
-                    onEdit={handleOpenEdit}
-                    onDelete={handleOpenDelete}
-                    onRenew={handleRenewClient}
-                    onViewHistory={handleViewHistory}
-                    onChangePlan={handleOpenChangePlan}
-                    onViewNotifications={handleViewNotifications}
-                    getPlanName={getPlanName}
-                  />
-                </div>
-              ))}
-            </div>
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {paginatedClients.map((client, index) => (
+                  <div 
+                    key={client.id} 
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${0.05 * index}s` }}
+                  >
+                    <ClientCard
+                      client={client}
+                      onEdit={handleOpenEdit}
+                      onDelete={handleOpenDelete}
+                      onRenew={handleRenewClient}
+                      onViewHistory={handleViewHistory}
+                      onChangePlan={handleOpenChangePlan}
+                      onViewNotifications={handleViewNotifications}
+                      getPlanName={getPlanName}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ClientTable
+                clients={paginatedClients}
+                onEdit={handleOpenEdit}
+                onDelete={handleOpenDelete}
+                onRenew={handleRenewClient}
+                onViewHistory={handleViewHistory}
+                onChangePlan={handleOpenChangePlan}
+                onViewNotifications={handleViewNotifications}
+                getPlanName={getPlanName}
+              />
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (
