@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useClients } from '@/hooks/useClients';
 import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -38,8 +39,20 @@ import {
   Phone,
   Plus,
   X,
-  UserPlus
+  UserPlus,
+  Save,
+  FolderOpen,
+  Trash2,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
+
+interface PhoneGroup {
+  id: string;
+  name: string;
+  phone_numbers: string[];
+  created_at: string;
+}
 
 type MessageMode = 'whatsapp' | 'email';
 type SendMode = 'immediate' | 'scheduled';
@@ -87,8 +100,43 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
   const [newNumber, setNewNumber] = useState('');
   
+  // Groups state
+  const [phoneGroups, setPhoneGroups] = useState<PhoneGroup[]>([]);
+  const [showSaveGroupDialog, setShowSaveGroupDialog] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  
+  // File input ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
+
+  // Load phone groups
+  const fetchPhoneGroups = async () => {
+    if (!user) return;
+    setLoadingGroups(true);
+    try {
+      const { data, error } = await supabase
+        .from('phone_groups')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setPhoneGroups(data || []);
+    } catch (error) {
+      console.error('Error loading groups:', error);
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPhoneGroups();
+  }, [user]);
 
   // Update message template when target mode changes
   useEffect(() => {
@@ -166,6 +214,120 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     const uniqueNumbers = [...new Set([...phoneNumbers, ...numbers])];
     setPhoneNumbers(uniqueNumbers);
     toast.success(`${numbers.length} número(s) adicionado(s)`);
+  };
+
+  // Group management
+  const saveCurrentAsGroup = async () => {
+    if (!user || !newGroupName.trim() || phoneNumbers.length === 0) return;
+    
+    setSavingGroup(true);
+    try {
+      const { error } = await supabase.from('phone_groups').insert({
+        user_id: user.id,
+        name: newGroupName.trim(),
+        phone_numbers: phoneNumbers,
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Grupo salvo com sucesso!');
+      setNewGroupName('');
+      setShowSaveGroupDialog(false);
+      fetchPhoneGroups();
+    } catch (error) {
+      console.error('Error saving group:', error);
+      toast.error('Erro ao salvar grupo');
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  const loadGroup = (groupId: string) => {
+    const group = phoneGroups.find(g => g.id === groupId);
+    if (group) {
+      setPhoneNumbers(group.phone_numbers);
+      setSelectedGroupId(groupId);
+      toast.success(`Grupo "${group.name}" carregado`);
+    }
+  };
+
+  const deleteGroup = async (groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('phone_groups')
+        .delete()
+        .eq('id', groupId);
+      
+      if (error) throw error;
+      
+      toast.success('Grupo excluído');
+      fetchPhoneGroups();
+      if (selectedGroupId === groupId) {
+        setSelectedGroupId('');
+      }
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      toast.error('Erro ao excluir grupo');
+    }
+  };
+
+  // File import
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+    if (fileExtension === 'csv' || fileExtension === 'txt') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const numbers = extractNumbersFromText(text);
+        const uniqueNumbers = [...new Set([...phoneNumbers, ...numbers])];
+        setPhoneNumbers(uniqueNumbers);
+        toast.success(`${numbers.length} número(s) importado(s) do arquivo`);
+      };
+      reader.readAsText(file);
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      // For Excel files, we'll read as text and try to extract numbers
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          // Simple extraction - read as text and find patterns
+          const text = e.target?.result as string;
+          const numbers = extractNumbersFromText(text);
+          if (numbers.length > 0) {
+            const uniqueNumbers = [...new Set([...phoneNumbers, ...numbers])];
+            setPhoneNumbers(uniqueNumbers);
+            toast.success(`${numbers.length} número(s) importado(s) do arquivo`);
+          } else {
+            toast.error('Nenhum número encontrado. Use arquivo CSV para melhores resultados.');
+          }
+        } catch {
+          toast.error('Erro ao ler arquivo Excel. Use formato CSV.');
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      toast.error('Formato não suportado. Use CSV, TXT ou Excel.');
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const extractNumbersFromText = (text: string): string[] => {
+    // Extract phone numbers using regex patterns
+    const phonePattern = /\b\d{10,11}\b/g;
+    const formattedPattern = /\(?\d{2}\)?[\s.-]?\d{4,5}[\s.-]?\d{4}/g;
+    
+    const matches1 = text.match(phonePattern) || [];
+    const matches2 = (text.match(formattedPattern) || []).map(n => n.replace(/\D/g, ''));
+    
+    const allMatches = [...matches1, ...matches2];
+    return [...new Set(allMatches)].filter(n => n.length >= 10 && n.length <= 11);
   };
 
   const handleSend = async () => {
@@ -393,10 +555,75 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         {/* Custom Numbers Section */}
         {targetMode === 'numbers' && (
           <div className="space-y-4">
+            {/* Load saved group */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <FolderOpen className="h-3 w-3" />
+                Carregar grupo salvo
+              </Label>
+              <div className="flex gap-2">
+                <Select value={selectedGroupId} onValueChange={loadGroup}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={loadingGroups ? "Carregando..." : "Selecione um grupo"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {phoneGroups.length === 0 ? (
+                      <SelectItem value="none" disabled>Nenhum grupo salvo</SelectItem>
+                    ) : (
+                      phoneGroups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name} ({group.phone_numbers.length} números)
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {selectedGroupId && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => deleteGroup(selectedGroupId)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Import from file */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Upload className="h-3 w-3" />
+                Importar arquivo
+              </Label>
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileImport}
+                  accept=".csv,.txt,.xlsx,.xls"
+                  className="hidden"
+                />
+                <Button 
+                  variant="outline" 
+                  className="flex-1 gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Importar CSV/Excel
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Suporta arquivos CSV, TXT ou Excel com números de telefone
+              </p>
+            </div>
+
+            {/* Add individual number */}
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
                 <Phone className="h-3 w-3" />
-                Adicionar números
+                Adicionar número
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -409,9 +636,6 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Pressione Enter ou clique em + para adicionar
-              </p>
             </div>
 
             {/* Bulk add numbers */}
@@ -441,7 +665,19 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      onClick={() => setPhoneNumbers([])}
+                      onClick={() => setShowSaveGroupDialog(true)}
+                      className="h-6 px-2 gap-1"
+                    >
+                      <Save className="h-3 w-3" />
+                      Salvar grupo
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setPhoneNumbers([]);
+                        setSelectedGroupId('');
+                      }}
                       className="text-destructive hover:text-destructive h-6 px-2"
                     >
                       Limpar
@@ -649,6 +885,49 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           )}
         </Button>
       </CardContent>
+
+      {/* Save Group Dialog */}
+      <Dialog open={showSaveGroupDialog} onOpenChange={setShowSaveGroupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Salvar Grupo de Números</DialogTitle>
+            <DialogDescription>
+              Salve esta lista de {phoneNumbers.length} número(s) como um grupo reutilizável.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do grupo</Label>
+              <Input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Ex: Clientes região Sul"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveGroupDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={saveCurrentAsGroup} 
+              disabled={!newGroupName.trim() || savingGroup}
+            >
+              {savingGroup ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
