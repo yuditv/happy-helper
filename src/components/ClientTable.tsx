@@ -12,6 +12,7 @@ import {
 import { MoreHorizontal, Pencil, Trash2, RefreshCw, History, ArrowLeftRight, Bell, Mail, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ClientTableProps {
   clients: Client[];
@@ -22,6 +23,8 @@ interface ClientTableProps {
   onChangePlan: (client: Client) => void;
   onViewNotifications: (client: Client) => void;
   getPlanName: (plan: string) => string;
+  selectedClients?: Set<string>;
+  onToggleSelection?: (clientId: string) => void;
 }
 
 export function ClientTable({
@@ -33,6 +36,8 @@ export function ClientTable({
   onChangePlan,
   onViewNotifications,
   getPlanName,
+  selectedClients,
+  onToggleSelection,
 }: ClientTableProps) {
   const getStatusBadge = (client: Client) => {
     const status = getExpirationStatus(client.expiresAt);
@@ -66,6 +71,9 @@ export function ClientTable({
       <Table>
         <TableHeader>
           <TableRow className="border-border/50 hover:bg-transparent">
+            {onToggleSelection && (
+              <TableHead className="w-10"></TableHead>
+            )}
             <TableHead className="text-muted-foreground font-semibold">Cliente</TableHead>
             <TableHead className="text-muted-foreground font-semibold hidden md:table-cell">Contato</TableHead>
             <TableHead className="text-muted-foreground font-semibold">Plano</TableHead>
@@ -77,7 +85,15 @@ export function ClientTable({
         </TableHeader>
         <TableBody>
           {clients.map((client) => (
-            <TableRow key={client.id} className="border-border/30 hover:bg-primary/5">
+            <TableRow key={client.id} className={`border-border/30 hover:bg-primary/5 ${selectedClients?.has(client.id) ? 'bg-primary/10' : ''}`}>
+              {onToggleSelection && (
+                <TableCell className="w-10">
+                  <Checkbox
+                    checked={selectedClients?.has(client.id) || false}
+                    onCheckedChange={() => onToggleSelection(client.id)}
+                  />
+                </TableCell>
+              )}
               <TableCell>
                 <div className="font-medium">{client.name}</div>
                 <div className="text-xs text-muted-foreground md:hidden flex items-center gap-1">
