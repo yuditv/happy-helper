@@ -125,7 +125,7 @@ export function ClientStats({ clients }: ClientStatsProps) {
             </div>
             <div>
               <p className="text-3xl font-bold text-destructive">{atRiskClients}</p>
-              <p className="text-sm text-muted-foreground">Em Risco</p>
+              <p className="text-sm text-muted-foreground">Próximo de Expirar</p>
             </div>
           </div>
         </div>
