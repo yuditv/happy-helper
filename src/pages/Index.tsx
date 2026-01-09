@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -58,6 +58,8 @@ const Index = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const clientsPerPage = viewMode === 'grid' ? 12 : 20;
 
   const filteredAndSortedClients = useMemo(() => {
@@ -103,6 +105,63 @@ const Index = () => {
   const totalRenewals = useMemo(() => {
     return clients.reduce((acc, c) => acc + (c.renewalHistory?.length || 0), 0);
   }, [clients]);
+
+  // Selection helpers
+  const toggleClientSelection = (clientId: string) => {
+    setSelectedClients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(clientId)) {
+        newSet.delete(clientId);
+      } else {
+        newSet.add(clientId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllOnPage = () => {
+    const allIds = new Set(paginatedClients.map(c => c.id));
+    setSelectedClients(allIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedClients(new Set());
+  };
+
+  const isAllOnPageSelected = paginatedClients.length > 0 && paginatedClients.every(c => selectedClients.has(c.id));
+
+  // Bulk actions
+  const handleBulkRenew = async () => {
+    const selectedIds = Array.from(selectedClients);
+    let successCount = 0;
+    
+    for (const id of selectedIds) {
+      const result = await renewClient(id);
+      if (result) successCount++;
+    }
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} cliente(s) renovado(s) com sucesso!`);
+    }
+    if (successCount < selectedIds.length) {
+      toast.error(`${selectedIds.length - successCount} renovação(ões) falhou(aram)`);
+    }
+    clearSelection();
+  };
+
+  const handleBulkDelete = async () => {
+    const selectedIds = Array.from(selectedClients);
+    let successCount = 0;
+    
+    for (const id of selectedIds) {
+      await deleteClient(id);
+      successCount++;
+    }
+    
+    toast.success(`${successCount} cliente(s) excluído(s) com sucesso!`);
+    clearSelection();
+    setBulkDeleteDialogOpen(false);
+  };
 
   const handleAddClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
     const result = await addClient(data);
@@ -403,7 +462,46 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Client Grid */}
+        {/* Bulk Actions Bar */}
+        {selectedClients.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass-card border border-primary/50 rounded-xl px-4 py-3 flex items-center gap-4 shadow-lg animate-fade-in">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" />
+              <span className="font-medium">{selectedClients.size} selecionado(s)</span>
+            </div>
+            <div className="h-6 w-px bg-border/50" />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10"
+                onClick={handleBulkRenew}
+              >
+                <RefreshCwIcon className="h-4 w-4" />
+                Renovar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10"
+                onClick={() => setBulkDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={clearSelection}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Selection Controls & Client Grid */}
         {filteredAndSortedClients.length === 0 ? (
           <div className="text-center py-20 glass-card rounded-2xl">
             <div className="relative inline-block">
@@ -429,14 +527,42 @@ const Index = () => {
           </div>
         ) : (
           <>
+            {/* Select All Toggle */}
+            <div className="flex items-center gap-2 mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-muted-foreground hover:text-foreground"
+                onClick={isAllOnPageSelected ? clearSelection : selectAllOnPage}
+              >
+                {isAllOnPageSelected ? (
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                {isAllOnPageSelected ? 'Desmarcar todos' : 'Selecionar todos da página'}
+              </Button>
+            </div>
+
             {viewMode === 'grid' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {paginatedClients.map((client, index) => (
                   <div 
                     key={client.id} 
-                    className="animate-fade-in"
+                    className="animate-fade-in relative"
                     style={{ animationDelay: `${0.05 * index}s` }}
                   >
+                    {/* Selection Checkbox */}
+                    <button
+                      onClick={() => toggleClientSelection(client.id)}
+                      className={`absolute top-3 left-3 z-20 h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                        selectedClients.has(client.id)
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background/80 border-border/50 hover:border-primary/50'
+                      }`}
+                    >
+                      {selectedClients.has(client.id) && <CheckSquare className="h-4 w-4" />}
+                    </button>
                     <ClientCard
                       client={client}
                       onEdit={handleOpenEdit}
@@ -460,6 +586,8 @@ const Index = () => {
                 onChangePlan={handleOpenChangePlan}
                 onViewNotifications={handleViewNotifications}
                 getPlanName={getPlanName}
+                selectedClients={selectedClients}
+                onToggleSelection={toggleClientSelection}
               />
             )}
 
@@ -572,6 +700,13 @@ const Index = () => {
         client={notificationClient}
         open={notificationDialogOpen}
         onOpenChange={setNotificationDialogOpen}
+      />
+      {/* Bulk Delete Confirmation */}
+      <DeleteConfirmDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        onConfirm={handleBulkDelete}
+        clientName={`${selectedClients.size} cliente(s)`}
       />
     </div>
   );
