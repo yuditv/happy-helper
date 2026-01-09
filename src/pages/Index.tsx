@@ -3,6 +3,7 @@ import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useReferralNotifications } from '@/hooks/useReferralNotifications';
+import { useReferral } from '@/hooks/useReferral';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientTable } from '@/components/ClientTable';
@@ -30,7 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3 } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift } from 'lucide-react';
 import { openWhatsApp } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -47,6 +48,7 @@ const Index = () => {
   const { profile } = useProfile();
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
+  const { pendingReferrals } = useReferral();
   
   // Check for referral notifications
   useReferralNotifications();
@@ -505,6 +507,13 @@ Qualquer dúvida, estamos à disposição. 😊`;
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Pending Referrals Indicator */}
+              {pendingReferrals > 0 && (
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30">
+                  <Gift className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-yellow-500">{pendingReferrals} pendente{pendingReferrals > 1 ? 's' : ''}</span>
+                </div>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="hidden sm:flex glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300">

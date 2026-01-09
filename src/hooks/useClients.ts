@@ -126,10 +126,10 @@ export function useClients() {
 
     // If first client, complete any pending referral for this user
     if (isFirstClient) {
-      // First check if there's a pending referral
+      // First check if there's a pending referral with referrer info
       const { data: pendingReferral } = await supabase
         .from('referrals')
-        .select('referrer_id')
+        .select('referrer_id, discount_amount')
         .eq('referred_id', user.id)
         .eq('status', 'pending')
         .maybeSingle();
@@ -159,6 +159,26 @@ export function useClients() {
               status: 'sent',
               days_until_expiration: null
             });
+
+          // Get referrer profile to send email
+          const { data: referrerProfile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('user_id', pendingReferral.referrer_id)
+            .maybeSingle();
+
+          // Send email notification to referrer
+          try {
+            await supabase.functions.invoke('send-referral-notification', {
+              body: {
+                referrerId: pendingReferral.referrer_id,
+                referrerName: referrerProfile?.display_name || '',
+                discountAmount: Number(pendingReferral.discount_amount) || 10
+              }
+            });
+          } catch (emailError) {
+            console.error('Error sending referral email:', emailError);
+          }
         }
       }
     }
