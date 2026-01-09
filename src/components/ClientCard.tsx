@@ -3,11 +3,13 @@ import { PlanBadge } from './PlanBadge';
 import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle } from 'lucide-react';
+import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { generateExpirationMessage, openWhatsApp } from '@/lib/whatsapp';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ClientCardProps {
   client: Client;
@@ -34,6 +36,28 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
       daysRemaining,
     });
     openWhatsApp(client.whatsapp, message);
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-expiration-reminder', {
+        body: {
+          clientId: client.id,
+          clientName: client.name,
+          clientEmail: client.email,
+          planName,
+          daysRemaining,
+          expiresAt: format(client.expiresAt, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Email de lembrete enviado para ${client.email}`);
+    } catch (error: any) {
+      console.error('Error sending email:', error);
+      toast.error('Erro ao enviar email. Tente novamente.');
+    }
   };
 
   return (
@@ -151,15 +175,26 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
             </Button>
           </div>
           {needsAttention && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-1.5 text-green-600 border-green-600/30 hover:bg-green-600/10"
-              onClick={handleSendWhatsApp}
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              Enviar Lembrete WhatsApp
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-1.5 text-green-600 border-green-600/30 hover:bg-green-600/10"
+                onClick={handleSendWhatsApp}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                WhatsApp
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-1.5 text-blue-600 border-blue-600/30 hover:bg-blue-600/10"
+                onClick={handleSendEmail}
+              >
+                <Send className="h-3.5 w-3.5" />
+                Email
+              </Button>
+            </div>
           )}
         </div>
       </CardContent>
