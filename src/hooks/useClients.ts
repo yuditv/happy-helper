@@ -100,6 +100,9 @@ export function useClients() {
   const addClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
     if (!user) return null;
 
+    // Check if this is user's first client (for referral validation)
+    const isFirstClient = clients.length === 0;
+
     const { data: newClient, error } = await supabase
       .from('clients')
       .insert({
@@ -119,6 +122,22 @@ export function useClients() {
     if (error) {
       console.error('Error adding client:', error);
       return null;
+    }
+
+    // If first client, complete any pending referral for this user
+    if (isFirstClient) {
+      const { error: referralError } = await supabase
+        .from('referrals')
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('referred_id', user.id)
+        .eq('status', 'pending');
+
+      if (referralError) {
+        console.error('Error completing referral:', referralError);
+      }
     }
 
     await fetchClients();

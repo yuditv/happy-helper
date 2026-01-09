@@ -132,7 +132,7 @@ export function ReferralCard() {
               <Check className="h-4 w-4" />
             </div>
             <p className="text-2xl font-bold text-plan-semiannual">{completedReferrals}</p>
-            <p className="text-xs text-muted-foreground">Concluídas</p>
+            <p className="text-xs text-muted-foreground">Validadas</p>
           </div>
           
           <div className="stat-card p-3 text-center">
@@ -184,7 +184,7 @@ export function ReferralCard() {
             <div>
               <p className="text-sm font-medium text-foreground">Como funciona?</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Compartilhe seu código com amigos. Quando eles se cadastrarem usando seu código, 
+                Compartilhe seu código com amigos. Quando eles se cadastrarem e assinarem um plano (adicionar primeiro cliente), 
                 você ganha <span className="text-primary font-semibold">R$ 10,00 de desconto</span> na próxima mensalidade!
               </p>
             </div>

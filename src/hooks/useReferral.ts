@@ -130,15 +130,15 @@ export function useReferral() {
       return { success: false, message: 'Você já usou um código de indicação' };
     }
 
-    // Create referral
+    // Create referral as pending - will be completed when referred user adds their first client
     const { error: insertError } = await supabase
       .from('referrals')
       .insert({
         referrer_id: codeData.user_id,
         referred_id: user.id,
         referral_code: code.toUpperCase(),
-        status: 'completed',
-        completed_at: new Date().toISOString(),
+        status: 'pending',
+        completed_at: null,
       });
 
     if (insertError) {
@@ -146,7 +146,7 @@ export function useReferral() {
       return { success: false, message: 'Erro ao aplicar código' };
     }
 
-    return { success: true, message: 'Código aplicado com sucesso! O usuário que indicou você ganhou um desconto.' };
+    return { success: true, message: 'Código aplicado! A indicação será validada quando você assinar um plano.' };
   };
 
   const markDiscountAsUsed = async (referralId: string) => {
