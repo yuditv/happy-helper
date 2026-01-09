@@ -13,6 +13,7 @@ interface DbClient {
   service: string;
   plan: string;
   price: number | null;
+  notes: string | null;
   expires_at: string;
   created_at: string;
   updated_at: string;
@@ -84,6 +85,7 @@ export function useClients() {
       service: (c.service || 'IPTV') as ServiceType,
       plan: c.plan as PlanType,
       price: c.price,
+      notes: c.notes,
       expiresAt: new Date(c.expires_at),
       createdAt: new Date(c.created_at),
       renewalHistory: renewalsByClient[c.id] || [],
@@ -113,6 +115,7 @@ export function useClients() {
         service: data.service,
         plan: data.plan,
         price: data.price,
+        notes: data.notes,
         created_at: data.createdAt.toISOString(),
         expires_at: data.expiresAt.toISOString(),
       })
@@ -197,6 +200,7 @@ export function useClients() {
     if (data.service) updateData.service = data.service;
     if (data.plan) updateData.plan = data.plan;
     if (data.price !== undefined) updateData.price = data.price;
+    if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.createdAt) updateData.created_at = data.createdAt.toISOString();
     if (data.expiresAt) updateData.expires_at = data.expiresAt.toISOString();
 
