@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useReferralNotifications } from '@/hooks/useReferralNotifications';
 import { useReferral } from '@/hooks/useReferral';
+import { useClientTags } from '@/hooks/useClientTags';
 import LevelUpCelebration from '@/components/LevelUpCelebration';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
@@ -23,6 +24,11 @@ import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
 import { ChangePlanDialog } from '@/components/ChangePlanDialog';
 import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialog';
 import { BulkMessageDialog } from '@/components/BulkMessageDialog';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { TagManager } from '@/components/TagManager';
+import { TagFilter } from '@/components/TagFilter';
+import { TagBadge } from '@/components/TagBadge';
+import { TagSelector } from '@/components/TagSelector';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -50,6 +56,7 @@ const Index = () => {
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
   const { pendingReferrals, currentLevel, levelUpTriggered, clearLevelUp } = useReferral();
+  const { tags, createTag, updateTag, deleteTag, assignTag, removeTag, getClientTags, getClientsByTag } = useClientTags();
   
   // Check for referral notifications
   useReferralNotifications();
@@ -65,6 +72,7 @@ const Index = () => {
   const [notificationClient, setNotificationClient] = useState<Client | null>(null);
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType | 'all'>('all');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'name' | 'expiresAt' | 'plan'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -84,7 +92,15 @@ const Index = () => {
         client.email.toLowerCase().includes(search.toLowerCase()) ||
         client.whatsapp.includes(search);
       const matchesPlan = planFilter === 'all' || client.plan === planFilter;
-      return matchesSearch && matchesPlan;
+      
+      // Tag filter
+      let matchesTags = true;
+      if (tagFilter.length > 0) {
+        const clientTagIds = getClientTags(client.id).map(t => t.id);
+        matchesTags = tagFilter.every(tagId => clientTagIds.includes(tagId));
+      }
+      
+      return matchesSearch && matchesPlan && matchesTags;
     });
 
     // Sort clients
@@ -103,7 +119,7 @@ const Index = () => {
       
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [clients, search, planFilter, sortBy, sortOrder]);
+  }, [clients, search, planFilter, tagFilter, sortBy, sortOrder, getClientTags]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedClients.length / clientsPerPage);
@@ -544,6 +560,8 @@ Qualquer dúvida, estamos à disposição. 😊`;
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              <ThemeToggle />
+
               <Button onClick={() => setFormOpen(true)} className="gap-2 btn-futuristic text-primary-foreground font-semibold">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Novo Cliente</span>
@@ -671,6 +689,13 @@ Qualquer dúvida, estamos à disposição. 😊`;
               </DropdownMenuContent>
             </DropdownMenu>
             <PlanFilter selected={planFilter} onSelect={setPlanFilter} />
+            <TagFilter 
+              tags={tags} 
+              selectedTagIds={tagFilter} 
+              onToggle={(id) => setTagFilter(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id])}
+              onClear={() => setTagFilter([])}
+            />
+            <TagManager tags={tags} onCreate={createTag} onUpdate={updateTag} onDelete={deleteTag} />
           </div>
         </div>
 
