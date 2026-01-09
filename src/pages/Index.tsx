@@ -14,6 +14,7 @@ import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { ExpiringClientsAlert } from '@/components/ExpiringClientsAlert';
 import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
 import { ChangePlanDialog } from '@/components/ChangePlanDialog';
+import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -43,6 +44,8 @@ const Index = () => {
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [changePlanDialogOpen, setChangePlanDialogOpen] = useState(false);
   const [changePlanClient, setChangePlanClient] = useState<Client | null>(null);
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [notificationClient, setNotificationClient] = useState<Client | null>(null);
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType | 'all'>('all');
 
@@ -123,6 +126,11 @@ const Index = () => {
   const handleOpenChangePlan = (client: Client) => {
     setChangePlanClient(client);
     setChangePlanDialogOpen(true);
+  };
+
+  const handleViewNotifications = (client: Client) => {
+    setNotificationClient(client);
+    setNotificationDialogOpen(true);
   };
 
   const handleConfirmChangePlan = async (clientId: string, newPlan: PlanType, newExpiresAt: Date) => {
@@ -312,6 +320,7 @@ const Index = () => {
                 onRenew={handleRenewClient}
                 onViewHistory={handleViewHistory}
                 onChangePlan={handleOpenChangePlan}
+                onViewNotifications={handleViewNotifications}
                 getPlanName={getPlanName}
               />
             ))}
@@ -342,6 +351,11 @@ const Index = () => {
         open={changePlanDialogOpen}
         onOpenChange={setChangePlanDialogOpen}
         onConfirm={handleConfirmChangePlan}
+      />
+      <NotificationHistoryDialog
+        client={notificationClient}
+        open={notificationDialogOpen}
+        onOpenChange={setNotificationDialogOpen}
       />
     </div>
   );
