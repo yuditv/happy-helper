@@ -179,21 +179,31 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
             <Mail className="h-4 w-4" />
             <span className="truncate">{client.email}</span>
           </a>
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span className="text-xs">
-                Vence em {format(client.expiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}
-              </span>
+          <div className="pt-2 border-t border-border/50 space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span className="text-xs">
+                  Cadastrado em {format(client.createdAt, "dd 'de' MMM, yyyy", { locale: ptBR })}
+                </span>
+              </div>
             </div>
-            {hasHistory && (
-              <button
-                onClick={() => onViewHistory(client)}
-                className="text-xs text-primary hover:underline"
-              >
-                {client.renewalHistory.length} renovação{client.renewalHistory.length > 1 ? 'ões' : ''}
-              </button>
-            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span className="text-xs">
+                  Vence em {format(client.expiresAt, "dd 'de' MMM, yyyy", { locale: ptBR })}
+                </span>
+              </div>
+              {hasHistory && (
+                <button
+                  onClick={() => onViewHistory(client)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {client.renewalHistory.length} renovação{client.renewalHistory.length > 1 ? 'ões' : ''}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
