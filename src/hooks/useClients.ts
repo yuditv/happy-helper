@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Client, PlanType, RenewalRecord, getExpirationStatus, planDurations } from '@/types/client';
+import { Client, PlanType, ServiceType, RenewalRecord, getExpirationStatus, planDurations } from '@/types/client';
 import { addMonths } from 'date-fns';
 import { useAuth } from './useAuth';
 
@@ -10,6 +10,7 @@ interface DbClient {
   name: string;
   whatsapp: string;
   email: string;
+  service: string;
   plan: string;
   price: number | null;
   expires_at: string;
@@ -80,6 +81,7 @@ export function useClients() {
       name: c.name,
       whatsapp: c.whatsapp,
       email: c.email,
+      service: (c.service || 'IPTV') as ServiceType,
       plan: c.plan as PlanType,
       price: c.price,
       expiresAt: new Date(c.expires_at),
@@ -105,6 +107,7 @@ export function useClients() {
         name: data.name,
         whatsapp: data.whatsapp,
         email: data.email,
+        service: data.service,
         plan: data.plan,
         price: data.price,
         expires_at: data.expiresAt.toISOString(),
@@ -126,6 +129,7 @@ export function useClients() {
     if (data.name) updateData.name = data.name;
     if (data.whatsapp) updateData.whatsapp = data.whatsapp;
     if (data.email) updateData.email = data.email;
+    if (data.service) updateData.service = data.service;
     if (data.plan) updateData.plan = data.plan;
     if (data.price !== undefined) updateData.price = data.price;
     if (data.expiresAt) updateData.expires_at = data.expiresAt.toISOString();
