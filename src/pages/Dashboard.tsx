@@ -27,10 +27,6 @@ import {
 import { ClientCharts } from "@/components/ClientCharts";
 import { RetentionMetrics } from "@/components/RetentionMetrics";
 import { 
-  ChartTooltip, 
-  ChartTooltipContent 
-} from "@/components/ui/chart";
-import { 
   BarChart, 
   Bar, 
   XAxis, 
@@ -661,7 +657,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="month" className="text-xs" />
                     <YAxis className="text-xs" />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Tooltip />
                     <Bar dataKey="renewals" name="Renovações" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="newClients" name="Novos Clientes" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="messages" name="Mensagens" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
