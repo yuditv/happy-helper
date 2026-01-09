@@ -1,5 +1,5 @@
 import { Client, PlanType, planLabels, planMonthlyEquivalent, planDurations, formatCurrency, getExpirationStatus } from '@/types/client';
-import { Users, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, DollarSign, Zap, Shield, Activity } from 'lucide-react';
 import { useMemo } from 'react';
 
 interface ClientStatsProps {
@@ -7,10 +7,17 @@ interface ClientStatsProps {
 }
 
 const planColors: Record<PlanType, string> = {
-  monthly: 'bg-plan-monthly',
-  quarterly: 'bg-plan-quarterly',
-  semiannual: 'bg-plan-semiannual',
-  annual: 'bg-plan-annual',
+  monthly: 'from-plan-monthly to-plan-monthly/50',
+  quarterly: 'from-plan-quarterly to-plan-quarterly/50',
+  semiannual: 'from-plan-semiannual to-plan-semiannual/50',
+  annual: 'from-plan-annual to-plan-annual/50',
+};
+
+const planGlows: Record<PlanType, string> = {
+  monthly: 'shadow-[0_0_20px_hsl(280_100%_65%/0.3)]',
+  quarterly: 'shadow-[0_0_20px_hsl(200_100%_50%/0.3)]',
+  semiannual: 'shadow-[0_0_20px_hsl(160_100%_45%/0.3)]',
+  annual: 'shadow-[0_0_20px_hsl(35_100%_55%/0.3)]',
 };
 
 export function ClientStats({ clients }: ClientStatsProps) {
@@ -50,53 +57,75 @@ export function ClientStats({ clients }: ClientStatsProps) {
   const atRiskClients = clients.filter(c => ['expiring', 'expired'].includes(getExpirationStatus(c.expiresAt))).length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Main Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary" />
+        <div className="stat-card group shimmer">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow">
+                <Users className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-accent flex items-center justify-center">
+                <Activity className="h-2.5 w-2.5 text-accent-foreground" />
+              </div>
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{totalClients}</p>
-              <p className="text-xs text-muted-foreground">Total de Clientes</p>
+              <p className="text-3xl font-bold text-gradient">{totalClients}</p>
+              <p className="text-sm text-muted-foreground">Total de Clientes</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-plan-semiannual/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-plan-semiannual" />
+        <div className="stat-card group shimmer">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-plan-semiannual to-accent flex items-center justify-center shadow-[0_0_20px_hsl(160_100%_45%/0.4)]">
+                <DollarSign className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-plan-semiannual flex items-center justify-center">
+                <Zap className="h-2.5 w-2.5 text-primary-foreground" />
+              </div>
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(mrr)}</p>
-              <p className="text-xs text-muted-foreground">MRR (Receita Mensal)</p>
+              <p className="text-3xl font-bold text-gradient">{formatCurrency(mrr)}</p>
+              <p className="text-sm text-muted-foreground">MRR (Receita Mensal)</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-plan-quarterly/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-plan-quarterly" />
+        <div className="stat-card group shimmer">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-plan-quarterly to-primary flex items-center justify-center shadow-[0_0_20px_hsl(200_100%_50%/0.4)]">
+                <TrendingUp className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-plan-quarterly flex items-center justify-center">
+                <Shield className="h-2.5 w-2.5 text-primary-foreground" />
+              </div>
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{activeClients}</p>
-              <p className="text-xs text-muted-foreground">Clientes Ativos</p>
+              <p className="text-3xl font-bold text-gradient">{activeClients}</p>
+              <p className="text-sm text-muted-foreground">Clientes Ativos</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-card rounded-xl p-4 shadow-sm border border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+        <div className="stat-card group shimmer">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-destructive to-plan-annual flex items-center justify-center shadow-[0_0_20px_hsl(0_84%_60%/0.4)]">
+                <AlertTriangle className="h-7 w-7 text-primary-foreground" />
+              </div>
+              {atRiskClients > 0 && (
+                <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive flex items-center justify-center animate-pulse">
+                  <span className="text-[10px] font-bold text-destructive-foreground">{atRiskClients}</span>
+                </div>
+              )}
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{atRiskClients}</p>
-              <p className="text-xs text-muted-foreground">Em Risco</p>
+              <p className="text-3xl font-bold text-destructive">{atRiskClients}</p>
+              <p className="text-sm text-muted-foreground">Em Risco</p>
             </div>
           </div>
         </div>
@@ -107,21 +136,29 @@ export function ClientStats({ clients }: ClientStatsProps) {
         {(Object.keys(planLabels) as PlanType[]).map((plan) => (
           <div
             key={plan}
-            className="bg-card rounded-xl p-4 shadow-sm border border-border/50"
+            className={`stat-card group hover:${planGlows[plan]} transition-all duration-300`}
           >
             <div className="flex items-center gap-3">
-              <div className={`h-3 w-3 rounded-full ${planColors[plan]}`} />
+              <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${planColors[plan]} flex items-center justify-center`}>
+                <span className="text-lg font-bold text-primary-foreground">{planCounts[plan] || 0}</span>
+              </div>
               <div className="flex-1">
                 <div className="flex items-baseline justify-between">
-                  <p className="text-xl font-bold text-foreground">
-                    {planCounts[plan] || 0}
-                  </p>
-                  <p className="text-xs font-medium text-primary">
-                    {formatCurrency(planRevenue[plan] || 0)}
+                  <p className="text-lg font-bold text-foreground">
+                    {planLabels[plan]}
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground">{planLabels[plan]}</p>
+                <p className="text-sm font-medium text-primary">
+                  {formatCurrency(planRevenue[plan] || 0)}
+                </p>
               </div>
+            </div>
+            {/* Progress bar showing plan distribution */}
+            <div className="mt-3 h-1 rounded-full bg-muted/30 overflow-hidden">
+              <div 
+                className={`h-full bg-gradient-to-r ${planColors[plan]} transition-all duration-500`}
+                style={{ width: `${totalClients > 0 ? ((planCounts[plan] || 0) / totalClients) * 100 : 0}%` }}
+              />
             </div>
           </div>
         ))}

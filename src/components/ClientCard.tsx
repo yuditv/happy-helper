@@ -100,11 +100,12 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
 
   return (
     <Card className={cn(
-      "group hover:shadow-lg transition-all duration-300 border-border/50 bg-card",
-      status === 'expired' && "border-destructive/30 bg-destructive/5",
-      status === 'expiring' && "border-plan-annual/30 bg-plan-annual/5"
+      "group relative overflow-hidden transition-all duration-300 glass-card border-border/30 hover:border-primary/50 hover:shadow-[0_0_30px_hsl(260_100%_65%/0.15)]",
+      status === 'expired' && "border-destructive/50 bg-destructive/5",
+      status === 'expiring' && "border-plan-annual/50 bg-plan-annual/5"
     )}>
-      <CardContent className="p-5">
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <CardContent className="p-5 relative z-10">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-foreground text-lg truncate mb-1">

@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -191,71 +191,82 @@ const Index = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="relative">
+          <div className="h-16 w-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Zap className="h-6 w-6 text-primary animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background cyber-grid">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border/50">
+      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary-foreground" />
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow">
+                  <Users className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-accent animate-pulse"></div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Gerenciador de Clientes</h1>
-                <p className="text-sm text-muted-foreground">Organize seus clientes por plano</p>
+                <h1 className="text-2xl font-bold text-gradient">Gerenciador de Clientes</h1>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  Sistema inteligente de gestão
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="hidden sm:flex">
+                  <Button variant="outline" size="icon" className="hidden sm:flex glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300">
                     <Download className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleExportClients}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                <DropdownMenuContent align="end" className="glass-card border-border/50">
+                  <DropdownMenuItem onClick={handleExportClients} className="hover:bg-primary/10">
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-primary" />
                     Exportar Clientes (CSV)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportRenewals}>
-                    <History className="h-4 w-4 mr-2" />
+                  <DropdownMenuItem onClick={handleExportRenewals} className="hover:bg-primary/10">
+                    <History className="h-4 w-4 mr-2 text-accent" />
                     Exportar Renovações (CSV)
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleExportPDF}>
-                    <FileText className="h-4 w-4 mr-2" />
+                  <DropdownMenuSeparator className="bg-border/50" />
+                  <DropdownMenuItem onClick={handleExportPDF} className="hover:bg-primary/10">
+                    <FileText className="h-4 w-4 mr-2 text-plan-annual" />
                     Relatório Completo (PDF)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button onClick={() => setFormOpen(true)} className="gap-2">
+              <Button onClick={() => setFormOpen(true)} className="gap-2 btn-futuristic text-primary-foreground font-semibold">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Novo Cliente</span>
               </Button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" className="glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300">
                     <User className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    {user?.email}
+                <DropdownMenuContent align="end" className="glass-card border-border/50">
+                  <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border/50">
+                    <span className="text-xs text-primary">Logado como</span>
+                    <p className="font-medium text-foreground truncate max-w-[200px]">{user?.email}</p>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/settings')}>
-                    <Settings className="h-4 w-4 mr-2" />
+                  <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10 mt-1">
+                    <Settings className="h-4 w-4 mr-2 text-primary" />
                     Configurações
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut}>
+                  <DropdownMenuItem onClick={handleSignOut} className="hover:bg-destructive/10 text-destructive">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sair
                   </DropdownMenuItem>
@@ -266,7 +277,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-6">
+      <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Expiring Alert */}
         <ExpiringClientsAlert 
           expiringClients={expiringClients}
@@ -275,58 +286,74 @@ const Index = () => {
         />
 
         {/* Stats */}
-        <ClientStats clients={clients} />
+        <div className="animate-fade-in">
+          <ClientStats clients={clients} />
+        </div>
 
         {/* Retention Metrics */}
-        <RetentionMetrics clients={clients} />
+        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <RetentionMetrics clients={clients} />
+        </div>
 
         {/* Charts */}
-        <ClientCharts clients={clients} />
+        <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <ClientCharts clients={clients} />
+        </div>
 
         {/* Financial Report */}
-        <FinancialReport clients={clients} />
+        <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <FinancialReport clients={clients} />
+        </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between glass-card p-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
           <SearchBar value={search} onChange={setSearch} />
           <PlanFilter selected={planFilter} onSelect={setPlanFilter} />
         </div>
 
         {/* Client Grid */}
         {filteredClients.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="h-16 w-16 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
-              <Users className="h-8 w-8 text-muted-foreground" />
+          <div className="text-center py-20 glass-card rounded-2xl">
+            <div className="relative inline-block">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 mx-auto flex items-center justify-center mb-6 float">
+                <Users className="h-10 w-10 text-primary" />
+              </div>
+              <div className="absolute inset-0 h-20 w-20 rounded-full border-2 border-primary/30 animate-ping"></div>
             </div>
-            <h3 className="text-lg font-medium text-foreground mb-2">
+            <h3 className="text-xl font-semibold text-gradient mb-3">
               {clients.length === 0 ? 'Nenhum cliente cadastrado' : 'Nenhum cliente encontrado'}
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               {clients.length === 0
-                ? 'Comece adicionando seu primeiro cliente.'
-                : 'Tente ajustar os filtros de busca.'}
+                ? 'Comece adicionando seu primeiro cliente para desbloquear todo o potencial do sistema.'
+                : 'Tente ajustar os filtros de busca para encontrar o que procura.'}
             </p>
             {clients.length === 0 && (
-              <Button onClick={() => setFormOpen(true)} className="gap-2">
+              <Button onClick={() => setFormOpen(true)} className="gap-2 btn-futuristic text-primary-foreground font-semibold px-8">
                 <Plus className="h-4 w-4" />
                 Adicionar Cliente
               </Button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredClients.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                onEdit={handleOpenEdit}
-                onDelete={handleOpenDelete}
-                onRenew={handleRenewClient}
-                onViewHistory={handleViewHistory}
-                onChangePlan={handleOpenChangePlan}
-                onViewNotifications={handleViewNotifications}
-                getPlanName={getPlanName}
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filteredClients.map((client, index) => (
+              <div 
+                key={client.id} 
+                className="animate-fade-in"
+                style={{ animationDelay: `${0.05 * index}s` }}
+              >
+                <ClientCard
+                  client={client}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleOpenDelete}
+                  onRenew={handleRenewClient}
+                  onViewHistory={handleViewHistory}
+                  onChangePlan={handleOpenChangePlan}
+                  onViewNotifications={handleViewNotifications}
+                  getPlanName={getPlanName}
+                />
+              </div>
             ))}
           </div>
         )}
