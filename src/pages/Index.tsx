@@ -9,6 +9,7 @@ import { ClientStats } from '@/components/ClientStats';
 import { RetentionMetrics } from '@/components/RetentionMetrics';
 import { ClientCharts } from '@/components/ClientCharts';
 import { FinancialReport } from '@/components/FinancialReport';
+import { ReferralCard } from '@/components/ReferralCard';
 import { SearchBar } from '@/components/SearchBar';
 import { PlanFilter } from '@/components/PlanFilter';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
@@ -300,9 +301,14 @@ const Index = () => {
           <ClientCharts clients={clients} />
         </div>
 
-        {/* Financial Report */}
-        <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
-          <FinancialReport clients={clients} />
+        {/* Financial Report & Referral */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <div className="lg:col-span-2">
+            <FinancialReport clients={clients} />
+          </div>
+          <div>
+            <ReferralCard />
+          </div>
         </div>
 
         {/* Filters */}
