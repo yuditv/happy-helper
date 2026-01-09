@@ -72,7 +72,7 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold">Meu Perfil</h1>
