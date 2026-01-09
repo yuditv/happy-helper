@@ -555,7 +555,7 @@ const Index = () => {
                     {/* Selection Checkbox */}
                     <button
                       onClick={() => toggleClientSelection(client.id)}
-                      className={`absolute top-3 left-3 z-20 h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                      className={`absolute top-3 right-3 z-20 h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all ${
                         selectedClients.has(client.id)
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background/80 border-border/50 hover:border-primary/50'
