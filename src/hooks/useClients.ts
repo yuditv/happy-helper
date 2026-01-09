@@ -148,6 +148,8 @@ export function useClients() {
         if (referralError) {
           console.error('Error completing referral:', referralError);
         } else {
+          const discountFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(pendingReferral.discount_amount) || 10);
+          
           // Create notification for the referrer
           await supabase
             .from('notification_history')
@@ -155,7 +157,7 @@ export function useClients() {
               user_id: pendingReferral.referrer_id,
               client_id: newClient.id,
               notification_type: 'referral_completed',
-              subject: 'Indicação validada! Você ganhou R$ 10,00 de desconto.',
+              subject: `Indicação validada! Você ganhou ${discountFormatted} de desconto.`,
               status: 'sent',
               days_until_expiration: null
             });

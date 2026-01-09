@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { getCurrentLevel } from '@/lib/referralLevels';
 
 interface ReferralCode {
   id: string;
@@ -153,6 +154,17 @@ export function useReferral() {
       return { success: false, message: 'Você já usou um código de indicação' };
     }
 
+    // Get referrer's completed referrals count to determine their level
+    const { count: referrerCompletedCount } = await supabase
+      .from('referrals')
+      .select('*', { count: 'exact', head: true })
+      .eq('referrer_id', codeData.user_id)
+      .eq('status', 'completed');
+
+    // Calculate discount based on referrer's level
+    const referrerLevel = getCurrentLevel(referrerCompletedCount || 0);
+    const discountAmount = referrerLevel.discountPerReferral;
+
     // Create referral as pending - will be completed when referred user adds their first client
     const { error: insertError } = await supabase
       .from('referrals')
@@ -162,6 +174,7 @@ export function useReferral() {
         referral_code: code.toUpperCase(),
         status: 'pending',
         completed_at: null,
+        discount_amount: discountAmount,
       });
 
     if (insertError) {
@@ -169,6 +182,7 @@ export function useReferral() {
       return { success: false, message: 'Erro ao aplicar código' };
     }
 
+    await fetchReferralData();
     return { success: true, message: 'Código aplicado! A indicação será validada quando você assinar um plano.' };
   };
 
