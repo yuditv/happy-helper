@@ -23,6 +23,7 @@ export type Database = {
           name: string
           plan: string
           price: number | null
+          service: string | null
           updated_at: string
           user_id: string
           whatsapp: string
@@ -35,6 +36,7 @@ export type Database = {
           name: string
           plan: string
           price?: number | null
+          service?: string | null
           updated_at?: string
           user_id: string
           whatsapp: string
@@ -47,6 +49,7 @@ export type Database = {
           name?: string
           plan?: string
           price?: number | null
+          service?: string | null
           updated_at?: string
           user_id?: string
           whatsapp?: string

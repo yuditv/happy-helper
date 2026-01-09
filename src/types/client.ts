@@ -1,6 +1,13 @@
 export type PlanType = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
+export type ServiceType = 'IPTV' | 'VPN';
+
 export type ExpirationStatus = 'active' | 'expiring' | 'expired';
+
+export const serviceLabels: Record<ServiceType, string> = {
+  IPTV: 'IPTV',
+  VPN: 'VPN',
+};
 
 export interface RenewalRecord {
   id: string;
@@ -15,6 +22,7 @@ export interface Client {
   name: string;
   whatsapp: string;
   email: string;
+  service: ServiceType;
   plan: PlanType;
   price: number | null;
   createdAt: Date;

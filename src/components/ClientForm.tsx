@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Client, PlanType, planLabels, planDurations } from '@/types/client';
+import { Client, PlanType, ServiceType, planLabels, planDurations, serviceLabels } from '@/types/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Phone, Mail, CreditCard, CalendarDays, DollarSign } from 'lucide-react';
+import { User, Phone, Mail, CreditCard, CalendarDays, DollarSign, Tv } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
 
 interface ClientFormProps {
@@ -30,6 +30,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
+  const [service, setService] = useState<ServiceType>('IPTV');
   const [plan, setPlan] = useState<PlanType>('monthly');
   const [price, setPrice] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -39,6 +40,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setName(initialData.name);
       setWhatsapp(initialData.whatsapp);
       setEmail(initialData.email);
+      setService(initialData.service);
       setPlan(initialData.plan);
       setPrice(initialData.price?.toString() || '');
       setExpiresAt(format(initialData.expiresAt, 'yyyy-MM-dd'));
@@ -46,6 +48,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setName('');
       setWhatsapp('');
       setEmail('');
+      setService('IPTV');
       setPlan('monthly');
       setPrice('');
       // Set default expiration based on plan
@@ -82,7 +85,8 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
     onSubmit({ 
       name, 
       whatsapp, 
-      email, 
+      email,
+      service,
       plan,
       price: price ? parseFloat(price) : null,
       expiresAt: new Date(expiresAt + 'T23:59:59')
@@ -148,6 +152,27 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
                 className="pl-10"
                 required
               />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="service" className="text-sm font-medium">
+              Serviço
+            </Label>
+            <div className="relative">
+              <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+              <Select value={service} onValueChange={(v) => setService(v as ServiceType)}>
+                <SelectTrigger className="pl-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(serviceLabels) as [ServiceType, string][]).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
