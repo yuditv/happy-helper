@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, 
   Users, 
@@ -12,18 +13,20 @@ import {
   TrendingUp, 
   TrendingDown,
   MessageSquare,
-  Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
   BarChart3,
-  Calendar,
-  RefreshCw
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  Mail,
+  Bell
 } from "lucide-react";
 import { ClientCharts } from "@/components/ClientCharts";
 import { RetentionMetrics } from "@/components/RetentionMetrics";
 import { 
-  ChartContainer, 
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
@@ -39,10 +42,12 @@ import {
   LineChart,
   Line,
   CartesianGrid,
-  Legend
+  Legend,
+  Tooltip
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface MessageStats {
   total: number;
@@ -54,9 +59,37 @@ interface MessageStats {
 
 interface MonthlyData {
   month: string;
+  fullMonth: string;
   clients: number;
   renewals: number;
   messages: number;
+  revenue: number;
+  newClients: number;
+  churnedClients: number;
+}
+
+interface MonthlyComparison {
+  current: {
+    clients: number;
+    renewals: number;
+    messages: number;
+    revenue: number;
+    newClients: number;
+  };
+  previous: {
+    clients: number;
+    renewals: number;
+    messages: number;
+    revenue: number;
+    newClients: number;
+  };
+  changes: {
+    clients: number;
+    renewals: number;
+    messages: number;
+    revenue: number;
+    newClients: number;
+  };
 }
 
 export default function Dashboard() {
@@ -72,12 +105,27 @@ export default function Dashboard() {
   });
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [comparison, setComparison] = useState<MonthlyComparison | null>(null);
+
+  const planPrices: Record<string, number> = {
+    monthly: 99.90,
+    quarterly: 54.99,
+    semiannual: 99.99,
+    annual: 149.99
+  };
+
+  const planDurations: Record<string, number> = {
+    monthly: 1,
+    quarterly: 3,
+    semiannual: 6,
+    annual: 12
+  };
 
   useEffect(() => {
-    if (user) {
+    if (user && clients.length >= 0) {
       fetchDashboardData();
     }
-  }, [user]);
+  }, [user, clients]);
 
   const fetchDashboardData = async () => {
     if (!user) return;
@@ -103,22 +151,18 @@ export default function Dashboard() {
 
       // Fetch monthly data for the last 6 months
       const monthlyStats: MonthlyData[] = [];
+      
       for (let i = 5; i >= 0; i--) {
         const date = subMonths(new Date(), i);
         const start = startOfMonth(date);
         const end = endOfMonth(date);
         const monthLabel = format(date, 'MMM', { locale: ptBR });
-
-        // Count clients created in this month
-        const clientsInMonth = clients.filter(c => {
-          const createdAt = new Date(c.id); // Use created_at if available
-          return createdAt >= start && createdAt <= end;
-        }).length;
+        const fullMonthLabel = format(date, 'MMMM yyyy', { locale: ptBR });
 
         // Fetch renewals for this month
         const { data: renewals } = await supabase
           .from('renewal_history')
-          .select('id')
+          .select('id, plan')
           .eq('user_id', user.id)
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString());
@@ -132,33 +176,76 @@ export default function Dashboard() {
           .gte('sent_at', start.toISOString())
           .lte('sent_at', end.toISOString());
 
+        // Calculate revenue from renewals
+        const monthRevenue = renewals?.reduce((acc, r) => {
+          return acc + (planPrices[r.plan] || 0);
+        }, 0) || 0;
+
+        // Count new clients (created this month)
+        const newClientsCount = clients.filter(c => {
+          const createdAt = new Date(c.createdAt);
+          return createdAt >= start && createdAt <= end;
+        }).length;
+
+        // Count churned clients (expired this month and not renewed)
+        const churnedCount = clients.filter(c => {
+          const expiresAt = new Date(c.expiresAt);
+          return expiresAt >= start && expiresAt <= end && expiresAt < new Date();
+        }).length;
+
         monthlyStats.push({
           month: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-          clients: clientsInMonth || clients.length / 6, // Fallback for demo
+          fullMonth: fullMonthLabel.charAt(0).toUpperCase() + fullMonthLabel.slice(1),
+          clients: clients.length,
           renewals: renewals?.length || 0,
-          messages: sentMessages?.length || 0
+          messages: sentMessages?.length || 0,
+          revenue: monthRevenue,
+          newClients: newClientsCount,
+          churnedClients: churnedCount
         });
       }
+      
       setMonthlyData(monthlyStats);
+
+      // Calculate month-over-month comparison
+      if (monthlyStats.length >= 2) {
+        const current = monthlyStats[monthlyStats.length - 1];
+        const previous = monthlyStats[monthlyStats.length - 2];
+        
+        const calcChange = (curr: number, prev: number) => {
+          if (prev === 0) return curr > 0 ? 100 : 0;
+          return ((curr - prev) / prev) * 100;
+        };
+
+        setComparison({
+          current: {
+            clients: current.clients,
+            renewals: current.renewals,
+            messages: current.messages,
+            revenue: current.revenue,
+            newClients: current.newClients
+          },
+          previous: {
+            clients: previous.clients,
+            renewals: previous.renewals,
+            messages: previous.messages,
+            revenue: previous.revenue,
+            newClients: previous.newClients
+          },
+          changes: {
+            clients: calcChange(current.clients, previous.clients),
+            renewals: calcChange(current.renewals, previous.renewals),
+            messages: calcChange(current.messages, previous.messages),
+            revenue: calcChange(current.revenue, previous.revenue),
+            newClients: calcChange(current.newClients, previous.newClients)
+          }
+        });
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const planPrices: Record<string, number> = {
-    monthly: 99.90,
-    quarterly: 54.99,
-    semiannual: 99.99,
-    annual: 149.99
-  };
-
-  const planDurations: Record<string, number> = {
-    monthly: 1,
-    quarterly: 3,
-    semiannual: 6,
-    annual: 12
   };
 
   const totalClients = clients.length;
@@ -179,10 +266,10 @@ export default function Dashboard() {
   const churnRate = totalClients > 0 ? ((expiredClients / totalClients) * 100).toFixed(1) : 0;
 
   const messageChartData = [
-    { name: 'Pendentes', value: messageStats.pending, color: 'hsl(var(--warning))' },
-    { name: 'Enviadas', value: messageStats.sent, color: 'hsl(var(--primary))' },
-    { name: 'Falhas', value: messageStats.failed, color: 'hsl(var(--destructive))' },
-    { name: 'Canceladas', value: messageStats.cancelled, color: 'hsl(var(--muted-foreground))' }
+    { name: 'Pendentes', value: messageStats.pending, color: 'hsl(45, 93%, 47%)' },
+    { name: 'Enviadas', value: messageStats.sent, color: 'hsl(142, 71%, 45%)' },
+    { name: 'Falhas', value: messageStats.failed, color: 'hsl(0, 84%, 60%)' },
+    { name: 'Canceladas', value: messageStats.cancelled, color: 'hsl(215, 14%, 60%)' }
   ].filter(d => d.value > 0);
 
   const planDistribution = [
@@ -191,6 +278,37 @@ export default function Dashboard() {
     { name: 'Semestral', value: clients.filter(c => c.plan === 'semiannual').length, color: '#06b6d4' },
     { name: 'Anual', value: clients.filter(c => c.plan === 'annual').length, color: '#10b981' }
   ].filter(d => d.value > 0);
+
+  const renderChangeIndicator = (change: number, inverted = false) => {
+    const isPositive = inverted ? change < 0 : change > 0;
+    const isNegative = inverted ? change > 0 : change < 0;
+    
+    if (Math.abs(change) < 0.1) {
+      return <Minus className="h-4 w-4 text-muted-foreground" />;
+    }
+    
+    return (
+      <div className={`flex items-center gap-1 text-sm ${isPositive ? 'text-green-500' : isNegative ? 'text-red-500' : 'text-muted-foreground'}`}>
+        {isPositive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+        <span>{Math.abs(change).toFixed(1)}%</span>
+      </div>
+    );
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      toast.loading('Testando notificação automática...');
+      const { data, error } = await supabase.functions.invoke('daily-expiration-check');
+      
+      if (error) throw error;
+      
+      toast.dismiss();
+      toast.success(`Verificação concluída! ${data?.totalEmailsSent || 0} email(s) enviado(s)`);
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error('Erro ao testar notificação: ' + error.message);
+    }
+  };
 
   if (clientsLoading || isLoading) {
     return (
@@ -213,14 +331,114 @@ export default function Dashboard() {
               <h1 className="text-xl font-bold">Dashboard</h1>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchDashboardData}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleTestNotification}>
+              <Bell className="h-4 w-4 mr-2" />
+              Testar Notificações
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchDashboardData}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Auto Notifications Info */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Mail className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium">Notificações Automáticas Ativas</h3>
+                <p className="text-sm text-muted-foreground">
+                  Emails são enviados automaticamente às 9h para clientes com planos vencendo em 7, 3 e 1 dia(s).
+                </p>
+              </div>
+              <Badge variant="outline" className="border-green-500 text-green-500">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Ativo
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Month-over-Month Comparison */}
+        {comparison && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Comparativo Mensal
+                <Badge variant="secondary" className="ml-2">
+                  {monthlyData[monthlyData.length - 2]?.month} → {monthlyData[monthlyData.length - 1]?.month}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Renovações</span>
+                    {renderChangeIndicator(comparison.changes.renewals)}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">{comparison.current.renewals}</span>
+                    <span className="text-sm text-muted-foreground">vs {comparison.previous.renewals}</span>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Novos Clientes</span>
+                    {renderChangeIndicator(comparison.changes.newClients)}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">{comparison.current.newClients}</span>
+                    <span className="text-sm text-muted-foreground">vs {comparison.previous.newClients}</span>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Mensagens</span>
+                    {renderChangeIndicator(comparison.changes.messages)}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">{comparison.current.messages}</span>
+                    <span className="text-sm text-muted-foreground">vs {comparison.previous.messages}</span>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Receita</span>
+                    {renderChangeIndicator(comparison.changes.revenue)}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">R$ {comparison.current.revenue.toFixed(0)}</span>
+                    <span className="text-sm text-muted-foreground">vs R$ {comparison.previous.revenue.toFixed(0)}</span>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Total Clientes</span>
+                    {renderChangeIndicator(comparison.changes.clients)}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">{comparison.current.clients}</span>
+                    <span className="text-sm text-muted-foreground">vs {comparison.previous.clients}</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
@@ -329,6 +547,36 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        {/* Revenue Evolution Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Evolução da Receita (6 meses)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis className="text-xs" tickFormatter={(value) => `R$ ${value}`} />
+                  <Tooltip 
+                    formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Receita']}
+                    labelFormatter={(label) => `Mês: ${label}`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    name="Receita"
+                    stroke="hsl(142, 71%, 45%)" 
+                    strokeWidth={3}
+                    dot={{ fill: 'hsl(142, 71%, 45%)', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Charts Row */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Message Status Chart */}
@@ -415,6 +663,7 @@ export default function Dashboard() {
                     <YAxis className="text-xs" />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="renewals" name="Renovações" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="newClients" name="Novos Clientes" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="messages" name="Mensagens" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
