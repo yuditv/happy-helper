@@ -1,4 +1,4 @@
-import { Client, PlanType, planLabels, planMonthlyEquivalent, formatCurrency, getExpirationStatus } from '@/types/client';
+import { Client, PlanType, planLabels, planMonthlyEquivalent, planDurations, formatCurrency, getExpirationStatus } from '@/types/client';
 import { Users, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -21,11 +21,17 @@ export function ClientStats({ clients }: ClientStatsProps) {
     return acc;
   }, {} as Record<PlanType, number>);
 
-  // Calculate MRR (Monthly Recurring Revenue)
+  // Calculate MRR (Monthly Recurring Revenue) - use custom price if available
   const mrr = useMemo(() => {
     return clients
       .filter(c => getExpirationStatus(c.expiresAt) !== 'expired')
-      .reduce((acc, client) => acc + planMonthlyEquivalent[client.plan], 0);
+      .reduce((acc, client) => {
+        // Use custom price divided by plan duration, or fallback to planMonthlyEquivalent
+        const monthlyValue = client.price !== null 
+          ? client.price / planDurations[client.plan]
+          : planMonthlyEquivalent[client.plan];
+        return acc + monthlyValue;
+      }, 0);
   }, [clients]);
 
   // Active vs expiring/expired
