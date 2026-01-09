@@ -28,13 +28,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2 } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { exportClientsToCSV, exportRenewalHistoryToCSV } from '@/lib/exportClients';
 import { exportReportToPDF } from '@/lib/exportPDF';
+import { generateExpirationMessage, openWhatsApp } from '@/lib/whatsapp';
+import { getDaysUntilExpiration } from '@/types/client';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -161,6 +164,87 @@ const Index = () => {
     toast.success(`${successCount} cliente(s) excluído(s) com sucesso!`);
     clearSelection();
     setBulkDeleteDialogOpen(false);
+  };
+
+  const handleBulkWhatsApp = () => {
+    const selectedClientsList = clients.filter(c => selectedClients.has(c.id));
+    
+    // Open WhatsApp for each selected client (will open multiple tabs)
+    selectedClientsList.forEach((client, index) => {
+      const planName = getPlanName(client.plan);
+      const daysRemaining = getDaysUntilExpiration(client.expiresAt);
+      const message = generateExpirationMessage({ client, planName, daysRemaining });
+      
+      // Delay opening to avoid browser blocking
+      setTimeout(() => {
+        openWhatsApp(client.whatsapp, message);
+      }, index * 500);
+    });
+
+    toast.success(`Abrindo WhatsApp para ${selectedClientsList.length} cliente(s)...`);
+  };
+
+  const handleBulkEmail = async () => {
+    const selectedClientsList = clients.filter(c => selectedClients.has(c.id));
+    let successCount = 0;
+    let failCount = 0;
+
+    toast.info(`Enviando emails para ${selectedClientsList.length} cliente(s)...`);
+
+    for (const client of selectedClientsList) {
+      try {
+        const planName = getPlanName(client.plan);
+        const daysRemaining = getDaysUntilExpiration(client.expiresAt);
+        
+        const { error } = await supabase.functions.invoke('send-expiration-reminder', {
+          body: {
+            clientId: client.id,
+            clientName: client.name,
+            clientEmail: client.email,
+            planName,
+            daysRemaining,
+            expiresAt: format(client.expiresAt, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
+          },
+        });
+
+        if (error) {
+          failCount++;
+          console.error(`Failed to send email to ${client.email}:`, error);
+        } else {
+          successCount++;
+          
+          // Record notification
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const subject = daysRemaining < 0 
+              ? `⚠️ ${client.name}, seu plano ${planName} venceu!`
+              : daysRemaining === 0
+              ? `🔔 ${client.name}, seu plano ${planName} vence hoje!`
+              : `📅 ${client.name}, seu plano ${planName} vence em ${daysRemaining} dia(s)`;
+
+            await supabase.from('notification_history').insert({
+              client_id: client.id,
+              user_id: user.id,
+              notification_type: 'email',
+              subject,
+              status: 'sent',
+              days_until_expiration: daysRemaining,
+            });
+          }
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`Error sending email to ${client.email}:`, error);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} email(s) enviado(s) com sucesso!`);
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} email(s) falhou(aram)`);
+    }
+    clearSelection();
   };
 
   const handleAddClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
@@ -470,7 +554,26 @@ const Index = () => {
               <span className="font-medium">{selectedClients.size} selecionado(s)</span>
             </div>
             <div className="h-6 w-px bg-border/50" />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-green-500/50 text-green-500 hover:bg-green-500/10"
+                onClick={handleBulkWhatsApp}
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">WhatsApp</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+                onClick={handleBulkEmail}
+              >
+                <Send className="h-4 w-4" />
+                <span className="hidden sm:inline">Email</span>
+              </Button>
+              <div className="h-6 w-px bg-border/50 hidden sm:block" />
               <Button
                 variant="outline"
                 size="sm"
@@ -478,7 +581,7 @@ const Index = () => {
                 onClick={handleBulkRenew}
               >
                 <RefreshCwIcon className="h-4 w-4" />
-                Renovar
+                <span className="hidden sm:inline">Renovar</span>
               </Button>
               <Button
                 variant="outline"
@@ -487,7 +590,7 @@ const Index = () => {
                 onClick={() => setBulkDeleteDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />
-                Excluir
+                <span className="hidden sm:inline">Excluir</span>
               </Button>
             </div>
             <Button
