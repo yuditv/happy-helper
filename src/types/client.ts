@@ -35,6 +35,29 @@ export const planDurations: Record<PlanType, number> = {
   annual: 12,
 };
 
+// Preços em reais
+export const planPrices: Record<PlanType, number> = {
+  monthly: 99.90,
+  quarterly: 269.90,
+  semiannual: 499.90,
+  annual: 899.90,
+};
+
+// Preço mensal equivalente (para cálculo de MRR)
+export const planMonthlyEquivalent: Record<PlanType, number> = {
+  monthly: 99.90,
+  quarterly: 269.90 / 3,
+  semiannual: 499.90 / 6,
+  annual: 899.90 / 12,
+};
+
+export const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
+
 export const getExpirationStatus = (expiresAt: Date): ExpirationStatus => {
   const now = new Date();
   const daysUntilExpiration = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));

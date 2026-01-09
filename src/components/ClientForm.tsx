@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Client, PlanType, planLabels, planDurations } from '@/types/client';
+import { Client, PlanType, planLabels, planDurations, planPrices, formatCurrency } from '@/types/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -156,7 +156,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
                   <SelectContent>
                     {(Object.entries(planLabels) as [PlanType, string][]).map(([value, label]) => (
                       <SelectItem key={value} value={value}>
-                        {label}
+                        {label} - {formatCurrency(planPrices[value])}
                       </SelectItem>
                     ))}
                   </SelectContent>

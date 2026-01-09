@@ -1,4 +1,4 @@
-import { Client, planLabels, getExpirationStatus } from '@/types/client';
+import { Client, planLabels, getExpirationStatus, planPrices, formatCurrency } from '@/types/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -8,6 +8,7 @@ export function exportClientsToCSV(clients: Client[]): void {
     'WhatsApp',
     'Email',
     'Plano',
+    'Valor do Plano',
     'Status',
     'Data de Cadastro',
     'Data de Vencimento',
@@ -23,6 +24,7 @@ export function exportClientsToCSV(clients: Client[]): void {
       client.whatsapp,
       client.email,
       planLabels[client.plan],
+      formatCurrency(planPrices[client.plan]),
       statusLabel,
       format(client.createdAt, 'dd/MM/yyyy', { locale: ptBR }),
       format(client.expiresAt, 'dd/MM/yyyy', { locale: ptBR }),
