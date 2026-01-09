@@ -1,12 +1,45 @@
-import { Client, PlanType } from '@/types/client';
+import { Client, PlanType, formatCurrency, planPrices } from '@/types/client';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface WhatsAppMessageParams {
   client: Client;
   planName: string;
   daysRemaining: number;
+  template?: string;
+  planPrice?: number;
 }
 
-export function generateExpirationMessage({ client, planName, daysRemaining }: WhatsAppMessageParams): string {
+export function replaceTemplateVariables(
+  template: string,
+  clientName: string,
+  planName: string,
+  daysRemaining: number,
+  expiresAt: Date,
+  planPrice?: number
+): string {
+  return template
+    .replace(/\{nome\}/g, clientName)
+    .replace(/\{plano\}/g, planName)
+    .replace(/\{dias\}/g, Math.abs(daysRemaining).toString())
+    .replace(/\{data_vencimento\}/g, format(expiresAt, "dd/MM/yyyy", { locale: ptBR }))
+    .replace(/\{valor\}/g, formatCurrency(planPrice || 0));
+}
+
+export function generateExpirationMessage({ client, planName, daysRemaining, template, planPrice }: WhatsAppMessageParams): string {
+  // If a custom template is provided, use it
+  if (template) {
+    return replaceTemplateVariables(
+      template,
+      client.name,
+      planName,
+      daysRemaining,
+      client.expiresAt,
+      planPrice || client.price || planPrices[client.plan]
+    );
+  }
+
+  // Default messages
   if (daysRemaining < 0) {
     return `Olá ${client.name}! 👋
 

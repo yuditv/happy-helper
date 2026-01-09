@@ -15,9 +15,39 @@ interface EmailRequest {
   planName: string;
   daysRemaining: number;
   expiresAt: string;
+  planPrice?: number;
+  customSubject?: string;
+  customContent?: string;
 }
 
-function generateEmailHtml(clientName: string, planName: string, daysRemaining: number, expiresAt: string): string {
+function replaceTemplateVariables(
+  template: string,
+  clientName: string,
+  planName: string,
+  daysRemaining: number,
+  expiresAt: string,
+  planPrice?: number
+): string {
+  const priceFormatted = planPrice 
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(planPrice)
+    : 'R$ 0,00';
+    
+  return template
+    .replace(/\{nome\}/g, clientName)
+    .replace(/\{plano\}/g, planName)
+    .replace(/\{dias\}/g, Math.abs(daysRemaining).toString())
+    .replace(/\{data_vencimento\}/g, expiresAt)
+    .replace(/\{valor\}/g, priceFormatted);
+}
+
+function generateEmailHtml(
+  clientName: string, 
+  planName: string, 
+  daysRemaining: number, 
+  expiresAt: string,
+  customContent?: string,
+  planPrice?: number
+): string {
   let statusText = "";
   let statusColor = "#f59e0b";
 
@@ -32,6 +62,22 @@ function generateEmailHtml(clientName: string, planName: string, daysRemaining: 
     statusColor = "#f59e0b";
   }
 
+  // If custom content is provided, use it
+  const bodyContent = customContent 
+    ? replaceTemplateVariables(customContent, clientName, planName, daysRemaining, expiresAt, planPrice)
+        .split('\n').map(line => `<p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">${line || '&nbsp;'}</p>`).join('')
+    : `
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+        Olá <strong>${clientName}</strong>,
+      </p>
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 24px 0;">
+        Para continuar utilizando nossos serviços sem interrupção, renove sua assinatura o quanto antes.
+      </p>
+      <p style="color: #6b7280; font-size: 14px; margin: 24px 0 0;">
+        Caso tenha alguma dúvida, estamos à disposição para ajudar!
+      </p>
+    `;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -45,14 +91,12 @@ function generateEmailHtml(clientName: string, planName: string, daysRemaining: 
           <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Lembrete de Renovação</h1>
         </div>
         <div style="padding: 32px;">
-          <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-            Olá <strong>${clientName}</strong>,
-          </p>
-          <div style="background-color: ${statusColor}15; border-left: 4px solid ${statusColor}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+          <div style="background-color: ${statusColor}15; border-left: 4px solid ${statusColor}; padding: 16px; margin: 0 0 24px; border-radius: 0 8px 8px 0;">
             <p style="color: ${statusColor}; font-weight: 600; margin: 0; font-size: 16px;">
               ${statusText}
             </p>
           </div>
+          ${bodyContent}
           <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 24px 0;">
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
@@ -63,14 +107,14 @@ function generateEmailHtml(clientName: string, planName: string, daysRemaining: 
                 <td style="color: #6b7280; padding: 8px 0;">Vencimento:</td>
                 <td style="color: #111827; font-weight: 600; text-align: right; padding: 8px 0;">${expiresAt}</td>
               </tr>
+              ${planPrice ? `
+              <tr>
+                <td style="color: #6b7280; padding: 8px 0;">Valor:</td>
+                <td style="color: #111827; font-weight: 600; text-align: right; padding: 8px 0;">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(planPrice)}</td>
+              </tr>
+              ` : ''}
             </table>
           </div>
-          <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 24px 0;">
-            Para continuar utilizando nossos serviços sem interrupção, renove sua assinatura o quanto antes.
-          </p>
-          <p style="color: #6b7280; font-size: 14px; margin: 24px 0 0;">
-            Caso tenha alguma dúvida, estamos à disposição para ajudar!
-          </p>
         </div>
         <div style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
@@ -91,7 +135,17 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { clientId, clientName, clientEmail, planName, daysRemaining, expiresAt }: EmailRequest = await req.json();
+    const { 
+      clientId, 
+      clientName, 
+      clientEmail, 
+      planName, 
+      daysRemaining, 
+      expiresAt,
+      planPrice,
+      customSubject,
+      customContent
+    }: EmailRequest = await req.json();
 
     console.log(`Sending expiration reminder to ${clientEmail} for client ${clientName}`);
 
@@ -99,10 +153,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields: clientEmail and clientName");
     }
 
-    const html = generateEmailHtml(clientName, planName, daysRemaining, expiresAt);
+    const html = generateEmailHtml(clientName, planName, daysRemaining, expiresAt, customContent, planPrice);
 
     let subject = "";
-    if (daysRemaining < 0) {
+    if (customSubject) {
+      subject = replaceTemplateVariables(customSubject, clientName, planName, daysRemaining, expiresAt, planPrice);
+    } else if (daysRemaining < 0) {
       subject = `⚠️ ${clientName}, seu plano ${planName} venceu!`;
     } else if (daysRemaining === 0) {
       subject = `🔔 ${clientName}, seu plano ${planName} vence hoje!`;
