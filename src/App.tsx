@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import ScheduledMessages from "./pages/ScheduledMessages";
@@ -58,6 +59,7 @@ const AppRoutes = () => (
         <Auth />
       </PublicRoute>
     } />
+    <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/" element={
       <ProtectedRoute>
         <Index />
