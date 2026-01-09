@@ -263,7 +263,11 @@ const Index = () => {
                     <span className="text-xs text-primary">Logado como</span>
                     <p className="font-medium text-foreground truncate max-w-[200px]">{user?.email}</p>
                   </div>
-                  <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10 mt-1">
+                  <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
+                    <User className="h-4 w-4 mr-2 text-primary" />
+                    Meu Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
                     <Settings className="h-4 w-4 mr-2 text-primary" />
                     Configurações
                   </DropdownMenuItem>
