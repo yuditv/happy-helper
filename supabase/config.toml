@@ -1,1 +1,4 @@
 project_id = "eocrnjbdrrvuhhdwskvn"
+
+[functions.send-expiration-reminder]
+verify_jwt = false

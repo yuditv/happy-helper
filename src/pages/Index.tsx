@@ -6,6 +6,7 @@ import { ClientCard } from '@/components/ClientCard';
 import { ClientForm } from '@/components/ClientForm';
 import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { ClientStats } from '@/components/ClientStats';
+import { RetentionMetrics } from '@/components/RetentionMetrics';
 import { ClientCharts } from '@/components/ClientCharts';
 import { SearchBar } from '@/components/SearchBar';
 import { PlanFilter } from '@/components/PlanFilter';
@@ -251,6 +252,9 @@ const Index = () => {
 
         {/* Stats */}
         <ClientStats clients={clients} />
+
+        {/* Retention Metrics */}
+        <RetentionMetrics clients={clients} />
 
         {/* Charts */}
         <ClientCharts clients={clients} />
