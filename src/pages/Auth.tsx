@@ -10,8 +10,56 @@ import { Users, Mail, Lock, Loader2, Phone, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
-const emailSchema = z.string().email('Email inválido');
-const passwordSchema = z.string().min(6, 'A senha deve ter pelo menos 6 caracteres');
+const emailSchema = z.string().trim().email('Email inválido').max(255, 'Email muito longo');
+const passwordSchema = z.string()
+  .min(6, 'A senha deve ter pelo menos 6 caracteres')
+  .max(128, 'A senha deve ter no máximo 128 caracteres');
+
+// Security: Rate limiting for login attempts
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 60000; // 1 minute in milliseconds
+
+const getLoginAttempts = (): { count: number; lockedUntil: number } => {
+  const stored = sessionStorage.getItem('login_attempts');
+  if (!stored) return { count: 0, lockedUntil: 0 };
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return { count: 0, lockedUntil: 0 };
+  }
+};
+
+const incrementLoginAttempts = () => {
+  const attempts = getLoginAttempts();
+  const newAttempts = {
+    count: attempts.count + 1,
+    lockedUntil: attempts.count + 1 >= MAX_LOGIN_ATTEMPTS 
+      ? Date.now() + LOCKOUT_DURATION 
+      : attempts.lockedUntil
+  };
+  sessionStorage.setItem('login_attempts', JSON.stringify(newAttempts));
+  return newAttempts;
+};
+
+const resetLoginAttempts = () => {
+  sessionStorage.removeItem('login_attempts');
+};
+
+const isAccountLocked = (): boolean => {
+  const attempts = getLoginAttempts();
+  if (attempts.lockedUntil > Date.now()) {
+    return true;
+  }
+  if (attempts.lockedUntil > 0 && attempts.lockedUntil <= Date.now()) {
+    resetLoginAttempts(); // Reset after lockout expires
+  }
+  return false;
+};
+
+const getRemainingLockoutTime = (): number => {
+  const attempts = getLoginAttempts();
+  return Math.max(0, Math.ceil((attempts.lockedUntil - Date.now()) / 1000));
+};
 
 const formatWhatsApp = (value: string): string => {
   const numbers = value.replace(/\D/g, '').slice(0, 11);
@@ -96,18 +144,35 @@ export default function Auth() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Security: Check if account is locked due to too many attempts
+    if (isAccountLocked()) {
+      const remaining = getRemainingLockoutTime();
+      toast.error(`Muitas tentativas de login. Aguarde ${remaining} segundos.`);
+      return;
+    }
+    
     if (!validateForm()) return;
 
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ 
+      email: email.trim(), 
+      password 
+    });
     
     if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        toast.error('Email ou senha incorretos');
+      incrementLoginAttempts();
+      const attempts = getLoginAttempts();
+      
+      if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+        toast.error('Conta bloqueada temporariamente. Aguarde 1 minuto.');
+      } else if (error.message.includes('Invalid login credentials')) {
+        toast.error(`Email ou senha incorretos. ${MAX_LOGIN_ATTEMPTS - attempts.count} tentativas restantes.`);
       } else {
         toast.error(error.message);
       }
     } else {
+      resetLoginAttempts();
       toast.success('Login realizado com sucesso!');
       navigate('/');
     }

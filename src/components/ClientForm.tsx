@@ -19,6 +19,40 @@ import {
 } from '@/components/ui/select';
 import { User, Phone, Mail, CreditCard, CalendarDays, DollarSign, Tv, StickyNote } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
+import { z } from 'zod';
+import { toast } from 'sonner';
+
+// Security: Input validation schemas
+const clientSchema = z.object({
+  name: z.string()
+    .trim()
+    .min(2, 'Nome deve ter pelo menos 2 caracteres')
+    .max(100, 'Nome deve ter no máximo 100 caracteres')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Nome contém caracteres inválidos'),
+  email: z.string()
+    .trim()
+    .email('Email inválido')
+    .max(255, 'Email muito longo'),
+  whatsapp: z.string()
+    .min(14, 'WhatsApp inválido')
+    .max(16, 'WhatsApp inválido'),
+  notes: z.string()
+    .max(500, 'Anotação muito longa')
+    .optional()
+    .nullable(),
+  price: z.number()
+    .min(0, 'Preço não pode ser negativo')
+    .max(999999, 'Preço muito alto')
+    .optional()
+    .nullable(),
+});
+
+// Security: Sanitize text input to prevent XSS
+const sanitizeText = (text: string): string => {
+  return text
+    .replace(/[<>]/g, '') // Remove potential HTML tags
+    .trim();
+};
 
 interface ClientFormProps {
   open: boolean;
@@ -89,14 +123,33 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Security: Validate and sanitize all inputs
+    const sanitizedName = sanitizeText(name);
+    const sanitizedNotes = notes ? sanitizeText(notes) : null;
+    
+    const validation = clientSchema.safeParse({
+      name: sanitizedName,
+      email: email.trim(),
+      whatsapp,
+      notes: sanitizedNotes,
+      price: price ? parseFloat(price) : null,
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast.error(firstError.message);
+      return;
+    }
+
     onSubmit({ 
-      name, 
+      name: sanitizedName, 
       whatsapp, 
-      email,
+      email: email.trim(),
       service,
       plan,
       price: price ? parseFloat(price) : null,
-      notes: notes.trim() || null,
+      notes: sanitizedNotes,
       createdAt: new Date(createdAt + 'T00:00:00'),
       expiresAt: new Date(expiresAt + 'T23:59:59')
     });
