@@ -11,6 +11,7 @@ interface DbClient {
   whatsapp: string;
   email: string;
   plan: string;
+  price: number | null;
   expires_at: string;
   created_at: string;
   updated_at: string;
@@ -80,6 +81,7 @@ export function useClients() {
       whatsapp: c.whatsapp,
       email: c.email,
       plan: c.plan as PlanType,
+      price: c.price,
       expiresAt: new Date(c.expires_at),
       createdAt: new Date(c.created_at),
       renewalHistory: renewalsByClient[c.id] || [],
@@ -104,6 +106,7 @@ export function useClients() {
         whatsapp: data.whatsapp,
         email: data.email,
         plan: data.plan,
+        price: data.price,
         expires_at: data.expiresAt.toISOString(),
       })
       .select()
@@ -124,6 +127,7 @@ export function useClients() {
     if (data.whatsapp) updateData.whatsapp = data.whatsapp;
     if (data.email) updateData.email = data.email;
     if (data.plan) updateData.plan = data.plan;
+    if (data.price !== undefined) updateData.price = data.price;
     if (data.expiresAt) updateData.expires_at = data.expiresAt.toISOString();
 
     const { error } = await supabase

@@ -110,9 +110,11 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
             <h3 className="font-semibold text-foreground text-lg truncate mb-1">
               {client.name}
             </h3>
-            <p className="text-sm text-muted-foreground mb-2">
-              {formatCurrency(planPrices[client.plan])}
-            </p>
+            {client.price !== null && (
+              <p className="text-sm text-muted-foreground mb-2">
+                {formatCurrency(client.price)}
+              </p>
+            )}
             <div className="flex flex-wrap gap-1.5">
               <PlanBadge plan={client.plan} />
               <ExpirationBadge expiresAt={client.expiresAt} />
