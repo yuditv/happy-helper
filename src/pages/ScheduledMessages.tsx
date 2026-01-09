@@ -34,6 +34,8 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageReport } from '@/components/MessageReport';
+import { MessageTemplatesTab } from '@/components/MessageTemplatesTab';
+import { FileText } from 'lucide-react';
 
 interface ScheduledMessage {
   id: string;
@@ -315,10 +317,14 @@ export default function ScheduledMessages() {
 
       <main className="container mx-auto px-4 py-8 space-y-6">
         <Tabs defaultValue="messages" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
             <TabsTrigger value="messages" className="gap-2">
               <Clock className="h-4 w-4" />
               Agendamentos
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Templates
             </TabsTrigger>
             <TabsTrigger value="report" className="gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -459,6 +465,10 @@ export default function ScheduledMessages() {
             ))}
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="templates">
+            <MessageTemplatesTab />
           </TabsContent>
 
           <TabsContent value="report">
