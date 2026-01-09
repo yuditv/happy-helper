@@ -12,6 +12,18 @@ import { z } from 'zod';
 
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'A senha deve ter pelo menos 6 caracteres');
+
+const formatWhatsApp = (value: string): string => {
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
+  if (numbers.length === 0) return '';
+  if (numbers.length <= 2) return `(${numbers}`;
+  if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+};
+
+const unformatWhatsApp = (value: string): string => {
+  return value.replace(/\D/g, '');
+};
 const whatsappSchema = z.string().min(10, 'WhatsApp deve ter pelo menos 10 dígitos').regex(/^[0-9]+$/, 'WhatsApp deve conter apenas números');
 
 export default function Auth() {
@@ -182,9 +194,9 @@ export default function Auth() {
                     <Input
                       id="signup-whatsapp"
                       type="tel"
-                      placeholder="11999999999"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ''))}
+                      placeholder="(91) 98091-0280"
+                      value={formatWhatsApp(whatsapp)}
+                      onChange={(e) => setWhatsapp(unformatWhatsApp(e.target.value))}
                       className="pl-10"
                       required
                     />
