@@ -97,7 +97,7 @@ export function useClients() {
     fetchClients();
   }, [fetchClients]);
 
-  const addClient = async (data: Omit<Client, 'id' | 'createdAt' | 'renewalHistory'>) => {
+  const addClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
     if (!user) return null;
 
     const { data: newClient, error } = await supabase
@@ -110,6 +110,7 @@ export function useClients() {
         service: data.service,
         plan: data.plan,
         price: data.price,
+        created_at: data.createdAt.toISOString(),
         expires_at: data.expiresAt.toISOString(),
       })
       .select()
@@ -124,7 +125,7 @@ export function useClients() {
     return newClient;
   };
 
-  const updateClient = async (id: string, data: Partial<Omit<Client, 'id' | 'createdAt'>>) => {
+  const updateClient = async (id: string, data: Partial<Omit<Client, 'id'>>) => {
     const updateData: Record<string, unknown> = {};
     if (data.name) updateData.name = data.name;
     if (data.whatsapp) updateData.whatsapp = data.whatsapp;
@@ -132,6 +133,7 @@ export function useClients() {
     if (data.service) updateData.service = data.service;
     if (data.plan) updateData.plan = data.plan;
     if (data.price !== undefined) updateData.price = data.price;
+    if (data.createdAt) updateData.created_at = data.createdAt.toISOString();
     if (data.expiresAt) updateData.expires_at = data.expiresAt.toISOString();
 
     const { error } = await supabase
