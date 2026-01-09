@@ -56,6 +56,36 @@ export type Database = {
         }
         Relationships: []
       }
+      message_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          subject: string | null
+          template_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          template_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          subject?: string | null
+          template_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_history: {
         Row: {
           client_id: string
