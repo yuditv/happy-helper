@@ -117,6 +117,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [previewTheme, setPreviewTheme] = useState<'dark' | 'light'>('dark');
   const [showTypingAnimation, setShowTypingAnimation] = useState(true);
   const [showMessageSent, setShowMessageSent] = useState(false);
+  const [showReplyAnimation, setShowReplyAnimation] = useState(false);
+  const [showReplyMessage, setShowReplyMessage] = useState(false);
 
   // Play send sound effect
   const playSendSound = () => {
@@ -149,10 +151,38 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     
     setShowMessageSent(true);
     setShowTypingAnimation(false);
+    setShowReplyMessage(false);
+    
+    // After 1s, show reply typing animation
     setTimeout(() => {
       setShowMessageSent(false);
+      setShowReplyAnimation(true);
+    }, 1000);
+    
+    // After 2.5s, show reply message
+    setTimeout(() => {
+      setShowReplyAnimation(false);
+      setShowReplyMessage(true);
+      // Play receive sound
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.05);
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 2500);
+    
+    // After 5s, reset to initial state
+    setTimeout(() => {
+      setShowReplyMessage(false);
       setShowTypingAnimation(true);
-    }, 2000);
+    }, 5000);
   };
   
   const [isSending, setIsSending] = useState(false);
@@ -980,7 +1010,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                       backgroundColor: previewTheme === 'dark' ? '#0B141A' : '#EFEAE2'
                     }}
                   >
-                    {/* Typing indicator */}
+                    {/* Typing indicator (initial) */}
                     {showTypingAnimation && (
                       <div className={cn(
                         "p-3 rounded-lg max-w-[70%] shadow-sm rounded-tl-none animate-fade-in",
@@ -1003,10 +1033,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                       </div>
                     )}
                     
-                    {/* Message bubble */}
+                    {/* Message bubble - sent by user */}
                     <div className={cn(
-                      "p-3 rounded-lg max-w-[90%] ml-auto shadow-md rounded-tr-none animate-fade-in",
-                      previewTheme === 'dark' ? "bg-[#005C4B]" : "bg-[#D9FDD3]"
+                      "p-3 rounded-lg max-w-[90%] ml-auto shadow-md rounded-tr-none transition-all duration-300",
+                      previewTheme === 'dark' ? "bg-[#005C4B]" : "bg-[#D9FDD3]",
+                      showMessageSent ? "animate-scale-in" : "animate-fade-in"
                     )}>
                       <p className={cn(
                         "text-[13px] whitespace-pre-wrap leading-relaxed",
@@ -1033,6 +1064,52 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                         </svg>
                       </div>
                     </div>
+                    
+                    {/* Reply typing animation */}
+                    {showReplyAnimation && (
+                      <div className={cn(
+                        "p-3 rounded-lg max-w-[70%] shadow-sm rounded-tl-none animate-fade-in",
+                        previewTheme === 'dark' ? "bg-[#1F2C33]" : "bg-white"
+                      )}>
+                        <div className="flex items-center gap-1">
+                          <div className={cn(
+                            "w-2 h-2 rounded-full animate-bounce",
+                            previewTheme === 'dark' ? "bg-gray-400" : "bg-gray-500"
+                          )} style={{ animationDelay: '0ms' }} />
+                          <div className={cn(
+                            "w-2 h-2 rounded-full animate-bounce",
+                            previewTheme === 'dark' ? "bg-gray-400" : "bg-gray-500"
+                          )} style={{ animationDelay: '150ms' }} />
+                          <div className={cn(
+                            "w-2 h-2 rounded-full animate-bounce",
+                            previewTheme === 'dark' ? "bg-gray-400" : "bg-gray-500"
+                          )} style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Reply message */}
+                    {showReplyMessage && (
+                      <div className={cn(
+                        "p-3 rounded-lg max-w-[80%] shadow-sm rounded-tl-none animate-scale-in",
+                        previewTheme === 'dark' ? "bg-[#1F2C33]" : "bg-white"
+                      )}>
+                        <p className={cn(
+                          "text-[13px] leading-relaxed",
+                          previewTheme === 'dark' ? "text-white" : "text-gray-800"
+                        )}>
+                          Oi! Recebi sua mensagem, obrigado! 👍
+                        </p>
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <span className={cn(
+                            "text-[10px]",
+                            previewTheme === 'dark' ? "text-gray-300" : "text-gray-500"
+                          )}>
+                            {format(new Date(), 'HH:mm')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Input bar */}
