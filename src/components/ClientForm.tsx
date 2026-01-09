@@ -158,73 +158,73 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">
+      <DialogContent className="sm:max-w-[380px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg font-semibold">
             {initialData ? 'Editar Cliente' : 'Novo Cliente'}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="name" className="text-xs font-medium">
               Nome completo
             </Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Digite o nome"
-                className="pl-10"
+                className="pl-8 h-9 text-sm"
                 required
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp" className="text-sm font-medium">
+          <div className="space-y-1">
+            <Label htmlFor="whatsapp" className="text-xs font-medium">
               WhatsApp
             </Label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 id="whatsapp"
                 value={whatsapp}
                 onChange={handleWhatsappChange}
                 placeholder="(00) 00000-0000"
-                className="pl-10"
+                className="pl-8 h-9 text-sm"
                 required
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium">
+          <div className="space-y-1">
+            <Label htmlFor="email" className="text-xs font-medium">
               E-mail
             </Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="email@exemplo.com"
-                className="pl-10"
+                className="pl-8 h-9 text-sm"
                 required
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="service" className="text-sm font-medium">
+          <div className="space-y-1">
+            <Label htmlFor="service" className="text-xs font-medium">
               Serviço
             </Label>
             <div className="relative">
-              <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+              <Tv className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground z-10" />
               <Select value={service} onValueChange={(v) => setService(v as ServiceType)}>
-                <SelectTrigger className="pl-10">
+                <SelectTrigger className="pl-8 h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -238,15 +238,15 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="plan" className="text-sm font-medium">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="plan" className="text-xs font-medium">
                 Plano
               </Label>
               <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                <CreditCard className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground z-10" />
                 <Select value={plan} onValueChange={(v) => setPlan(v as PlanType)}>
-                  <SelectTrigger className="pl-10">
+                  <SelectTrigger className="pl-8 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,12 +260,12 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="price" className="text-sm font-medium">
+            <div className="space-y-1">
+              <Label htmlFor="price" className="text-xs font-medium">
                 Valor (R$)
               </Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   id="price"
                   type="text"
@@ -273,76 +273,77 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
                   value={price}
                   onChange={handlePriceChange}
                   placeholder="0.00"
-                  className="pl-10"
+                  className="pl-8 h-9 text-sm"
                 />
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="createdAt" className="text-sm font-medium">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="createdAt" className="text-xs font-medium">
                 Data de Cadastro
               </Label>
               <div className="relative">
-                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   id="createdAt"
                   type="date"
                   value={createdAt}
                   onChange={(e) => setCreatedAt(e.target.value)}
-                  className="pl-10"
+                  className="pl-8 h-9 text-sm"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="expiresAt" className="text-sm font-medium">
-                Data de Vencimento
+            <div className="space-y-1">
+              <Label htmlFor="expiresAt" className="text-xs font-medium">
+                Vencimento
               </Label>
               <div className="relative">
-                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   id="expiresAt"
                   type="date"
                   value={expiresAt}
                   onChange={(e) => setExpiresAt(e.target.value)}
-                  className="pl-10"
+                  className="pl-8 h-9 text-sm"
                   required
                 />
               </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-medium">
+          <div className="space-y-1">
+            <Label htmlFor="notes" className="text-xs font-medium">
               Anotações (opcional)
             </Label>
             <div className="relative">
-              <StickyNote className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <StickyNote className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Textarea
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Adicione observações sobre o cliente..."
-                className="pl-10 min-h-[80px] resize-none"
+                placeholder="Observações..."
+                className="pl-8 min-h-[60px] resize-none text-sm"
                 maxLength={500}
               />
             </div>
-            <p className="text-xs text-muted-foreground text-right">{notes.length}/500</p>
+            <p className="text-[10px] text-muted-foreground text-right">{notes.length}/500</p>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => onOpenChange(false)}
               className="flex-1"
             >
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1">
+            <Button type="submit" size="sm" className="flex-1">
               {initialData ? 'Salvar' : 'Cadastrar'}
             </Button>
           </div>
