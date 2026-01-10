@@ -13,7 +13,6 @@ import Profile from "./pages/Profile";
 import ScheduledMessages from "./pages/ScheduledMessages";
 import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
-import Delinquent from "./pages/Delinquent";
 import Install from "./pages/Install";
 import ResellerDashboard from "./pages/ResellerDashboard";
 import NotFound from "./pages/NotFound";
@@ -92,11 +91,6 @@ const AppRoutes = () => (
     <Route path="/leaderboard" element={
       <ProtectedRoute>
         <Leaderboard />
-      </ProtectedRoute>
-    } />
-    <Route path="/delinquent" element={
-      <ProtectedRoute>
-        <Delinquent />
       </ProtectedRoute>
     } />
     <Route path="/my-dashboard" element={
