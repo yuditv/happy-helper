@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { ResellerGoalsCard } from "@/components/ResellerGoalsCard";
 import {
   ArrowLeft,
   Users,
@@ -372,55 +373,64 @@ export default function ResellerArea() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <Users className="h-8 w-8 text-blue-500" />
-                    <div className="text-right">
-                      <span className="text-2xl font-bold">{stats.totalClients}</span>
-                      {stats.newClientsThisMonth > 0 && (
-                        <p className="text-xs text-green-500 flex items-center justify-end gap-1">
-                          <ArrowUpRight className="h-3 w-3" />
-                          +{stats.newClientsThisMonth} este mês
-                        </p>
-                      )}
+            {/* Goals and Quick Stats */}
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Goals Card */}
+              <ResellerGoalsCard 
+                currentClients={stats.totalClients} 
+                currentRevenue={stats.monthlyRevenue} 
+              />
+
+              {/* Quick Stats */}
+              <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+                <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <Users className="h-8 w-8 text-blue-500" />
+                      <div className="text-right">
+                        <span className="text-2xl font-bold">{stats.totalClients}</span>
+                        {stats.newClientsThisMonth > 0 && (
+                          <p className="text-xs text-green-500 flex items-center justify-end gap-1">
+                            <ArrowUpRight className="h-3 w-3" />
+                            +{stats.newClientsThisMonth} este mês
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">Total de Clientes</p>
-                </CardContent>
-              </Card>
+                    <p className="text-sm text-muted-foreground mt-2">Total de Clientes</p>
+                  </CardContent>
+                </Card>
 
-              <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <DollarSign className="h-8 w-8 text-green-500" />
-                    <span className="text-2xl font-bold">{formatCurrency(stats.monthlyRevenue)}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">Receita Mensal</p>
-                </CardContent>
-              </Card>
+                <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <DollarSign className="h-8 w-8 text-green-500" />
+                      <span className="text-2xl font-bold">{formatCurrency(stats.monthlyRevenue)}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">Receita Mensal</p>
+                  </CardContent>
+                </Card>
 
-              <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <TrendingUp className="h-8 w-8 text-purple-500" />
-                    <span className="text-2xl font-bold">{stats.retentionRate.toFixed(1)}%</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">Taxa de Retenção</p>
-                </CardContent>
-              </Card>
+                <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <TrendingUp className="h-8 w-8 text-purple-500" />
+                      <span className="text-2xl font-bold">{stats.retentionRate.toFixed(1)}%</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">Taxa de Retenção</p>
+                  </CardContent>
+                </Card>
 
-              <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <Clock className="h-8 w-8 text-orange-500" />
-                    <span className="text-2xl font-bold">{Math.round(stats.avgClientLifetime)}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">Dias Médios</p>
-                </CardContent>
-              </Card>
+                <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <Clock className="h-8 w-8 text-orange-500" />
+                      <span className="text-2xl font-bold">{Math.round(stats.avgClientLifetime)}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">Dias Médios</p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Status Overview */}
