@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
 import Install from "./pages/Install";
 import ResellerDashboard from "./pages/ResellerDashboard";
+import ResellerArea from "./pages/ResellerArea";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -96,6 +97,11 @@ const AppRoutes = () => (
     <Route path="/my-dashboard" element={
       <ProtectedRoute>
         <ResellerDashboard />
+      </ProtectedRoute>
+    } />
+    <Route path="/reseller" element={
+      <ProtectedRoute>
+        <ResellerArea />
       </ProtectedRoute>
     } />
     <Route path="/install" element={<Install />} />
