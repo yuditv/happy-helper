@@ -13,6 +13,8 @@ import Profile from "./pages/Profile";
 import ScheduledMessages from "./pages/ScheduledMessages";
 import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
+import Delinquent from "./pages/Delinquent";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -91,6 +93,12 @@ const AppRoutes = () => (
         <Leaderboard />
       </ProtectedRoute>
     } />
+    <Route path="/delinquent" element={
+      <ProtectedRoute>
+        <Delinquent />
+      </ProtectedRoute>
+    } />
+    <Route path="/install" element={<Install />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
