@@ -46,7 +46,14 @@ export function useClientTags() {
         .select('*')
         .order('name') as { data: DbClientTag[] | null; error: any };
 
-      if (error) throw error;
+      // Silently ignore if table doesn't exist yet (PGRST205)
+      if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn('client_tags table not found in schema cache. Please reload Supabase schema cache.');
+          return;
+        }
+        throw error;
+      }
 
       setTags(
         (data || []).map((tag) => ({
@@ -69,7 +76,14 @@ export function useClientTags() {
         .from('client_tag_assignments' as any)
         .select('client_id, tag_id') as { data: { client_id: string; tag_id: string }[] | null; error: any };
 
-      if (error) throw error;
+      // Silently ignore if table doesn't exist yet (PGRST205)
+      if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn('client_tag_assignments table not found in schema cache. Please reload Supabase schema cache.');
+          return;
+        }
+        throw error;
+      }
 
       setAssignments(
         (data || []).map((a) => ({
