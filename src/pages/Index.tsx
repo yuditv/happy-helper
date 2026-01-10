@@ -38,7 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift, Trophy } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift, Trophy, AlertTriangle, Smartphone } from 'lucide-react';
 import { openWhatsApp } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -610,6 +610,15 @@ Qualquer dúvida, estamos à disposição. 😊`;
                   <DropdownMenuItem onClick={() => navigate('/leaderboard')} className="hover:bg-primary/10">
                     <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
                     Ranking
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/delinquent')} className="hover:bg-primary/10">
+                    <AlertTriangle className="h-4 w-4 mr-2 text-destructive" />
+                    Inadimplentes
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-border/50" />
+                  <DropdownMenuItem onClick={() => navigate('/install')} className="hover:bg-primary/10">
+                    <Smartphone className="h-4 w-4 mr-2 text-primary" />
+                    Instalar App
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
                     <Settings className="h-4 w-4 mr-2 text-primary" />
