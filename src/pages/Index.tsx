@@ -599,9 +599,13 @@ Qualquer dúvida, estamos à disposição. 😊`;
                     <User className="h-4 w-4 mr-2 text-primary" />
                     Meu Perfil
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/my-dashboard')} className="hover:bg-primary/10">
+                    <BarChart3 className="h-4 w-4 mr-2 text-primary" />
+                    Meu Dashboard
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/dashboard')} className="hover:bg-primary/10">
                     <BarChart3 className="h-4 w-4 mr-2 text-accent" />
-                    Dashboard
+                    Dashboard Geral
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/scheduled')} className="hover:bg-primary/10">
                     <Clock className="h-4 w-4 mr-2 text-primary" />
