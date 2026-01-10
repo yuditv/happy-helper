@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { toast } from 'sonner';
 
 export default function Settings() {
@@ -175,14 +176,18 @@ export default function Settings() {
 
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
+            {/* Push Notifications */}
+            <NotificationSettings />
+
+            {/* Email Notifications */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5 text-primary" />
-                  Preferências de Notificações
+                  Notificações por Email
                 </CardTitle>
                 <CardDescription>
-                  Configure como e quando deseja receber lembretes sobre vencimentos.
+                  Configure os lembretes automáticos por email para seus clientes.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
