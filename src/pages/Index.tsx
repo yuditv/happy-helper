@@ -516,10 +516,11 @@ Qualquer dúvida, estamos à disposição. 😊`;
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="h-12 w-12 rounded-xl overflow-hidden neon-glow">
+              <div className="relative group">
+                <div className="h-14 w-14 rounded-xl overflow-hidden logo-glow">
                   <img src={logoFuturistic} alt="Logo" className="h-full w-full object-cover" />
                 </div>
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-accent animate-pulse"></div>
               </div>
               <div>
