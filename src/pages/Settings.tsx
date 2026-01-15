@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, DollarSign, Bell, Palette, Shield, Save, Moon, Sun, Monitor } from 'lucide-react';
+import { ArrowLeft, DollarSign, Bell, Palette, Shield, Save, Moon, Sun, Monitor, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
 import { NotificationSettings } from '@/components/NotificationSettings';
+import { MessageTemplatesTab } from '@/components/MessageTemplatesTab';
 import { toast } from 'sonner';
 
 export default function Settings() {
@@ -95,10 +96,14 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="plans" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="plans" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Planos</span>
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Templates</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
@@ -172,6 +177,11 @@ export default function Settings() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="space-y-6">
+            <MessageTemplatesTab />
           </TabsContent>
 
           {/* Notifications Tab */}
