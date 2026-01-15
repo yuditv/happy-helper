@@ -124,28 +124,34 @@ export default function Auth() {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ 
-      email: email.trim(), 
-      password 
-    });
-    
-    if (error) {
-      incrementLoginAttempts();
-      const attempts = getLoginAttempts();
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email: email.trim(), 
+        password 
+      });
       
-      if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
-        toast.error('Conta bloqueada temporariamente. Aguarde 1 minuto.');
-      } else if (error.message.includes('Invalid login credentials')) {
-        toast.error(`Email ou senha incorretos. ${MAX_LOGIN_ATTEMPTS - attempts.count} tentativas restantes.`);
+      if (error) {
+        incrementLoginAttempts();
+        const attempts = getLoginAttempts();
+        
+        if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+          toast.error('Conta bloqueada temporariamente. Aguarde 1 minuto.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          toast.error(`Email ou senha incorretos. ${MAX_LOGIN_ATTEMPTS - attempts.count} tentativas restantes.`);
+        } else {
+          toast.error(error.message);
+        }
       } else {
-        toast.error(error.message);
+        resetLoginAttempts();
+        toast.success('Login realizado com sucesso!');
+        navigate('/');
       }
-    } else {
-      resetLoginAttempts();
-      toast.success('Login realizado com sucesso!');
-      navigate('/');
+    } catch (err) {
+      console.error('Auth error:', err);
+      toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
