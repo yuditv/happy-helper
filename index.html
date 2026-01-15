@@ -27,16 +27,12 @@
 
   <body>
     <script>
-      // Force clear corrupted Supabase auth tokens before app loads
+      // Force clear ALL Supabase auth tokens
       (function() {
         try {
           Object.keys(localStorage).forEach(function(key) {
-            if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-              var val = localStorage.getItem(key);
-              if (val && val.includes('ajbjif6ccimx')) {
-                localStorage.removeItem(key);
-                console.log('Cleared corrupted token:', key);
-              }
+            if (key.startsWith('sb-')) {
+              localStorage.removeItem(key);
             }
           });
         } catch(e) {}
