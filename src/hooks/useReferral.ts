@@ -73,7 +73,15 @@ export function useReferral() {
         .single();
 
       if (createError) {
-        console.error('Error creating referral code:', createError);
+        // If duplicate key error, code already exists - refetch it
+        if (createError.code === '23505') {
+          const { data: existingCode } = await supabase
+            .from('referral_codes')
+            .select('code')
+            .eq('user_id', user.id)
+            .single();
+          if (existingCode) setReferralCode(existingCode.code);
+        }
       } else if (newCode) {
         setReferralCode(newCode.code);
       }
