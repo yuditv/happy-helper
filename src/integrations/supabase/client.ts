@@ -5,17 +5,6 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// Force clear ALL Supabase tokens before creating client
-try {
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-} catch (e) {
-  // Ignore errors
-}
-
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
