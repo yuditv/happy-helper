@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import logoFuturistic from '@/assets/logo-futuristic.png';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -516,8 +517,8 @@ Qualquer dúvida, estamos à disposição. 😊`;
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow">
-                  <Users className="h-6 w-6 text-primary-foreground" />
+                <div className="h-12 w-12 rounded-xl overflow-hidden neon-glow">
+                  <img src={logoFuturistic} alt="Logo" className="h-full w-full object-cover" />
                 </div>
                 <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-accent animate-pulse"></div>
               </div>
