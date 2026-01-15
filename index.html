@@ -26,18 +26,6 @@
   </head>
 
   <body>
-    <script>
-      // Force clear ALL Supabase auth tokens
-      (function() {
-        try {
-          Object.keys(localStorage).forEach(function(key) {
-            if (key.startsWith('sb-')) {
-              localStorage.removeItem(key);
-            }
-          });
-        } catch(e) {}
-      })();
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
