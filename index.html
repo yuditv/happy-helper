@@ -26,6 +26,22 @@
   </head>
 
   <body>
+    <script>
+      // Force clear corrupted Supabase auth tokens before app loads
+      (function() {
+        try {
+          Object.keys(localStorage).forEach(function(key) {
+            if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+              var val = localStorage.getItem(key);
+              if (val && val.includes('ajbjif6ccimx')) {
+                localStorage.removeItem(key);
+                console.log('Cleared corrupted token:', key);
+              }
+            }
+          });
+        } catch(e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
