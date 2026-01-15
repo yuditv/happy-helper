@@ -11,12 +11,38 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Clear corrupted auth tokens from localStorage
+const clearCorruptedTokens = () => {
+  try {
+    const authKey = 'sb-eocrnjbdrrvuhhdwskvn-auth-token';
+    const stored = localStorage.getItem(authKey);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Check for corrupted/short refresh tokens
+      if (parsed.refresh_token && parsed.refresh_token.length < 20) {
+        console.warn('Detected corrupted auth token, clearing...');
+        localStorage.removeItem(authKey);
+        return true;
+      }
+    }
+  } catch (e) {
+    // If parsing fails, token is corrupted
+    console.warn('Failed to parse auth token, clearing...');
+    localStorage.removeItem('sb-eocrnjbdrrvuhhdwskvn-auth-token');
+    return true;
+  }
+  return false;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Clear any corrupted tokens before initializing
+    const wasCorrupted = clearCorruptedTokens();
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -27,9 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error || wasCorrupted) {
+        // Force sign out if there was an error or corrupted token
+        supabase.auth.signOut().catch(() => {});
+        setSession(null);
+        setUser(null);
+      } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
       setIsLoading(false);
     });
 
