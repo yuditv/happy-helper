@@ -42,6 +42,8 @@ import {
   X,
   UserPlus,
   Save,
+  Copy,
+  Shuffle,
   FolderOpen,
   Trash2,
   Upload,
@@ -112,6 +114,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [targetMode, setTargetMode] = useState<TargetMode>('clients');
   const [clientFilter, setClientFilter] = useState<ClientFilter>('expiring7');
   const [customMessage, setCustomMessage] = useState(defaultClientMessage);
+  
+  // Message variations system
+  const [useVariations, setUseVariations] = useState(false);
+  const [messageVariations, setMessageVariations] = useState<string[]>([defaultClientMessage]);
+  const [showVariationsPanel, setShowVariationsPanel] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [scheduledTime, setScheduledTime] = useState('09:00');
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
@@ -237,11 +244,62 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   useEffect(() => {
     if (targetMode === 'numbers') {
       setCustomMessage(defaultMessage);
+      setMessageVariations([defaultMessage]);
       setMessageMode('whatsapp'); // Force WhatsApp for custom numbers
     } else {
       setCustomMessage(defaultClientMessage);
+      setMessageVariations([defaultClientMessage]);
     }
+    setUseVariations(false);
   }, [targetMode]);
+
+  // Message variation functions
+  const addVariation = () => {
+    if (messageVariations.length >= 10) {
+      toast.error('Máximo de 10 variações permitidas');
+      return;
+    }
+    setMessageVariations([...messageVariations, '']);
+  };
+
+  const updateVariation = (index: number, value: string) => {
+    const updated = [...messageVariations];
+    updated[index] = value;
+    setMessageVariations(updated);
+    // Update main message with first variation
+    if (index === 0) {
+      setCustomMessage(value);
+    }
+  };
+
+  const removeVariation = (index: number) => {
+    if (messageVariations.length <= 1) {
+      toast.error('Você precisa de pelo menos uma mensagem');
+      return;
+    }
+    const updated = messageVariations.filter((_, i) => i !== index);
+    setMessageVariations(updated);
+    // Update main message if first was removed
+    if (index === 0) {
+      setCustomMessage(updated[0]);
+    }
+  };
+
+  const duplicateVariation = (index: number) => {
+    if (messageVariations.length >= 10) {
+      toast.error('Máximo de 10 variações permitidas');
+      return;
+    }
+    const updated = [...messageVariations];
+    updated.splice(index + 1, 0, messageVariations[index]);
+    setMessageVariations(updated);
+  };
+
+  const getRandomVariation = (): string => {
+    const validVariations = messageVariations.filter(v => v.trim() !== '');
+    if (validVariations.length === 0) return customMessage;
+    return validVariations[Math.floor(Math.random() * validVariations.length)];
+  };
 
   // Filter clients based on selection
   const filteredClients = clients.filter(client => {
@@ -458,7 +516,9 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       for (let i = 0; i < phoneNumbers.length; i++) {
         const number = phoneNumbers[i];
         await new Promise(resolve => setTimeout(resolve, 500));
-        openWhatsApp(number, customMessage);
+        // Use random variation if enabled
+        const messageToSend = useVariations ? getRandomVariation() : customMessage;
+        openWhatsApp(number, messageToSend);
         successCount++;
         setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: 0 });
       }
@@ -498,11 +558,13 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       for (let i = 0; i < selectedClients.length; i++) {
         const client = selectedClients[i];
         try {
+          // Use random variation if enabled
+          const messageToSchedule = useVariations ? getRandomVariation() : customMessage;
           const { error } = await supabase.from('scheduled_messages').insert({
             user_id: user!.id,
             client_id: client.id,
             message_type: messageMode,
-            custom_message: customMessage,
+            custom_message: messageToSchedule,
             scheduled_at: scheduledAt.toISOString(),
             status: 'pending',
           });
@@ -527,7 +589,9 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         const daysRemaining = getDaysUntilExpiration(client.expiresAt);
         const expiresAtFormatted = format(client.expiresAt, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
-        const personalizedMessage = customMessage
+        // Use random variation if enabled
+        const baseMessage = useVariations ? getRandomVariation() : customMessage;
+        const personalizedMessage = baseMessage
           .replace(/{nome}/g, client.name)
           .replace(/{plano}/g, planName)
           .replace(/{dias}/g, String(Math.abs(daysRemaining)))
@@ -943,21 +1007,131 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           </div>
         )}
 
-        {/* Message */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Mensagem</Label>
-          <Textarea
-            value={customMessage}
-            onChange={(e) => setCustomMessage(e.target.value)}
-            rows={5}
-            placeholder="Escreva sua mensagem..."
-          />
-          <p className="text-xs text-muted-foreground">
-            {targetMode === 'clients' 
-              ? <>Variáveis: {'{nome}'}, {'{plano}'}, {'{dias}'}, {'{vencimento}'}</>
-              : 'Escreva a mensagem que será enviada para todos os números'
-            }
-          </p>
+        {/* Message Variations Toggle */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Shuffle className="h-3 w-3" />
+                Variações de mensagem
+              </Label>
+              <Badge variant="secondary" className="text-xs">
+                Anti-spam
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="use-variations"
+                checked={useVariations}
+                onCheckedChange={(checked) => {
+                  setUseVariations(checked === true);
+                  if (checked && messageVariations.length === 1) {
+                    // Keep first variation synced with main message
+                    setMessageVariations([customMessage]);
+                  }
+                }}
+              />
+              <Label htmlFor="use-variations" className="text-sm cursor-pointer">
+                Usar variações
+              </Label>
+            </div>
+          </div>
+
+          {useVariations ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Crie até 10 variações diferentes da mensagem. Uma será escolhida aleatoriamente para cada destinatário.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addVariation}
+                  disabled={messageVariations.length >= 10}
+                  className="gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Adicionar
+                </Button>
+              </div>
+
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {messageVariations.map((variation, index) => (
+                  <div key={index} className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          Variação {index + 1}
+                        </Badge>
+                      </Label>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => duplicateVariation(index)}
+                          title="Duplicar variação"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        {messageVariations.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => removeVariation(index)}
+                            title="Remover variação"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <Textarea
+                      value={variation}
+                      onChange={(e) => updateVariation(index, e.target.value)}
+                      rows={4}
+                      placeholder={`Escreva a variação ${index + 1} da mensagem...`}
+                      className="text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
+                <Shuffle className="h-4 w-4 text-primary" />
+                <p className="text-xs text-muted-foreground">
+                  <strong>{messageVariations.filter(v => v.trim()).length}</strong> variações válidas serão usadas aleatoriamente
+                </p>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {targetMode === 'clients' 
+                  ? <>Variáveis disponíveis: {'{nome}'}, {'{plano}'}, {'{dias}'}, {'{vencimento}'}</>
+                  : 'Escreva mensagens diferentes para evitar detecção de spam'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Mensagem</Label>
+              <Textarea
+                value={customMessage}
+                onChange={(e) => {
+                  setCustomMessage(e.target.value);
+                  setMessageVariations([e.target.value]);
+                }}
+                rows={5}
+                placeholder="Escreva sua mensagem..."
+              />
+              <p className="text-xs text-muted-foreground">
+                {targetMode === 'clients' 
+                  ? <>Variáveis: {'{nome}'}, {'{plano}'}, {'{dias}'}, {'{vencimento}'}</>
+                  : 'Escreva a mensagem que será enviada para todos os números'
+                }
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Message Preview - Phone Mockup */}
