@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar, AppSection } from "@/components/AppSidebar";
 import { ExternalFrame } from "@/components/ExternalFrame";
 import Index from "@/pages/Index";
+import ScheduledMessages from "@/pages/ScheduledMessages";
 
 export function MainLayout() {
   const [activeSection, setActiveSection] = useState<AppSection>("clients");
@@ -12,12 +13,7 @@ export function MainLayout() {
       case "clients":
         return <Index />;
       case "disparo":
-        return (
-          <ExternalFrame
-            url="https://disparo.example.com"
-            title="Disparo Em Massa"
-          />
-        );
+        return <ScheduledMessages />;
       case "vpn":
         return (
           <ExternalFrame

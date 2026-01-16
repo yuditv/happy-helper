@@ -609,10 +609,6 @@ Qualquer dúvida, estamos à disposição. 😊`;
                     <BarChart3 className="h-4 w-4 mr-2 text-accent" />
                     Dashboard Geral
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/scheduled')} className="hover:bg-primary/10">
-                    <Clock className="h-4 w-4 mr-2 text-primary" />
-                    Agendamentos
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/leaderboard')} className="hover:bg-primary/10">
                     <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
                     Ranking
