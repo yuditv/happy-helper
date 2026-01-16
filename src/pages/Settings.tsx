@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, DollarSign, Bell, Palette, Shield, Save, Moon, Sun, Monitor, Loader2 } from 'lucide-react';
+import { ArrowLeft, DollarSign, Bell, Palette, Shield, Save, Moon, Sun, Monitor, Loader2, MessageCircle, Send, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/NotificationSettings';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { sendWhatsAppMessage } from '@/lib/evolutionApi';
 
 import { toast } from 'sonner';
 
@@ -35,7 +36,11 @@ export default function Settings() {
     autoSendReminders: false,
   });
   const [hasNotificationChanges, setHasNotificationChanges] = useState(false);
-
+  
+  // WhatsApp test state
+  const [testPhone, setTestPhone] = useState('');
+  const [isTestingWhatsApp, setIsTestingWhatsApp] = useState(false);
+  const [whatsAppStatus, setWhatsAppStatus] = useState<'idle' | 'success' | 'error'>('idle');
   // Sync notification settings from hook
   useEffect(() => {
     if (notificationSettings) {
@@ -238,20 +243,79 @@ export default function Settings() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Lembretes por WhatsApp</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Gerar links do WhatsApp para envio de lembretes (requer ação manual)
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>Lembretes por WhatsApp (Evolution API)</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Enviar mensagens automáticas via Evolution API
+                          </p>
+                        </div>
+                        <Switch
+                          checked={notificationPrefs.whatsappReminders}
+                          onCheckedChange={(checked) => {
+                            setNotificationPrefs(prev => ({ ...prev, whatsappReminders: checked }));
+                            setHasNotificationChanges(true);
+                          }}
+                        />
+                      </div>
+                      
+                      {/* WhatsApp Test Section */}
+                      <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <MessageCircle className="h-4 w-4 text-green-500" />
+                          <Label className="font-medium">Testar Conexão WhatsApp</Label>
+                          {whatsAppStatus === 'success' && (
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          )}
+                          {whatsAppStatus === 'error' && (
+                            <XCircle className="h-4 w-4 text-destructive" />
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Número para teste (ex: 11999999999)"
+                            value={testPhone}
+                            onChange={(e) => setTestPhone(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            size="sm"
+                            disabled={!testPhone || isTestingWhatsApp}
+                            onClick={async () => {
+                              setIsTestingWhatsApp(true);
+                              setWhatsAppStatus('idle');
+                              try {
+                                const result = await sendWhatsAppMessage(
+                                  testPhone,
+                                  '✅ Teste de conexão com Evolution API realizado com sucesso! Seu sistema de notificações automáticas está funcionando.'
+                                );
+                                if (result.success) {
+                                  setWhatsAppStatus('success');
+                                  toast.success('Mensagem de teste enviada com sucesso!');
+                                } else {
+                                  setWhatsAppStatus('error');
+                                  toast.error(`Erro: ${result.error}`);
+                                }
+                              } catch (error: any) {
+                                setWhatsAppStatus('error');
+                                toast.error('Erro ao testar conexão');
+                              } finally {
+                                setIsTestingWhatsApp(false);
+                              }
+                            }}
+                          >
+                            {isTestingWhatsApp ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Configure as variáveis EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE nos secrets.
                         </p>
                       </div>
-                      <Switch
-                        checked={notificationPrefs.whatsappReminders}
-                        onCheckedChange={(checked) => {
-                          setNotificationPrefs(prev => ({ ...prev, whatsappReminders: checked }));
-                          setHasNotificationChanges(true);
-                        }}
-                      />
                     </div>
 
                     <div className="space-y-3">

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-referral-notification]
 verify_jwt = false
+
+[functions.send-whatsapp-evolution]
+verify_jwt = false
