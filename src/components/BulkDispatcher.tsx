@@ -23,6 +23,14 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { getDaysUntilExpiration } from '@/types/client';
 import { openWhatsApp } from '@/lib/whatsapp';
+import { 
+  MediaType, 
+  MediaAttachment, 
+  getMediaTypeFromFile, 
+  getMediaTypeLabel, 
+  fileToBase64,
+  sendWhatsAppMedia 
+} from '@/lib/evolutionApi';
 import {
   Zap,
   Send,
@@ -53,7 +61,12 @@ import {
   Sparkles,
   Eye,
   RefreshCw,
-  FileText
+  FileText,
+  Image,
+  Video,
+  Music,
+  File,
+  Paperclip
 } from 'lucide-react';
 
 interface PhoneGroup {
@@ -219,6 +232,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [savingGroup, setSavingGroup] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  
+  // Media attachments state
+  const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
+  const [useMediaMode, setUseMediaMode] = useState(false);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
   
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -401,6 +419,69 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const refreshPreviewVariation = () => {
     const variation = getRandomVariation();
     setPreviewVariationMessage(variation);
+  };
+
+  // Media attachment functions
+  const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const newAttachments: MediaAttachment[] = [];
+    
+    Array.from(files).forEach(file => {
+      // Check file size (max 16MB for WhatsApp)
+      if (file.size > 16 * 1024 * 1024) {
+        toast.error(`Arquivo "${file.name}" excede o limite de 16MB`);
+        return;
+      }
+
+      const mediaType = getMediaTypeFromFile(file);
+      
+      // Create preview for images and videos
+      let preview: string | undefined;
+      if (mediaType === 'image' || mediaType === 'video') {
+        preview = URL.createObjectURL(file);
+      }
+
+      newAttachments.push({ file, type: mediaType, preview });
+    });
+
+    if (newAttachments.length > 0) {
+      // Only allow one attachment at a time for now
+      setMediaAttachments(newAttachments.slice(0, 1));
+      setUseMediaMode(true);
+      toast.success(`${newAttachments.length} mídia(s) anexada(s)`);
+    }
+
+    // Reset input
+    if (mediaInputRef.current) {
+      mediaInputRef.current.value = '';
+    }
+  };
+
+  const removeMediaAttachment = (index: number) => {
+    setMediaAttachments(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length === 0) {
+        setUseMediaMode(false);
+      }
+      return updated;
+    });
+  };
+
+  const getMediaIcon = (type: MediaType) => {
+    switch (type) {
+      case 'image': return <Image className="h-4 w-4" />;
+      case 'video': return <Video className="h-4 w-4" />;
+      case 'audio': return <Music className="h-4 w-4" />;
+      case 'document': return <File className="h-4 w-4" />;
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   // Filter clients based on selection
@@ -608,21 +689,63 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       return;
     }
 
+    // Prepare media if using media mode
+    let mediaBase64: string | undefined;
+    let mediaFile: File | undefined;
+    let mediaType: MediaType | undefined;
+    
+    if (useMediaMode && mediaAttachments.length > 0) {
+      const attachment = mediaAttachments[0];
+      mediaFile = attachment.file;
+      mediaType = attachment.type;
+      try {
+        mediaBase64 = await fileToBase64(mediaFile);
+      } catch (error) {
+        toast.error('Erro ao processar mídia');
+        return;
+      }
+    }
+
     if (targetMode === 'numbers') {
       // Send to custom phone numbers
       setIsSending(true);
       setProgress({ current: 0, total: phoneNumbers.length, success: 0, failed: 0 });
 
       let successCount = 0;
+      let failCount = 0;
 
       for (let i = 0; i < phoneNumbers.length; i++) {
         const number = phoneNumbers[i];
-        await new Promise(resolve => setTimeout(resolve, 500));
-        // Use random variation if enabled
         const messageToSend = useVariations ? getRandomVariation() : customMessage;
-        openWhatsApp(number, messageToSend);
-        successCount++;
-        setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: 0 });
+        
+        if (useMediaMode && mediaBase64 && mediaFile && mediaType) {
+          // Send via Evolution API with media
+          try {
+            const result = await sendWhatsAppMedia(
+              number,
+              mediaBase64,
+              mediaType,
+              mediaFile.name,
+              mediaFile.type,
+              messageToSend || undefined
+            );
+            if (result.success) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch {
+            failCount++;
+          }
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        } else {
+          // Open WhatsApp Web
+          await new Promise(resolve => setTimeout(resolve, 500));
+          openWhatsApp(number, messageToSend);
+          successCount++;
+        }
+        
+        setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: failCount });
       }
 
       // Save to history
@@ -632,12 +755,18 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         target_type: 'numbers',
         total_recipients: phoneNumbers.length,
         success_count: successCount,
-        failed_count: 0,
+        failed_count: failCount,
         message_content: customMessage,
         phone_group_id: selectedGroupId || null,
       });
 
-      toast.success(`WhatsApp aberto para ${successCount} número(s)!`);
+      if (useMediaMode) {
+        if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
+        if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
+      } else {
+        toast.success(`WhatsApp aberto para ${successCount} número(s)!`);
+      }
+      
       setIsSending(false);
       onComplete?.();
       return;
@@ -700,9 +829,31 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           .replace(/{vencimento}/g, expiresAtFormatted);
 
         if (messageMode === 'whatsapp') {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          openWhatsApp(client.whatsapp, personalizedMessage);
-          successCount++;
+          if (useMediaMode && mediaBase64 && mediaFile && mediaType) {
+            // Send via Evolution API with media
+            try {
+              const result = await sendWhatsAppMedia(
+                client.whatsapp,
+                mediaBase64,
+                mediaType,
+                mediaFile.name,
+                mediaFile.type,
+                personalizedMessage || undefined
+              );
+              if (result.success) {
+                successCount++;
+              } else {
+                failCount++;
+              }
+            } catch {
+              failCount++;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            openWhatsApp(client.whatsapp, personalizedMessage);
+            successCount++;
+          }
         } else {
           try {
             const { error } = await supabase.functions.invoke('send-expiration-reminder', {
@@ -748,7 +899,12 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       });
 
       if (messageMode === 'whatsapp') {
-        toast.success(`WhatsApp aberto para ${successCount} cliente(s)!`);
+        if (useMediaMode) {
+          if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
+          if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
+        } else {
+          toast.success(`WhatsApp aberto para ${successCount} cliente(s)!`);
+        }
       } else {
         if (successCount > 0) toast.success(`${successCount} email(s) enviado(s)!`);
         if (failCount > 0) toast.error(`${failCount} email(s) falhou(aram)`);
@@ -1106,6 +1262,174 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                 onChange={(e) => setScheduledTime(e.target.value)}
               />
             </div>
+          </div>
+        )}
+
+        {/* Media Attachments Section */}
+        {messageMode === 'whatsapp' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Paperclip className="h-3 w-3" />
+                  Anexar mídia
+                </Label>
+                <Badge variant="outline" className="text-xs">
+                  Novo
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="use-media"
+                  checked={useMediaMode}
+                  onCheckedChange={(checked) => {
+                    setUseMediaMode(checked === true);
+                    if (!checked) {
+                      setMediaAttachments([]);
+                    }
+                  }}
+                />
+                <Label htmlFor="use-media" className="text-sm cursor-pointer">
+                  Enviar com mídia
+                </Label>
+              </div>
+            </div>
+
+            {useMediaMode && (
+              <div className="space-y-3">
+                {/* Media upload input */}
+                <input
+                  type="file"
+                  ref={mediaInputRef}
+                  onChange={handleMediaUpload}
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                  className="hidden"
+                />
+                
+                {/* Upload button */}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => mediaInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Image className="h-4 w-4" />
+                    Foto
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (mediaInputRef.current) {
+                        mediaInputRef.current.accept = "video/*";
+                        mediaInputRef.current.click();
+                        mediaInputRef.current.accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    <Video className="h-4 w-4" />
+                    Vídeo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (mediaInputRef.current) {
+                        mediaInputRef.current.accept = "audio/*";
+                        mediaInputRef.current.click();
+                        mediaInputRef.current.accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    <Music className="h-4 w-4" />
+                    Áudio
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (mediaInputRef.current) {
+                        mediaInputRef.current.accept = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
+                        mediaInputRef.current.click();
+                        mediaInputRef.current.accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    <File className="h-4 w-4" />
+                    Documento
+                  </Button>
+                </div>
+
+                {/* Attached media list */}
+                {mediaAttachments.length > 0 && (
+                  <div className="space-y-2">
+                    {mediaAttachments.map((attachment, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
+                      >
+                        {/* Preview */}
+                        {attachment.preview && attachment.type === 'image' ? (
+                          <img 
+                            src={attachment.preview} 
+                            alt="Preview" 
+                            className="w-16 h-16 object-cover rounded-lg"
+                          />
+                        ) : attachment.preview && attachment.type === 'video' ? (
+                          <video 
+                            src={attachment.preview} 
+                            className="w-16 h-16 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 flex items-center justify-center bg-muted rounded-lg">
+                            {getMediaIcon(attachment.type)}
+                          </div>
+                        )}
+                        
+                        {/* File info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {attachment.file.name}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="secondary" className="text-xs">
+                              {getMediaTypeLabel(attachment.type)}
+                            </Badge>
+                            <span>{formatFileSize(attachment.file.size)}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Remove button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => removeMediaAttachment(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Formatos: Fotos (JPG, PNG, GIF), Vídeos (MP4, MOV), Áudios (MP3, OGG), Documentos (PDF, DOC, XLS). Máx: 16MB
+                </p>
+
+                {/* Caption info */}
+                <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
+                  <MessageCircle className="h-4 w-4 text-primary" />
+                  <p className="text-xs text-muted-foreground">
+                    A mensagem será enviada como legenda da mídia
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1567,12 +1891,15 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           {isSending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Enviando...
+              {useMediaMode ? 'Enviando mídia...' : 'Enviando...'}
             </>
           ) : targetMode === 'numbers' ? (
             <>
-              <Send className="h-4 w-4" />
-              Enviar para {phoneNumbers.length} número(s)
+              {useMediaMode ? <Paperclip className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+              {useMediaMode 
+                ? `Enviar mídia para ${phoneNumbers.length} número(s)` 
+                : `Enviar para ${phoneNumbers.length} número(s)`
+              }
             </>
           ) : sendMode === 'scheduled' ? (
             <>
@@ -1581,8 +1908,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             </>
           ) : (
             <>
-              <Send className="h-4 w-4" />
-              Enviar para {selectedClientIds.size} cliente(s)
+              {useMediaMode ? <Paperclip className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+              {useMediaMode 
+                ? `Enviar mídia para ${selectedClientIds.size} cliente(s)` 
+                : `Enviar para ${selectedClientIds.size} cliente(s)`
+              }
             </>
           )}
         </Button>
