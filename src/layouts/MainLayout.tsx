@@ -11,6 +11,13 @@ export function MainLayout() {
     switch (activeSection) {
       case "clients":
         return <Index />;
+      case "disparo":
+        return (
+          <ExternalFrame
+            url="https://disparo.example.com"
+            title="Disparo Em Massa"
+          />
+        );
       case "vpn":
         return (
           <ExternalFrame
