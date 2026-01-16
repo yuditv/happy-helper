@@ -287,6 +287,10 @@ export function ImportClientsDialog({ open, onOpenChange, onImport }: ImportClie
         notes: row.notes,
         createdAt: new Date(),
         expiresAt: row.expiresAt,
+        serviceUsername: null,
+        servicePassword: null,
+        appName: null,
+        device: null,
       }));
 
       await onImport(clientsToImport);

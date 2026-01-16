@@ -29,6 +29,12 @@ export interface Client {
   createdAt: Date;
   expiresAt: Date;
   renewalHistory: RenewalRecord[];
+  // Service credentials
+  serviceUsername: string | null;
+  servicePassword: string | null;
+  // IPTV specific fields
+  appName: string | null;
+  device: string | null;
 }
 
 export const planLabels: Record<PlanType, string> = {
