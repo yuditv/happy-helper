@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { useClients } from '@/hooks/useClients';
 import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { supabase } from '@/integrations/supabase/client';
@@ -383,25 +384,32 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       };
       reader.readAsText(file);
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-      // For Excel files, we'll read as text and try to extract numbers
+      // For Excel files, use XLSX library to properly parse
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
-          // Simple extraction - read as text and find patterns
-          const text = e.target?.result as string;
-          const numbers = extractNumbersFromText(text);
+          const buffer = e.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          
+          // Convert sheet to text to extract numbers
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' }) as any[][];
+          const allText = jsonData.flat().join(' ');
+          
+          const numbers = extractNumbersFromText(allText);
           if (numbers.length > 0) {
             const uniqueNumbers = [...new Set([...phoneNumbers, ...numbers])];
             setPhoneNumbers(uniqueNumbers);
-            toast.success(`${numbers.length} número(s) importado(s) do arquivo`);
+            toast.success(`${numbers.length} número(s) importado(s) do arquivo Excel`);
           } else {
-            toast.error('Nenhum número encontrado. Use arquivo CSV para melhores resultados.');
+            toast.error('Nenhum número de telefone encontrado no arquivo.');
           }
-        } catch {
-          toast.error('Erro ao ler arquivo Excel. Use formato CSV.');
+        } catch (error) {
+          console.error('Error reading Excel file:', error);
+          toast.error('Erro ao ler arquivo Excel.');
         }
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     } else {
       toast.error('Formato não suportado. Use CSV, TXT ou Excel.');
     }
