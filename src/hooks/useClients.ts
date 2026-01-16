@@ -19,6 +19,10 @@ interface DbClient {
   expires_at: string;
   created_at: string;
   updated_at: string;
+  service_username: string | null;
+  service_password: string | null;
+  app_name: string | null;
+  device: string | null;
 }
 
 interface DbRenewal {
@@ -91,6 +95,10 @@ export function useClients() {
       expiresAt: new Date(c.expires_at),
       createdAt: new Date(c.created_at),
       renewalHistory: renewalsByClient[c.id] || [],
+      serviceUsername: c.service_username,
+      servicePassword: c.service_password,
+      appName: c.app_name,
+      device: c.device,
     }));
 
     setClients(formattedClients);
@@ -120,6 +128,10 @@ export function useClients() {
         notes: data.notes,
         created_at: data.createdAt.toISOString(),
         expires_at: data.expiresAt.toISOString(),
+        service_username: data.serviceUsername,
+        service_password: data.servicePassword,
+        app_name: data.appName,
+        device: data.device,
       })
       .select()
       .single();
@@ -205,6 +217,10 @@ export function useClients() {
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.createdAt) updateData.created_at = data.createdAt.toISOString();
     if (data.expiresAt) updateData.expires_at = data.expiresAt.toISOString();
+    if (data.serviceUsername !== undefined) updateData.service_username = data.serviceUsername;
+    if (data.servicePassword !== undefined) updateData.service_password = data.servicePassword;
+    if (data.appName !== undefined) updateData.app_name = data.appName;
+    if (data.device !== undefined) updateData.device = data.device;
 
     const { error } = await supabase
       .from('clients')
@@ -332,6 +348,10 @@ export function useClients() {
       notes: data.notes,
       created_at: data.createdAt.toISOString(),
       expires_at: data.expiresAt.toISOString(),
+      service_username: data.serviceUsername,
+      service_password: data.servicePassword,
+      app_name: data.appName,
+      device: data.device,
     }));
 
     const { error } = await supabase

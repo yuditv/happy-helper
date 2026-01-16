@@ -17,10 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Phone, CreditCard, CalendarDays, DollarSign, Tv, StickyNote } from 'lucide-react';
+import { User, Phone, CreditCard, CalendarDays, DollarSign, Tv, StickyNote, KeyRound, Smartphone, AppWindow } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Security: Input validation schemas
 const clientSchema = z.object({
@@ -39,6 +40,22 @@ const clientSchema = z.object({
   price: z.number()
     .min(0, 'Preço não pode ser negativo')
     .max(999999, 'Preço muito alto')
+    .optional()
+    .nullable(),
+  serviceUsername: z.string()
+    .max(100, 'Usuário muito longo')
+    .optional()
+    .nullable(),
+  servicePassword: z.string()
+    .max(100, 'Senha muito longa')
+    .optional()
+    .nullable(),
+  appName: z.string()
+    .max(100, 'Nome do app muito longo')
+    .optional()
+    .nullable(),
+  device: z.string()
+    .max(100, 'Dispositivo muito longo')
     .optional()
     .nullable(),
 });
@@ -66,6 +83,13 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   const [notes, setNotes] = useState('');
   const [createdAt, setCreatedAt] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
+  
+  // Service credentials
+  const [serviceUsername, setServiceUsername] = useState('');
+  const [servicePassword, setServicePassword] = useState('');
+  // IPTV specific
+  const [appName, setAppName] = useState('');
+  const [device, setDevice] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -77,6 +101,10 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setNotes(initialData.notes || '');
       setCreatedAt(format(initialData.createdAt, 'yyyy-MM-dd'));
       setExpiresAt(format(initialData.expiresAt, 'yyyy-MM-dd'));
+      setServiceUsername(initialData.serviceUsername || '');
+      setServicePassword(initialData.servicePassword || '');
+      setAppName(initialData.appName || '');
+      setDevice(initialData.device || '');
     } else {
       setName('');
       setWhatsapp('');
@@ -85,8 +113,11 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setPrice('');
       setNotes('');
       setCreatedAt(format(new Date(), 'yyyy-MM-dd'));
-      // Set default expiration based on plan
       setExpiresAt(format(addMonths(new Date(), planDurations['monthly']), 'yyyy-MM-dd'));
+      setServiceUsername('');
+      setServicePassword('');
+      setAppName('');
+      setDevice('');
     }
   }, [initialData, open]);
 
@@ -120,12 +151,20 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
     // Security: Validate and sanitize all inputs
     const sanitizedName = sanitizeText(name);
     const sanitizedNotes = notes ? sanitizeText(notes) : null;
+    const sanitizedUsername = serviceUsername ? sanitizeText(serviceUsername) : null;
+    const sanitizedPassword = servicePassword ? sanitizeText(servicePassword) : null;
+    const sanitizedAppName = appName ? sanitizeText(appName) : null;
+    const sanitizedDevice = device ? sanitizeText(device) : null;
     
     const validation = clientSchema.safeParse({
       name: sanitizedName,
       whatsapp,
       notes: sanitizedNotes,
       price: price ? parseFloat(price) : null,
+      serviceUsername: sanitizedUsername,
+      servicePassword: sanitizedPassword,
+      appName: sanitizedAppName,
+      device: sanitizedDevice,
     });
 
     if (!validation.success) {
@@ -143,14 +182,18 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       price: price ? parseFloat(price) : null,
       notes: sanitizedNotes,
       createdAt: new Date(createdAt + 'T00:00:00'),
-      expiresAt: new Date(expiresAt + 'T23:59:59')
+      expiresAt: new Date(expiresAt + 'T23:59:59'),
+      serviceUsername: sanitizedUsername,
+      servicePassword: sanitizedPassword,
+      appName: service === 'IPTV' ? sanitizedAppName : null,
+      device: service === 'IPTV' ? sanitizedDevice : null,
     });
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[380px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[420px] max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-semibold">
             {initialData ? 'Editar Cliente' : 'Novo Cliente'}
@@ -211,6 +254,93 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
               </Select>
             </div>
           </div>
+
+          {/* Service Credentials Section */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={service}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-3 overflow-hidden"
+            >
+              <div className="p-3 rounded-lg bg-muted/50 border border-border/50 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <KeyRound className="h-3.5 w-3.5" />
+                  <span>Credenciais do {service}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="serviceUsername" className="text-xs font-medium">
+                      Usuário
+                    </Label>
+                    <Input
+                      id="serviceUsername"
+                      value={serviceUsername}
+                      onChange={(e) => setServiceUsername(e.target.value)}
+                      placeholder="Digite o usuário"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="servicePassword" className="text-xs font-medium">
+                      Senha
+                    </Label>
+                    <Input
+                      id="servicePassword"
+                      type="password"
+                      value={servicePassword}
+                      onChange={(e) => setServicePassword(e.target.value)}
+                      placeholder="Digite a senha"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* IPTV specific fields */}
+                {service === 'IPTV' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50"
+                  >
+                    <div className="space-y-1">
+                      <Label htmlFor="appName" className="text-xs font-medium">
+                        Nome do App
+                      </Label>
+                      <div className="relative">
+                        <AppWindow className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          id="appName"
+                          value={appName}
+                          onChange={(e) => setAppName(e.target.value)}
+                          placeholder="Ex: IPTV Smarters"
+                          className="pl-8 h-9 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="device" className="text-xs font-medium">
+                        Dispositivo
+                      </Label>
+                      <div className="relative">
+                        <Smartphone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          id="device"
+                          value={device}
+                          onChange={(e) => setDevice(e.target.value)}
+                          placeholder="Ex: Smart TV, Celular"
+                          className="pl-8 h-9 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
