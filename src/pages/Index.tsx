@@ -613,10 +613,6 @@ Qualquer dúvida, estamos à disposição. 😊`;
                     <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
                     Ranking
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/reseller')} className="hover:bg-primary/10">
-                    <Package className="h-4 w-4 mr-2 text-primary" />
-                    Área de Revenda
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-border/50" />
                   <DropdownMenuItem onClick={() => navigate('/install')} className="hover:bg-primary/10">
                     <Smartphone className="h-4 w-4 mr-2 text-primary" />
