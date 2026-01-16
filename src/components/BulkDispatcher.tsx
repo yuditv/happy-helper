@@ -1746,24 +1746,99 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                     
                     {/* Message bubble - sent by user */}
                     <div className={cn(
-                      "p-3 rounded-lg max-w-[90%] ml-auto shadow-md rounded-tr-none transition-all duration-300",
+                      "p-2 rounded-lg max-w-[90%] ml-auto shadow-md rounded-tr-none transition-all duration-300",
                       previewTheme === 'dark' ? "bg-[#005C4B]" : "bg-[#D9FDD3]",
                       showMessageSent ? "animate-scale-in" : "animate-fade-in"
                     )}>
-                      <p className={cn(
-                        "text-[13px] whitespace-pre-wrap leading-relaxed",
-                        previewTheme === 'dark' ? "text-white" : "text-gray-800"
-                      )}>
-                        {targetMode === 'clients' && filteredClients.length > 0
-                          ? customMessage
-                              .replace(/{nome}/g, filteredClients[0]?.name || 'João')
-                              .replace(/{plano}/g, filteredClients[0]?.plan ? getPlanName(filteredClients[0].plan) : 'Mensal')
-                              .replace(/{dias}/g, String(Math.abs(getDaysUntilExpiration(filteredClients[0]?.expiresAt || new Date()))))
-                              .replace(/{vencimento}/g, format(filteredClients[0]?.expiresAt || new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }))
-                          : customMessage
-                        }
-                      </p>
-                      <div className="flex items-center justify-end gap-1 mt-1">
+                      {/* Media Preview */}
+                      {useMediaMode && mediaAttachments.length > 0 && (
+                        <div className="mb-2">
+                          {mediaAttachments[0].type === 'image' && mediaAttachments[0].preview ? (
+                            <img 
+                              src={mediaAttachments[0].preview} 
+                              alt="Media preview" 
+                              className="w-full max-h-40 object-cover rounded-lg"
+                            />
+                          ) : mediaAttachments[0].type === 'video' && mediaAttachments[0].preview ? (
+                            <div className="relative">
+                              <video 
+                                src={mediaAttachments[0].preview} 
+                                className="w-full max-h-40 object-cover rounded-lg"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center">
+                                  <Video className="h-5 w-5 text-white" />
+                                </div>
+                              </div>
+                            </div>
+                          ) : mediaAttachments[0].type === 'audio' ? (
+                            <div className={cn(
+                              "flex items-center gap-2 p-2 rounded-lg",
+                              previewTheme === 'dark' ? "bg-[#004438]" : "bg-[#c5f0c5]"
+                            )}>
+                              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                                <Music className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="flex-1">
+                                <div className={cn(
+                                  "h-1 rounded-full",
+                                  previewTheme === 'dark' ? "bg-gray-500" : "bg-gray-400"
+                                )}>
+                                  <div className="h-full w-1/3 bg-primary rounded-full" />
+                                </div>
+                                <span className={cn(
+                                  "text-[10px]",
+                                  previewTheme === 'dark' ? "text-gray-400" : "text-gray-600"
+                                )}>
+                                  {mediaAttachments[0].file.name}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className={cn(
+                              "flex items-center gap-2 p-2 rounded-lg",
+                              previewTheme === 'dark' ? "bg-[#004438]" : "bg-[#c5f0c5]"
+                            )}>
+                              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                                <File className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={cn(
+                                  "text-[11px] font-medium truncate",
+                                  previewTheme === 'dark' ? "text-white" : "text-gray-800"
+                                )}>
+                                  {mediaAttachments[0].file.name}
+                                </p>
+                                <span className={cn(
+                                  "text-[10px]",
+                                  previewTheme === 'dark' ? "text-gray-400" : "text-gray-600"
+                                )}>
+                                  {formatFileSize(mediaAttachments[0].file.size)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Message text (as caption if media is attached) */}
+                      {customMessage.trim() && (
+                        <p className={cn(
+                          "text-[13px] whitespace-pre-wrap leading-relaxed px-1",
+                          previewTheme === 'dark' ? "text-white" : "text-gray-800"
+                        )}>
+                          {targetMode === 'clients' && filteredClients.length > 0
+                            ? customMessage
+                                .replace(/{nome}/g, filteredClients[0]?.name || 'João')
+                                .replace(/{plano}/g, filteredClients[0]?.plan ? getPlanName(filteredClients[0].plan) : 'Mensal')
+                                .replace(/{dias}/g, String(Math.abs(getDaysUntilExpiration(filteredClients[0]?.expiresAt || new Date()))))
+                                .replace(/{vencimento}/g, format(filteredClients[0]?.expiresAt || new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }))
+                            : customMessage
+                          }
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center justify-end gap-1 mt-1 px-1">
                         <span className={cn(
                           "text-[10px]",
                           previewTheme === 'dark' ? "text-gray-300" : "text-gray-500"
