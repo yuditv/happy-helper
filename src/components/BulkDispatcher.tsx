@@ -49,7 +49,11 @@ import {
   Upload,
   FileSpreadsheet,
   Sun,
-  Moon
+  Moon,
+  Sparkles,
+  Eye,
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 
 interface PhoneGroup {
@@ -104,6 +108,84 @@ const getRandomReply = () => {
   return autoReplies[Math.floor(Math.random() * autoReplies.length)];
 };
 
+// Message variation templates
+interface VariationTemplate {
+  id: string;
+  name: string;
+  category: 'renewal' | 'promotion' | 'welcome' | 'general';
+  variations: string[];
+}
+
+const variationTemplates: VariationTemplate[] = [
+  {
+    id: 'renewal-friendly',
+    name: 'Renovação Amigável',
+    category: 'renewal',
+    variations: [
+      `Olá {nome}! 👋\n\nSeu plano *{plano}* vence em *{dias} dia(s)* ({vencimento}).\n\nRenove agora para continuar aproveitando! 😊`,
+      `Oi {nome}! 💫\n\nPassando pra lembrar: seu plano *{plano}* expira em *{dias} dia(s)*.\n\nQualquer dúvida, estou aqui! 🙌`,
+      `E aí, {nome}! 🌟\n\nSeu *{plano}* tá chegando ao fim ({dias} dias).\n\nVamos renovar? Conte comigo! ✨`,
+      `{nome}, tudo bem? 👋\n\nSó um lembrete: *{plano}* vence dia {vencimento}.\n\nMe chama se precisar de ajuda! 💪`,
+      `Oi {nome}! 🚀\n\nSeu plano *{plano}* vence em breve ({dias} dias).\n\nGarantir a renovação? É rapidinho! ⚡`,
+    ]
+  },
+  {
+    id: 'renewal-urgent',
+    name: 'Renovação Urgente',
+    category: 'renewal',
+    variations: [
+      `⚠️ {nome}, atenção!\n\nSeu plano *{plano}* vence em *{dias} dia(s)*!\n\nRenove agora para não perder acesso. 🔐`,
+      `🚨 Olá {nome}!\n\nÚltimos *{dias} dia(s)* do seu *{plano}*!\n\nNão deixe expirar - renove já! ⏰`,
+      `❗ {nome}, urgente!\n\nPlano *{plano}* expira em {dias} dia(s).\n\nEvite interrupção, renove agora! 🔄`,
+      `⏳ {nome}, corre!\n\n*{plano}* vence {vencimento}.\n\nGaranta sua renovação antes que expire! 💨`,
+      `🔔 Atenção {nome}!\n\n*{dias} dia(s)* para o *{plano}* expirar.\n\nRenove hoje e continue com a gente! ✅`,
+    ]
+  },
+  {
+    id: 'promotion-discount',
+    name: 'Promoção com Desconto',
+    category: 'promotion',
+    variations: [
+      `🔥 {nome}, PROMOÇÃO!\n\nRenove seu *{plano}* HOJE e ganhe desconto especial!\n\nApenas para você! 🎁`,
+      `💰 Opa {nome}!\n\nCondição exclusiva pra renovação do *{plano}*!\n\nVálido só hoje, aproveita! 🚀`,
+      `🎉 {nome}, temos novidade!\n\nDesconto IMPERDÍVEL no *{plano}*!\n\nNão perca essa oportunidade! ⭐`,
+      `✨ Oferta especial {nome}!\n\nRenovando o *{plano}* agora você economiza!\n\nChama pra saber mais! 💬`,
+      `🏷️ {nome}, exclusivo pra você!\n\nPromo especial no *{plano}*!\n\nVálido por tempo limitado! ⏰`,
+    ]
+  },
+  {
+    id: 'welcome-new',
+    name: 'Boas-vindas',
+    category: 'welcome',
+    variations: [
+      `🎊 Bem-vindo(a), {nome}!\n\nSeu *{plano}* já está ativo!\n\nDúvidas? Estou à disposição! 😊`,
+      `✨ Olá {nome}, seja muito bem-vindo(a)!\n\n*{plano}* liberado com sucesso!\n\nConte comigo! 🙌`,
+      `🚀 {nome}, tudo pronto!\n\nSeu *{plano}* está funcionando!\n\nAproveite ao máximo! 💪`,
+      `🎉 Parabéns {nome}!\n\n*{plano}* ativado!\n\nQualquer coisa, me chama! 📱`,
+      `👋 Oi {nome}!\n\nBem-vindo(a) ao *{plano}*!\n\nVamos juntos nessa! 🌟`,
+    ]
+  },
+  {
+    id: 'general-contact',
+    name: 'Contato Geral',
+    category: 'general',
+    variations: [
+      `Olá! 👋\n\nTemos uma oferta especial para você!\n\nEntre em contato para saber mais. 😊`,
+      `Oi! 🌟\n\nPassando pra te apresentar nossos serviços!\n\nPosso ajudar? 💬`,
+      `E aí! 🚀\n\nTemos novidades incríveis!\n\nQuer saber mais? Me chama! ✨`,
+      `Olá! ✨\n\nOportunidade exclusiva disponível!\n\nVamos conversar? 📱`,
+      `Oi! 💫\n\nConheça nossas soluções!\n\nEstou aqui para ajudar! 🙌`,
+    ]
+  }
+];
+
+const categoryLabels: Record<string, string> = {
+  renewal: '🔄 Renovação',
+  promotion: '🎁 Promoção',
+  welcome: '👋 Boas-vindas',
+  general: '💬 Geral'
+};
+
 export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const { user } = useAuth();
   const { clients } = useClients();
@@ -119,6 +201,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [useVariations, setUseVariations] = useState(false);
   const [messageVariations, setMessageVariations] = useState<string[]>([defaultClientMessage]);
   const [showVariationsPanel, setShowVariationsPanel] = useState(false);
+  const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
+  const [previewVariationMessage, setPreviewVariationMessage] = useState<string>('');
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [scheduledTime, setScheduledTime] = useState('09:00');
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
@@ -299,6 +383,24 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     const validVariations = messageVariations.filter(v => v.trim() !== '');
     if (validVariations.length === 0) return customMessage;
     return validVariations[Math.floor(Math.random() * validVariations.length)];
+  };
+
+  // Apply a template to message variations
+  const applyTemplate = (template: VariationTemplate) => {
+    const variations = targetMode === 'numbers' 
+      ? template.variations.map(v => v.replace(/{nome}|{plano}|{dias}|{vencimento}/g, '').trim())
+      : template.variations;
+    setMessageVariations(variations);
+    setCustomMessage(variations[0]);
+    setUseVariations(true);
+    setShowTemplatesPanel(false);
+    toast.success(`Template "${template.name}" aplicado com ${variations.length} variações`);
+  };
+
+  // Refresh random variation preview
+  const refreshPreviewVariation = () => {
+    const variation = getRandomVariation();
+    setPreviewVariationMessage(variation);
   };
 
   // Filter clients based on selection
@@ -1039,10 +1141,17 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
 
           {useVariations ? (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  Crie até 10 variações diferentes da mensagem. Uma será escolhida aleatoriamente para cada destinatário.
-                </p>
+              {/* Templates Button */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTemplatesPanel(!showTemplatesPanel)}
+                  className="gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  {showTemplatesPanel ? 'Fechar Templates' : 'Templates Prontos'}
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -1054,6 +1163,40 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                   Adicionar
                 </Button>
               </div>
+
+              {/* Templates Panel */}
+              {showTemplatesPanel && (
+                <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Label className="text-sm font-medium">Templates de Variações</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Escolha um template pronto com 5 variações de mensagem pré-definidas.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {variationTemplates.map((template) => (
+                      <Button
+                        key={template.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyTemplate(template)}
+                        className="justify-start gap-2 h-auto py-2"
+                      >
+                        <span>{categoryLabels[template.category]}</span>
+                        <span className="text-muted-foreground">{template.name}</span>
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {template.variations.length}
+                        </Badge>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Crie até 10 variações diferentes da mensagem. Uma será escolhida aleatoriamente para cada destinatário.
+              </p>
 
               <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {messageVariations.map((variation, index) => (
@@ -1104,6 +1247,48 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                   <strong>{messageVariations.filter(v => v.trim()).length}</strong> variações válidas serão usadas aleatoriamente
                 </p>
               </div>
+
+              {/* Random Variation Preview */}
+              {messageVariations.filter(v => v.trim()).length > 1 && (
+                <div className="border rounded-lg p-4 bg-gradient-to-br from-primary/5 to-accent/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-primary" />
+                      <Label className="text-sm font-medium">Preview Aleatório</Label>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={refreshPreviewVariation}
+                      className="gap-1"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Sortear
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Veja como será uma variação aleatória antes de enviar.
+                  </p>
+                  {previewVariationMessage ? (
+                    <div className="p-3 bg-background rounded-lg border">
+                      <p className="text-sm whitespace-pre-wrap">
+                        {targetMode === 'clients' && filteredClients.length > 0
+                          ? previewVariationMessage
+                              .replace(/{nome}/g, filteredClients[0]?.name || 'João')
+                              .replace(/{plano}/g, filteredClients[0]?.plan ? getPlanName(filteredClients[0].plan) : 'Mensal')
+                              .replace(/{dias}/g, String(Math.abs(getDaysUntilExpiration(filteredClients[0]?.expiresAt || new Date()))))
+                              .replace(/{vencimento}/g, format(filteredClients[0]?.expiresAt || new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }))
+                          : previewVariationMessage
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic text-center py-2">
+                      Clique em "Sortear" para ver uma variação aleatória
+                    </p>
+                  )}
+                </div>
+              )}
 
               <p className="text-xs text-muted-foreground">
                 {targetMode === 'clients' 
