@@ -21,9 +21,11 @@ import {
   Banknote,
   Calendar,
   FileText,
+  Mail,
 } from "lucide-react";
 import { Reseller } from "@/components/ResellerManagement";
 import { useCommissionPayments, PaymentStatus, CommissionPayment } from "@/hooks/useCommissionPayments";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -148,8 +150,46 @@ export function CommissionPayments({ resellers, planPrices }: CommissionPayments
     }
   };
 
+  const sendPaymentNotification = async (
+    payment: CommissionPayment, 
+    status: 'approved' | 'paid',
+    paymentMethod?: string,
+    paymentDate?: Date
+  ) => {
+    const reseller = resellers.find(r => r.id === payment.resellerId);
+    if (!reseller || !reseller.email) {
+      console.log("No reseller email found, skipping notification");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('send-payment-notification', {
+        body: {
+          resellerName: reseller.name,
+          resellerEmail: reseller.email,
+          amount: payment.amount,
+          referenceMonth: payment.referenceMonth,
+          status: status,
+          paymentMethod: paymentMethod,
+          paymentDate: paymentDate?.toISOString(),
+        },
+      });
+
+      if (error) {
+        console.error("Error sending notification:", error);
+        toast.error("Pagamento atualizado, mas falha ao enviar email");
+      } else {
+        toast.success(`Email de notificação enviado para ${reseller.email}`);
+      }
+    } catch (error) {
+      console.error("Error invoking notification function:", error);
+    }
+  };
+
   const handleApprovePayment = async (payment: CommissionPayment) => {
     await updatePaymentStatus(payment.id, "approved");
+    // Send notification email
+    sendPaymentNotification(payment, 'approved');
   };
 
   const handleOpenPayDialog = (payment: CommissionPayment) => {
@@ -162,13 +202,16 @@ export function CommissionPayments({ resellers, planPrices }: CommissionPayments
     if (!selectedPayment) return;
 
     setIsSubmitting(true);
+    const paymentDate = new Date();
     try {
       await updatePaymentStatus(
         selectedPayment.id,
         "paid",
-        new Date(),
+        paymentDate,
         paymentData.paymentMethod
       );
+      // Send notification email
+      sendPaymentNotification(selectedPayment, 'paid', paymentData.paymentMethod, paymentDate);
       setIsPayDialogOpen(false);
       setSelectedPayment(null);
     } catch (error) {
