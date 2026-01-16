@@ -23,17 +23,17 @@ interface AppSidebarProps {
 const menuItems = [
   {
     id: "clients" as AppSection,
-    title: "Clientes",
+    title: "Gerenciador",
     icon: Users,
   },
   {
     id: "vpn" as AppSection,
-    title: "VPN",
+    title: "Internet Ilimitada",
     icon: Shield,
   },
   {
     id: "iptv" as AppSection,
-    title: "IPTV",
+    title: "StreamingTV",
     icon: Tv,
   },
 ];
