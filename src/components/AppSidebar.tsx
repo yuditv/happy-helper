@@ -1,4 +1,4 @@
-import { Users, Shield, Tv } from "lucide-react";
+import { Users, Shield, Tv, Coins, GraduationCap, LayoutDashboard } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +13,7 @@ import {
 import logoFuturistic from "@/assets/logo-futuristic.png";
 import { cn } from "@/lib/utils";
 
-export type AppSection = "clients" | "vpn" | "iptv";
+export type AppSection = "clients" | "vpn" | "iptv" | "creditos" | "mentorias" | "paineis";
 
 interface AppSidebarProps {
   activeSection: AppSection;
@@ -35,6 +35,21 @@ const menuItems = [
     id: "iptv" as AppSection,
     title: "StreamingTV",
     icon: Tv,
+  },
+  {
+    id: "creditos" as AppSection,
+    title: "Lovable Créditos",
+    icon: Coins,
+  },
+  {
+    id: "mentorias" as AppSection,
+    title: "Mentorias",
+    icon: GraduationCap,
+  },
+  {
+    id: "paineis" as AppSection,
+    title: "Painéis",
+    icon: LayoutDashboard,
   },
 ];
 
