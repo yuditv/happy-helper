@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useClients } from "@/hooks/useClients";
 import { useProfile } from "@/hooks/useProfile";
 import { usePlanSettings } from "@/hooks/usePlanSettings";
+import { useResellers } from "@/hooks/useResellers";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ResellerGoalsCard } from "@/components/ResellerGoalsCard";
+import { ResellerManagement } from "@/components/ResellerManagement";
 import {
   ArrowLeft,
   Users,
@@ -42,6 +44,7 @@ import {
   Pencil,
   Eye,
   MessageCircle,
+  UserPlus,
 } from "lucide-react";
 import {
   AreaChart,
@@ -98,6 +101,7 @@ export default function ResellerArea() {
   const { profile } = useProfile();
   const { clients, isLoading: clientsLoading } = useClients();
   const { settings: planSettings, saveSettings: savePlanSettings, isLoading: plansLoading } = usePlanSettings();
+  const { resellers, isLoading: resellersLoading, createReseller, updateReseller, deleteReseller } = useResellers();
   
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
@@ -316,7 +320,7 @@ export default function ResellerArea() {
     return <Badge className="gap-1 bg-green-500/20 text-green-600 border-green-500/30"><CheckCircle className="h-3 w-3" />Ativo</Badge>;
   };
 
-  if (clientsLoading || plansLoading) {
+  if (clientsLoading || plansLoading || resellersLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -352,10 +356,14 @@ export default function ResellerArea() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Métricas</span>
+            </TabsTrigger>
+            <TabsTrigger value="resellers" className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Revendedores</span>
             </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Users className="h-4 w-4" />
@@ -573,6 +581,16 @@ export default function ResellerArea() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Resellers Tab */}
+          <TabsContent value="resellers" className="space-y-4">
+            <ResellerManagement
+              resellers={resellers}
+              onCreateReseller={createReseller}
+              onUpdateReseller={updateReseller}
+              onDeleteReseller={deleteReseller}
+            />
           </TabsContent>
 
           {/* Clients Tab */}
