@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { ResellerGoalsCard } from "@/components/ResellerGoalsCard";
 import { ResellerManagement } from "@/components/ResellerManagement";
 import { CommissionReport } from "@/components/CommissionReport";
+import { CommissionPayments } from "@/components/CommissionPayments";
 import {
   ArrowLeft,
   Users,
@@ -600,10 +601,14 @@ export default function ResellerArea() {
           </TabsContent>
 
           {/* Commissions Tab */}
-          <TabsContent value="commissions" className="space-y-4">
+          <TabsContent value="commissions" className="space-y-6">
             <CommissionReport
               resellers={resellers}
               clients={clients}
+              planPrices={planPrices}
+            />
+            <CommissionPayments
+              resellers={resellers}
               planPrices={planPrices}
             />
           </TabsContent>
