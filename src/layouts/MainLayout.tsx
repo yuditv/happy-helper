@@ -25,6 +25,27 @@ export function MainLayout() {
             title="IPTV"
           />
         );
+      case "creditos":
+        return (
+          <ExternalFrame
+            url="https://lovable.dev/credits"
+            title="Lovable Créditos"
+          />
+        );
+      case "mentorias":
+        return (
+          <ExternalFrame
+            url="https://mentorias.example.com"
+            title="Mentorias"
+          />
+        );
+      case "paineis":
+        return (
+          <ExternalFrame
+            url="https://paineis.example.com"
+            title="Painéis"
+          />
+        );
       default:
         return <Index />;
     }
