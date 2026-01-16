@@ -447,8 +447,15 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     });
 
     if (newAttachments.length > 0) {
-      // Only allow one attachment at a time for now
-      setMediaAttachments(newAttachments.slice(0, 1));
+      // Allow multiple media attachments as variations (max 10)
+      setMediaAttachments(prev => {
+        const combined = [...prev, ...newAttachments];
+        if (combined.length > 10) {
+          toast.error('Máximo de 10 variações de mídia');
+          return combined.slice(0, 10);
+        }
+        return combined;
+      });
       setUseMediaMode(true);
       toast.success(`${newAttachments.length} mídia(s) anexada(s)`);
     }
@@ -467,6 +474,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       }
       return updated;
     });
+  };
+
+  const getRandomMediaAttachment = (): MediaAttachment | undefined => {
+    if (mediaAttachments.length === 0) return undefined;
+    return mediaAttachments[Math.floor(Math.random() * mediaAttachments.length)];
   };
 
   const getMediaIcon = (type: MediaType) => {
@@ -689,23 +701,6 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       return;
     }
 
-    // Prepare media if using media mode
-    let mediaBase64: string | undefined;
-    let mediaFile: File | undefined;
-    let mediaType: MediaType | undefined;
-    
-    if (useMediaMode && mediaAttachments.length > 0) {
-      const attachment = mediaAttachments[0];
-      mediaFile = attachment.file;
-      mediaType = attachment.type;
-      try {
-        mediaBase64 = await fileToBase64(mediaFile);
-      } catch (error) {
-        toast.error('Erro ao processar mídia');
-        return;
-      }
-    }
-
     if (targetMode === 'numbers') {
       // Send to custom phone numbers
       setIsSending(true);
@@ -718,15 +713,17 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         const number = phoneNumbers[i];
         const messageToSend = useVariations ? getRandomVariation() : customMessage;
         
-        if (useMediaMode && mediaBase64 && mediaFile && mediaType) {
-          // Send via Evolution API with media
+        if (useMediaMode && mediaAttachments.length > 0) {
+          // Get random media variation
+          const randomMedia = getRandomMediaAttachment()!;
           try {
+            const mediaBase64 = await fileToBase64(randomMedia.file);
             const result = await sendWhatsAppMedia(
               number,
               mediaBase64,
-              mediaType,
-              mediaFile.name,
-              mediaFile.type,
+              randomMedia.type,
+              randomMedia.file.name,
+              randomMedia.file.type,
               messageToSend || undefined
             );
             if (result.success) {
@@ -829,15 +826,17 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           .replace(/{vencimento}/g, expiresAtFormatted);
 
         if (messageMode === 'whatsapp') {
-          if (useMediaMode && mediaBase64 && mediaFile && mediaType) {
-            // Send via Evolution API with media
+          if (useMediaMode && mediaAttachments.length > 0) {
+            // Get random media variation
+            const randomMedia = getRandomMediaAttachment()!;
             try {
+              const mediaBase64 = await fileToBase64(randomMedia.file);
               const result = await sendWhatsAppMedia(
                 client.whatsapp,
                 mediaBase64,
-                mediaType,
-                mediaFile.name,
-                mediaFile.type,
+                randomMedia.type,
+                randomMedia.file.name,
+                randomMedia.file.type,
                 personalizedMessage || undefined
               );
               if (result.success) {
@@ -1268,10 +1267,18 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         {/* Media Attachments Section */}
         {messageMode === 'whatsapp' && (
           <div className="space-y-3">
-            <Label className="text-xs text-muted-foreground flex items-center gap-2">
-              <Paperclip className="h-3 w-3" />
-              Anexar mídia (opcional)
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                <Paperclip className="h-3 w-3" />
+                Anexar mídia (opcional)
+              </Label>
+              {mediaAttachments.length > 1 && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <Shuffle className="h-3 w-3" />
+                  {mediaAttachments.length} variações
+                </Badge>
+              )}
+            </div>
             
             {/* Hidden file input */}
             <input
@@ -1279,133 +1286,103 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
               ref={mediaInputRef}
               onChange={handleMediaUpload}
               accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+              multiple
               className="hidden"
             />
             
-            {/* Upload buttons - always visible */}
-            {mediaAttachments.length === 0 ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => mediaInputRef.current?.click()}
-                  className="gap-2"
-                >
-                  <Image className="h-4 w-4" />
-                  Foto
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (mediaInputRef.current) {
-                      mediaInputRef.current.accept = "video/*";
-                      mediaInputRef.current.click();
-                      mediaInputRef.current.accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
-                    }
-                  }}
-                  className="gap-2"
-                >
-                  <Video className="h-4 w-4" />
-                  Vídeo
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (mediaInputRef.current) {
-                      mediaInputRef.current.accept = "audio/*";
-                      mediaInputRef.current.click();
-                      mediaInputRef.current.accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
-                    }
-                  }}
-                  className="gap-2"
-                >
-                  <Music className="h-4 w-4" />
-                  Áudio
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (mediaInputRef.current) {
-                      mediaInputRef.current.accept = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
-                      mediaInputRef.current.click();
-                      mediaInputRef.current.accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar";
-                    }
-                  }}
-                  className="gap-2"
-                >
-                  <File className="h-4 w-4" />
-                  Documento
-                </Button>
-              </div>
-            ) : (
-              /* Attached media - show preview with option to remove/change */
+            {/* Attached media grid */}
+            {mediaAttachments.length > 0 && (
               <div className="space-y-2">
-                {mediaAttachments.map((attachment, index) => (
-                  <div 
-                    key={index} 
-                    className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
-                  >
-                    {/* Preview */}
-                    {attachment.preview && attachment.type === 'image' ? (
-                      <img 
-                        src={attachment.preview} 
-                        alt="Preview" 
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
-                    ) : attachment.preview && attachment.type === 'video' ? (
-                      <video 
-                        src={attachment.preview} 
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 flex items-center justify-center bg-muted rounded-lg">
-                        {getMediaIcon(attachment.type)}
-                      </div>
-                    )}
-                    
-                    {/* File info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {attachment.file.name}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="secondary" className="text-xs">
-                          {getMediaTypeLabel(attachment.type)}
-                        </Badge>
-                        <span>{formatFileSize(attachment.file.size)}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Remove button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => removeMediaAttachment(index)}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {mediaAttachments.map((attachment, index) => (
+                    <div 
+                      key={index} 
+                      className="relative group aspect-square border rounded-lg overflow-hidden bg-muted/30"
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      {/* Preview */}
+                      {attachment.preview && attachment.type === 'image' ? (
+                        <img 
+                          src={attachment.preview} 
+                          alt={`Mídia ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : attachment.preview && attachment.type === 'video' ? (
+                        <div className="relative w-full h-full">
+                          <video 
+                            src={attachment.preview} 
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Video className="h-6 w-6 text-white" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                          {getMediaIcon(attachment.type)}
+                          <span className="text-[10px] text-muted-foreground mt-1 truncate w-full text-center">
+                            {attachment.file.name.slice(0, 15)}...
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Variation number badge */}
+                      <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                        #{index + 1}
+                      </div>
+                      
+                      {/* Remove button overlay */}
+                      <button
+                        onClick={() => removeMediaAttachment(index)}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 
-                {/* Change media button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => mediaInputRef.current?.click()}
-                  className="gap-2"
-                >
-                  <Paperclip className="h-4 w-4" />
-                  Trocar mídia
-                </Button>
+                {/* Info about variations */}
+                {mediaAttachments.length > 1 && (
+                  <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg">
+                    <Shuffle className="h-4 w-4 text-primary" />
+                    <p className="text-xs text-muted-foreground">
+                      <strong>{mediaAttachments.length}</strong> mídias serão enviadas aleatoriamente (anti-spam)
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             
+            {/* Upload buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => mediaInputRef.current?.click()}
+                className="gap-2"
+                disabled={mediaAttachments.length >= 10}
+              >
+                <Plus className="h-4 w-4" />
+                {mediaAttachments.length === 0 ? 'Adicionar mídia' : 'Adicionar mais'}
+              </Button>
+              {mediaAttachments.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMediaAttachments([]);
+                    setUseMediaMode(false);
+                  }}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpar todas
+                </Button>
+              )}
+            </div>
+            
             <p className="text-xs text-muted-foreground">
-              Fotos, vídeos, áudios ou documentos. Máximo 16MB.
+              Adicione até 10 mídias. Uma será sorteada para cada destinatário. Máximo 16MB por arquivo.
             </p>
           </div>
         )}
