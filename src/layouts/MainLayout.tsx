@@ -7,6 +7,7 @@ import ScheduledMessages from "@/pages/ScheduledMessages";
 import ResellerArea from "@/pages/ResellerArea";
 import Mentorias from "@/pages/Mentorias";
 import Paineis from "@/pages/Paineis";
+import Creditos from "@/pages/Creditos";
 
 export function MainLayout() {
   const [activeSection, setActiveSection] = useState<AppSection>("clients");
@@ -30,12 +31,7 @@ export function MainLayout() {
         // IPTV now opens in new tab via AppSidebar
         return <Index />;
       case "creditos":
-        return (
-          <ExternalFrame
-            url="https://lovable.dev/credits"
-            title="Lovable Créditos"
-          />
-        );
+        return <Creditos />;
       case "mentorias":
         return <Mentorias />;
       case "paineis":
