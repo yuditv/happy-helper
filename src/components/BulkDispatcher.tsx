@@ -72,7 +72,6 @@ import {
   Timer,
   Settings2
 } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
 
 interface PhoneGroup {
   id: string;
@@ -325,8 +324,9 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   
   // Delay and pause control
   const [delaySeconds, setDelaySeconds] = useState(3);
+  const [pauseAfterCount, setPauseAfterCount] = useState(10);
+  const [enableAutoPause, setEnableAutoPause] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
-  const [showDelaySettings, setShowDelaySettings] = useState(false);
   const pauseRef = useRef(false);
   const abortRef = useRef(false);
 
@@ -354,6 +354,27 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     }
     
     return true; // Completed
+  };
+
+  // Auto pause function
+  const checkAutoPause = async (currentIndex: number): Promise<boolean> => {
+    if (!enableAutoPause || pauseAfterCount <= 0) return true;
+    
+    // Check if we should pause (every X messages, starting after the first batch)
+    if ((currentIndex + 1) % pauseAfterCount === 0 && currentIndex > 0) {
+      setIsPaused(true);
+      pauseRef.current = true;
+      toast.info(`Pausa automática após ${pauseAfterCount} mensagens. Clique em "Continuar" para prosseguir.`);
+      
+      // Wait until unpaused or aborted
+      while (pauseRef.current && !abortRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      if (abortRef.current) return false;
+    }
+    
+    return true;
   };
 
   const handlePauseToggle = () => {
@@ -798,6 +819,13 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         
         setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: failCount });
 
+        // Check for auto-pause
+        const shouldContinueAfterPause = await checkAutoPause(i);
+        if (!shouldContinueAfterPause) {
+          toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
+          break;
+        }
+
         // Wait with delay (respects pause) - skip delay on last item
         if (i < phoneNumbers.length - 1) {
           const shouldContinue = await waitWithPause(delaySeconds * 1000);
@@ -953,6 +981,13 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           }
         }
         setProgress({ current: i + 1, total: selectedClients.length, success: successCount, failed: failCount });
+
+        // Check for auto-pause
+        const shouldContinueAfterPause = await checkAutoPause(i);
+        if (!shouldContinueAfterPause) {
+          toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
+          break;
+        }
 
         // Wait with delay (respects pause) - skip delay on last item
         if (i < selectedClients.length - 1) {
@@ -1971,37 +2006,70 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           </div>
         )}
 
-        {/* Delay Settings */}
+        {/* Delay and Auto-Pause Settings */}
         <div className="rounded-lg border bg-card p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Timer className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium">Intervalo entre mensagens</Label>
-            </div>
-            <Badge variant="secondary" className="font-mono">
-              {delaySeconds}s
-            </Badge>
+          <div className="flex items-center gap-2 mb-3">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm font-medium">Configurações de Envio</Label>
           </div>
-          
-          <div className="space-y-3">
-            <Slider
-              value={[delaySeconds]}
-              onValueChange={(value) => setDelaySeconds(value[0])}
-              min={1}
-              max={30}
-              step={1}
-              disabled={isSending}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>1s (rápido)</span>
-              <span>15s</span>
-              <span>30s (lento)</span>
+
+          {/* Delay Input */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Timer className="h-3 w-3" />
+                Intervalo entre mensagens
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={delaySeconds}
+                  onChange={(e) => setDelaySeconds(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
+                  disabled={isSending}
+                  className="w-20 text-center"
+                />
+                <span className="text-sm text-muted-foreground">segundos</span>
+              </div>
+            </div>
+
+            {/* Auto-Pause Input */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Pause className="h-3 w-3" />
+                Pausar a cada
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={pauseAfterCount}
+                  onChange={(e) => setPauseAfterCount(Math.max(0, parseInt(e.target.value) || 0))}
+                  disabled={isSending}
+                  className="w-20 text-center"
+                />
+                <span className="text-sm text-muted-foreground">envios</span>
+              </div>
             </div>
           </div>
 
+          {/* Enable Auto-Pause Checkbox */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="enableAutoPause"
+              checked={enableAutoPause}
+              onCheckedChange={(checked) => setEnableAutoPause(checked === true)}
+              disabled={isSending}
+            />
+            <Label htmlFor="enableAutoPause" className="text-sm cursor-pointer">
+              Ativar pausa automática a cada {pauseAfterCount} mensagens
+            </Label>
+          </div>
+
           <p className="text-xs text-muted-foreground">
-            💡 Um intervalo maior evita bloqueios e parece mais natural. Recomendado: 5-10 segundos.
+            💡 A pausa automática permite que você revise o progresso e decida se quer continuar enviando.
           </p>
         </div>
 
