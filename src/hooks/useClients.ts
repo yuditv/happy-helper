@@ -277,6 +277,34 @@ export function useClients() {
     return clients.filter(c => c.plan === plan);
   };
 
+  const importClients = async (clientsData: Omit<Client, 'id' | 'renewalHistory'>[]) => {
+    if (!user || clientsData.length === 0) return;
+
+    const clientsToInsert = clientsData.map(data => ({
+      user_id: user.id,
+      name: data.name,
+      whatsapp: data.whatsapp,
+      email: data.email,
+      service: data.service,
+      plan: data.plan,
+      price: data.price,
+      notes: data.notes,
+      created_at: data.createdAt.toISOString(),
+      expires_at: data.expiresAt.toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('clients')
+      .insert(clientsToInsert);
+
+    if (error) {
+      console.error('Error importing clients:', error);
+      throw error;
+    }
+
+    await fetchClients();
+  };
+
   const expiringClients = useMemo(() => {
     return clients.filter(c => getExpirationStatus(c.expiresAt) === 'expiring');
   }, [clients]);
@@ -293,6 +321,7 @@ export function useClients() {
     deleteClient,
     renewClient,
     getClientsByPlan,
+    importClients,
     expiringClients,
     expiredClients,
     refetch: fetchClients,

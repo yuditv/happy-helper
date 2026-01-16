@@ -25,6 +25,7 @@ import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
 import { ChangePlanDialog } from '@/components/ChangePlanDialog';
 import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialog';
 import { BulkMessageDialog } from '@/components/BulkMessageDialog';
+import { ImportClientsDialog } from '@/components/ImportClientsDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { TagManager } from '@/components/TagManager';
 import { TagFilter } from '@/components/TagFilter';
@@ -39,7 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift, Trophy, Smartphone, Package } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift, Trophy, Smartphone, Package, Upload } from 'lucide-react';
 import { openWhatsApp } from '@/lib/whatsapp';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -55,7 +56,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
   const { getPlanName } = usePlanSettings();
-  const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, expiringClients, expiredClients } = useClients();
+  const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, importClients, expiringClients, expiredClients } = useClients();
   const { pendingReferrals, currentLevel, levelUpTriggered, clearLevelUp } = useReferral();
   const { tags, createTag, updateTag, deleteTag, assignTag, removeTag, getClientTags, getClientsByTag } = useClientTags();
   
@@ -84,6 +85,7 @@ const Index = () => {
   const [bulkMessageMode, setBulkMessageMode] = useState<'whatsapp' | 'email'>('whatsapp');
   const [bulkMessageProgress, setBulkMessageProgress] = useState<{ current: number; total: number; success: number; failed: number } | undefined>();
   const [isSendingBulk, setIsSendingBulk] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const clientsPerPage = viewMode === 'grid' ? 12 : 20;
 
   const filteredAndSortedClients = useMemo(() => {
@@ -546,6 +548,11 @@ Qualquer dúvida, estamos à disposição. 😊`;
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="glass-card border-border/50">
+                  <DropdownMenuItem onClick={() => setImportDialogOpen(true)} className="hover:bg-primary/10">
+                    <Upload className="h-4 w-4 mr-2 text-green-500" />
+                    Importar Clientes (XLSX/CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-border/50" />
                   <DropdownMenuItem onClick={handleExportClients} className="hover:bg-primary/10">
                     <FileSpreadsheet className="h-4 w-4 mr-2 text-primary" />
                     Exportar Clientes (CSV)
@@ -982,6 +989,12 @@ Qualquer dúvida, estamos à disposição. 😊`;
         onSchedule={handleScheduleBulkMessage}
         progress={bulkMessageProgress}
         isSending={isSendingBulk}
+      />
+      {/* Import Clients Dialog */}
+      <ImportClientsDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={importClients}
       />
       </div>
     </>
