@@ -145,6 +145,48 @@ function formatPhoneForWhatsApp(phone: string): string {
   return numbersOnly;
 }
 
+// Send WhatsApp message via Evolution API
+async function sendWhatsAppEvolution(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
+  const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
+  const evolutionApiKey = Deno.env.get("EVOLUTION_API_KEY");
+  const evolutionInstance = Deno.env.get("EVOLUTION_INSTANCE");
+
+  if (!evolutionApiUrl || !evolutionApiKey || !evolutionInstance) {
+    console.log("Evolution API not configured, skipping WhatsApp send");
+    return { success: false, error: "Evolution API not configured" };
+  }
+
+  const formattedPhone = formatPhoneForWhatsApp(phone);
+  const apiUrl = `${evolutionApiUrl}/message/sendText/${evolutionInstance}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": evolutionApiKey,
+      },
+      body: JSON.stringify({
+        number: formattedPhone,
+        text: message,
+      }),
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      console.error("Evolution API error:", responseData);
+      return { success: false, error: JSON.stringify(responseData) };
+    }
+
+    console.log("WhatsApp message sent successfully via Evolution API:", responseData);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error sending WhatsApp via Evolution API:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("auto-send-reminders function called");
 
@@ -173,7 +215,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const now = new Date();
     let totalEmailsSent = 0;
-    let totalWhatsAppGenerated = 0;
+    let totalWhatsAppSent = 0;
+    let totalWhatsAppFailed = 0;
     const results: any[] = [];
 
     for (const settings of settingsList || []) {
@@ -267,22 +310,40 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
 
-          // Generate WhatsApp link if enabled (can't send automatically, but we log it)
+          // Send WhatsApp message via Evolution API if enabled
           if (userSettings.whatsapp_reminders_enabled && clientData.phone) {
             const whatsappMessage = generateWhatsAppMessage(clientData.name, planName, days);
-            const formattedPhone = formatPhoneForWhatsApp(clientData.phone);
-            const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(whatsappMessage)}`;
             
-            console.log(`WhatsApp link generated for ${clientData.name}: ${whatsappUrl}`);
-            totalWhatsAppGenerated++;
+            console.log(`Sending WhatsApp to ${clientData.name} (${clientData.phone})...`);
+            
+            const result = await sendWhatsAppEvolution(clientData.phone, whatsappMessage);
+            
+            if (result.success) {
+              totalWhatsAppSent++;
+              console.log(`WhatsApp sent successfully to ${clientData.name}`);
+              
+              // Log to notification history
+              await supabase.from('notification_history').insert({
+                client_id: clientData.id,
+                message_type: 'whatsapp',
+                message_content: `Lembrete de vencimento - ${days} dias (Evolution API)`,
+                sent_at: new Date().toISOString(),
+              });
+            } else {
+              totalWhatsAppFailed++;
+              console.error(`Failed to send WhatsApp to ${clientData.name}: ${result.error}`);
+              
+              // Log failed attempt
+              await supabase.from('notification_history').insert({
+                client_id: clientData.id,
+                message_type: 'whatsapp',
+                message_content: `Lembrete falhou - ${days} dias (${result.error})`,
+                sent_at: new Date().toISOString(),
+              });
+            }
 
-            // Log to notification history
-            await supabase.from('notification_history').insert({
-              client_id: clientData.id,
-              message_type: 'whatsapp',
-              message_content: `Lembrete de vencimento - ${days} dias (link gerado)`,
-              sent_at: new Date().toISOString(),
-            });
+            // Small delay between messages to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 1500));
           }
         }
 
@@ -294,13 +355,14 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`Auto-send complete. Emails: ${totalEmailsSent}, WhatsApp links: ${totalWhatsAppGenerated}`);
+    console.log(`Auto-send complete. Emails: ${totalEmailsSent}, WhatsApp sent: ${totalWhatsAppSent}, WhatsApp failed: ${totalWhatsAppFailed}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         totalEmailsSent,
-        totalWhatsAppGenerated,
+        totalWhatsAppSent,
+        totalWhatsAppFailed,
         results,
         timestamp: new Date().toISOString()
       }), 
