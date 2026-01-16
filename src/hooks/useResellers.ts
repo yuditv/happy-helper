@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Reseller } from '@/components/ResellerManagement';
+import { toast } from 'sonner';
+
+export interface Reseller {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  accessLevel: 'admin' | 'manager' | 'seller';
+  commissionRate: number;
+  clientLimit: number | null;
+  monthlyGoal: number;
+  revenueGoal: number;
+  isActive: boolean;
+  createdAt: Date;
+  clientsCount: number;
+  totalRevenue: number;
+}
 
 const STORAGE_KEY = 'resellers_data';
 
@@ -19,7 +35,7 @@ export function useResellers() {
       if (stored) {
         const parsed = JSON.parse(stored);
         setResellers(
-          parsed.map((r: any) => ({
+          parsed.map((r: Reseller & { createdAt: string }) => ({
             ...r,
             createdAt: new Date(r.createdAt),
           }))
@@ -63,18 +79,21 @@ export function useResellers() {
     const updated = [...resellers, newReseller];
     setResellers(updated);
     saveToStorage(updated);
+    toast.success('Revendedor criado com sucesso!');
   };
 
   const updateReseller = async (id: string, data: Partial<Reseller>): Promise<void> => {
     const updated = resellers.map((r) => (r.id === id ? { ...r, ...data } : r));
     setResellers(updated);
     saveToStorage(updated);
+    toast.success('Revendedor atualizado com sucesso!');
   };
 
   const deleteReseller = async (id: string): Promise<void> => {
     const updated = resellers.filter((r) => r.id !== id);
     setResellers(updated);
     saveToStorage(updated);
+    toast.success('Revendedor removido com sucesso!');
   };
 
   const getResellerById = (id: string): Reseller | undefined => {
