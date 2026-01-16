@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.send-payment-notification]
 verify_jwt = false
+
+[functions.auto-send-reminders]
+verify_jwt = false
+
+[functions.send-referral-notification]
+verify_jwt = false

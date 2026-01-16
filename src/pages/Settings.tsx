@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowLeft, DollarSign, Bell, Palette, Shield, Save, Moon, Sun, Monitor } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, DollarSign, Bell, Palette, Shield, Save, Moon, Sun, Monitor, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,22 +8,45 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
-import { NotificationSettings } from '@/components/NotificationSettings';
+import { NotificationSettings as NotificationSettingsComponent } from '@/components/NotificationSettings';
+import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 
 import { toast } from 'sonner';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { settings, isLoading, saveSettings } = usePlanSettings();
+  const { 
+    settings: notificationSettings, 
+    isLoading: isLoadingNotifications, 
+    isSaving: isSavingNotifications,
+    updateSetting: updateNotificationSetting,
+    saveSettings: saveNotificationSettings 
+  } = useNotificationSettings();
+  
   const [editedSettings, setEditedSettings] = useState<PlanSetting[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Notification preferences (local state - could be persisted later)
+  // Local state for notification preferences (synced with hook)
   const [notificationPrefs, setNotificationPrefs] = useState({
     emailReminders: true,
-    reminderDays: [7, 3, 1],
+    whatsappReminders: false,
+    reminderDays: [7, 3, 1] as number[],
     autoSendReminders: false,
   });
+  const [hasNotificationChanges, setHasNotificationChanges] = useState(false);
+
+  // Sync notification settings from hook
+  useEffect(() => {
+    if (notificationSettings) {
+      setNotificationPrefs({
+        emailReminders: notificationSettings.email_reminders_enabled,
+        whatsappReminders: notificationSettings.whatsapp_reminders_enabled,
+        reminderDays: notificationSettings.reminder_days,
+        autoSendReminders: notificationSettings.auto_send_enabled,
+      });
+    }
+  }, [notificationSettings]);
 
   // Theme preference
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
@@ -179,84 +202,138 @@ export default function Settings() {
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
             {/* Push Notifications */}
-            <NotificationSettings />
+            <NotificationSettingsComponent />
 
-            {/* Email Notifications */}
+            {/* Email & WhatsApp Notifications */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5 text-primary" />
-                  Notificações por Email
+                  Lembretes Automáticos
                 </CardTitle>
                 <CardDescription>
-                  Configure os lembretes automáticos por email para seus clientes.
+                  Configure os lembretes automáticos por email e WhatsApp para seus clientes.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Lembretes por Email</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enviar emails automáticos para clientes com planos próximos do vencimento
-                    </p>
+                {isLoadingNotifications ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
-                  <Switch
-                    checked={notificationPrefs.emailReminders}
-                    onCheckedChange={(checked) => 
-                      setNotificationPrefs(prev => ({ ...prev, emailReminders: checked }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label>Dias antes do vencimento para enviar lembrete</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {[1, 3, 5, 7, 14, 30].map((day) => (
-                      <Button
-                        key={day}
-                        variant={notificationPrefs.reminderDays.includes(day) ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => {
-                          setNotificationPrefs(prev => ({
-                            ...prev,
-                            reminderDays: prev.reminderDays.includes(day)
-                              ? prev.reminderDays.filter(d => d !== day)
-                              : [...prev.reminderDays, day].sort((a, b) => b - a)
-                          }));
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Lembretes por Email</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Enviar emails automáticos para clientes com planos próximos do vencimento
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationPrefs.emailReminders}
+                        onCheckedChange={(checked) => {
+                          setNotificationPrefs(prev => ({ ...prev, emailReminders: checked }));
+                          setHasNotificationChanges(true);
                         }}
-                      >
-                        {day} {day === 1 ? 'dia' : 'dias'}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Selecionados: {notificationPrefs.reminderDays.length > 0 
-                      ? notificationPrefs.reminderDays.join(', ') + ' dias antes'
-                      : 'Nenhum'}
-                  </p>
-                </div>
+                      />
+                    </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Envio Automático</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enviar lembretes automaticamente sem confirmação manual
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationPrefs.autoSendReminders}
-                    onCheckedChange={(checked) => 
-                      setNotificationPrefs(prev => ({ ...prev, autoSendReminders: checked }))
-                    }
-                  />
-                </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Lembretes por WhatsApp</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Gerar links do WhatsApp para envio de lembretes (requer ação manual)
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationPrefs.whatsappReminders}
+                        onCheckedChange={(checked) => {
+                          setNotificationPrefs(prev => ({ ...prev, whatsappReminders: checked }));
+                          setHasNotificationChanges(true);
+                        }}
+                      />
+                    </div>
 
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    💡 <strong>Dica:</strong> As notificações automáticas são processadas diariamente às 09:00. 
-                    Você também pode enviar lembretes manualmente a qualquer momento.
-                  </p>
-                </div>
+                    <div className="space-y-3">
+                      <Label>Dias antes do vencimento para enviar lembrete</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {[1, 3, 5, 7, 14, 30].map((day) => (
+                          <Button
+                            key={day}
+                            variant={notificationPrefs.reminderDays.includes(day) ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => {
+                              setNotificationPrefs(prev => ({
+                                ...prev,
+                                reminderDays: prev.reminderDays.includes(day)
+                                  ? prev.reminderDays.filter(d => d !== day)
+                                  : [...prev.reminderDays, day].sort((a, b) => b - a)
+                              }));
+                              setHasNotificationChanges(true);
+                            }}
+                          >
+                            {day} {day === 1 ? 'dia' : 'dias'}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Selecionados: {notificationPrefs.reminderDays.length > 0 
+                          ? notificationPrefs.reminderDays.join(', ') + ' dias antes'
+                          : 'Nenhum'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
+                      <div className="space-y-0.5">
+                        <Label className="text-primary font-semibold">🚀 Envio Automático</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Enviar lembretes automaticamente todos os dias às 09:00
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationPrefs.autoSendReminders}
+                        onCheckedChange={(checked) => {
+                          setNotificationPrefs(prev => ({ ...prev, autoSendReminders: checked }));
+                          setHasNotificationChanges(true);
+                        }}
+                      />
+                    </div>
+
+                    {hasNotificationChanges && (
+                      <div className="flex justify-end pt-4">
+                        <Button 
+                          onClick={async () => {
+                            const success = await saveNotificationSettings({
+                              email_reminders_enabled: notificationPrefs.emailReminders,
+                              whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
+                              auto_send_enabled: notificationPrefs.autoSendReminders,
+                              reminder_days: notificationPrefs.reminderDays,
+                            });
+                            if (success) {
+                              setHasNotificationChanges(false);
+                            }
+                          }}
+                          disabled={isSavingNotifications}
+                          className="gap-2"
+                        >
+                          {isSavingNotifications ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                          Salvar Configurações
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        💡 <strong>Dica:</strong> Quando o envio automático está ativo, o sistema verifica diariamente 
+                        e envia lembretes por email para clientes com planos vencendo nos dias configurados.
+                      </p>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
