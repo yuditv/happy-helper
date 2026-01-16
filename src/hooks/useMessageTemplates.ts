@@ -34,6 +34,13 @@ const defaultTemplates: Record<string, { subject?: string; content: string }> = 
   email_expiration: {
     subject: 'Aviso: Seu plano expirou',
     content: 'Olá {nome},\n\nSeu plano {plano} expirou no dia {data_vencimento}.\n\nEntre em contato para renovar e restaurar seu acesso.\n\nAtenciosamente,\nEquipe'
+  },
+  whatsapp_renewal: {
+    content: 'Olá {nome}! ✅🎉\n\nSua assinatura do plano {plano} foi renovada com sucesso!\n\nNova data de vencimento: {data_vencimento}\n\nObrigado por continuar conosco! 💚'
+  },
+  email_renewal: {
+    subject: 'Renovação confirmada! ✅',
+    content: 'Olá {nome},\n\nSua assinatura do plano {plano} foi renovada com sucesso!\n\nNova data de vencimento: {data_vencimento}\n\nObrigado por continuar conosco!\n\nAtenciosamente,\nEquipe'
   }
 };
 
@@ -41,7 +48,9 @@ export const templateLabels: Record<string, string> = {
   whatsapp_reminder: 'WhatsApp - Lembrete de Vencimento',
   email_reminder: 'Email - Lembrete de Vencimento',
   whatsapp_expiration: 'WhatsApp - Plano Expirado',
-  email_expiration: 'Email - Plano Expirado'
+  email_expiration: 'Email - Plano Expirado',
+  whatsapp_renewal: 'WhatsApp - Renovação Confirmada',
+  email_renewal: 'Email - Renovação Confirmada'
 };
 
 export const templateVariables = [

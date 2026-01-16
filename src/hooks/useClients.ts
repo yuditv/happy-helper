@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Client, PlanType, ServiceType, RenewalRecord, getExpirationStatus, planDurations } from '@/types/client';
-import { addMonths } from 'date-fns';
+import { Client, PlanType, ServiceType, RenewalRecord, getExpirationStatus, planDurations, planLabels } from '@/types/client';
+import { addMonths, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useAuth } from './useAuth';
+import { sendWhatsAppMessage } from '@/lib/evolutionApi';
 
 interface DbClient {
   id: string;
@@ -231,7 +233,7 @@ export function useClients() {
     await fetchClients();
   };
 
-  const renewClient = async (id: string) => {
+  const renewClient = async (id: string, sendNotification: boolean = true) => {
     if (!user) return null;
     
     const client = clients.find(c => c.id === id);
@@ -267,6 +269,45 @@ export function useClients() {
     if (updateError) {
       console.error('Error updating client expiration:', updateError);
       return null;
+    }
+
+    // Send WhatsApp renewal notification if enabled
+    if (sendNotification && client.whatsapp) {
+      try {
+        // Fetch custom template or use default
+        const { data: templateData } = await supabase
+          .from('message_templates')
+          .select('content')
+          .eq('user_id', user.id)
+          .eq('template_type', 'whatsapp_renewal')
+          .maybeSingle();
+
+        // Get plan name from settings or default
+        const { data: planSettingData } = await supabase
+          .from('plan_settings')
+          .select('plan_name')
+          .eq('user_id', user.id)
+          .eq('plan_key', client.plan)
+          .maybeSingle();
+
+        const planName = planSettingData?.plan_name || planLabels[client.plan];
+        
+        const defaultMessage = `Olá ${client.name}! ✅🎉\n\nSua assinatura do plano ${planName} foi renovada com sucesso!\n\nNova data de vencimento: ${format(newExpiresAt, "dd/MM/yyyy", { locale: ptBR })}\n\nObrigado por continuar conosco! 💚`;
+        
+        let message = templateData?.content || defaultMessage;
+        
+        // Replace template variables
+        message = message
+          .replace(/\{nome\}/g, client.name)
+          .replace(/\{plano\}/g, planName)
+          .replace(/\{data_vencimento\}/g, format(newExpiresAt, "dd/MM/yyyy", { locale: ptBR }));
+
+        await sendWhatsAppMessage(client.whatsapp, message);
+        console.log('Renewal notification sent to:', client.whatsapp);
+      } catch (notificationError) {
+        console.error('Error sending renewal notification:', notificationError);
+        // Don't fail the renewal if notification fails
+      }
     }
 
     await fetchClients();
