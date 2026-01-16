@@ -2,14 +2,18 @@ import { useState } from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar, AppSection } from "@/components/AppSidebar";
 import { ExternalFrame } from "@/components/ExternalFrame";
+import { ExternalLinksManager } from "@/components/ExternalLinksManager";
+import { useExternalLinks } from "@/hooks/useExternalLinks";
 import Index from "@/pages/Index";
 import ScheduledMessages from "@/pages/ScheduledMessages";
 import ResellerArea from "@/pages/ResellerArea";
 
 export function MainLayout() {
   const [activeSection, setActiveSection] = useState<AppSection>("clients");
+  const { links } = useExternalLinks();
 
   const renderContent = () => {
+    // Core sections
     switch (activeSection) {
       case "clients":
         return <Index />;
@@ -17,44 +21,30 @@ export function MainLayout() {
         return <ScheduledMessages />;
       case "revenda":
         return <ResellerArea />;
-      case "vpn":
+      case "settings":
         return (
-          <ExternalFrame
-            url="https://servex.ws/dashboard"
-            title="VPN Dashboard"
-          />
+          <div className="p-6 max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold mb-6">Configurações</h1>
+            <ExternalLinksManager />
+          </div>
         );
-      case "iptv":
-        return (
-          <ExternalFrame
-            url="https://bommesmo.site/#/sign-in"
-            title="IPTV"
-          />
-        );
-      case "creditos":
-        return (
-          <ExternalFrame
-            url="https://lovable.dev/credits"
-            title="Lovable Créditos"
-          />
-        );
-      case "mentorias":
-        return (
-          <ExternalFrame
-            url="https://mentorias.example.com"
-            title="Mentorias"
-          />
-        );
-      case "paineis":
-        return (
-          <ExternalFrame
-            url="https://paineis.example.com"
-            title="Painéis"
-          />
-        );
-      default:
-        return <Index />;
     }
+
+    // Check for external links
+    if (activeSection.startsWith("external-")) {
+      const linkId = activeSection.replace("external-", "");
+      const link = links.find(l => l.id === linkId);
+      if (link) {
+        return (
+          <ExternalFrame
+            url={link.url}
+            title={link.title}
+          />
+        );
+      }
+    }
+
+    return <Index />;
   };
 
   return (
