@@ -66,8 +66,13 @@ import {
   Video,
   Music,
   File,
-  Paperclip
+  Paperclip,
+  Pause,
+  Play,
+  Timer,
+  Settings2
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 
 interface PhoneGroup {
   id: string;
@@ -317,6 +322,48 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
+  
+  // Delay and pause control
+  const [delaySeconds, setDelaySeconds] = useState(3);
+  const [isPaused, setIsPaused] = useState(false);
+  const [showDelaySettings, setShowDelaySettings] = useState(false);
+  const pauseRef = useRef(false);
+  const abortRef = useRef(false);
+
+  // Update ref when state changes
+  useEffect(() => {
+    pauseRef.current = isPaused;
+  }, [isPaused]);
+
+  // Wait function that respects pause state
+  const waitWithPause = async (ms: number): Promise<boolean> => {
+    const interval = 100; // Check every 100ms
+    let elapsed = 0;
+    
+    while (elapsed < ms) {
+      if (abortRef.current) return false; // Aborted
+      
+      if (pauseRef.current) {
+        // While paused, keep checking but don't count time
+        await new Promise(resolve => setTimeout(resolve, interval));
+        continue;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, interval));
+      elapsed += interval;
+    }
+    
+    return true; // Completed
+  };
+
+  const handlePauseToggle = () => {
+    setIsPaused(!isPaused);
+  };
+
+  const handleAbort = () => {
+    abortRef.current = true;
+    setIsPaused(false);
+  };
 
   // Load phone groups
   const fetchPhoneGroups = async () => {
@@ -701,6 +748,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       return;
     }
 
+    // Reset abort and pause flags
+    abortRef.current = false;
+    setIsPaused(false);
+
     if (targetMode === 'numbers') {
       // Send to custom phone numbers
       setIsSending(true);
@@ -710,6 +761,12 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       let failCount = 0;
 
       for (let i = 0; i < phoneNumbers.length; i++) {
+        // Check if aborted
+        if (abortRef.current) {
+          toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
+          break;
+        }
+
         const number = phoneNumbers[i];
         const messageToSend = useVariations ? getRandomVariation() : customMessage;
         
@@ -734,37 +791,46 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           } catch {
             failCount++;
           }
-          await new Promise(resolve => setTimeout(resolve, 1500));
         } else {
-          // Open WhatsApp Web
-          await new Promise(resolve => setTimeout(resolve, 500));
           openWhatsApp(number, messageToSend);
           successCount++;
         }
         
         setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: failCount });
+
+        // Wait with delay (respects pause) - skip delay on last item
+        if (i < phoneNumbers.length - 1) {
+          const shouldContinue = await waitWithPause(delaySeconds * 1000);
+          if (!shouldContinue) {
+            toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
+            break;
+          }
+        }
       }
 
       // Save to history
-      await supabase.from('bulk_dispatch_history').insert({
-        user_id: user!.id,
-        dispatch_type: 'whatsapp',
-        target_type: 'numbers',
-        total_recipients: phoneNumbers.length,
-        success_count: successCount,
-        failed_count: failCount,
-        message_content: customMessage,
-        phone_group_id: selectedGroupId || null,
-      });
+      if (!abortRef.current) {
+        await supabase.from('bulk_dispatch_history').insert({
+          user_id: user!.id,
+          dispatch_type: 'whatsapp',
+          target_type: 'numbers',
+          total_recipients: phoneNumbers.length,
+          success_count: successCount,
+          failed_count: failCount,
+          message_content: customMessage,
+          phone_group_id: selectedGroupId || null,
+        });
 
-      if (useMediaMode) {
-        if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
-        if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
-      } else {
-        toast.success(`WhatsApp aberto para ${successCount} número(s)!`);
+        if (useMediaMode) {
+          if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
+          if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
+        } else {
+          toast.success(`WhatsApp aberto para ${successCount} número(s)!`);
+        }
       }
       
       setIsSending(false);
+      setIsPaused(false);
       onComplete?.();
       return;
     }
@@ -812,6 +878,12 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       let failCount = 0;
 
       for (let i = 0; i < selectedClients.length; i++) {
+        // Check if aborted
+        if (abortRef.current) {
+          toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
+          break;
+        }
+
         const client = selectedClients[i];
         const planName = getPlanName(client.plan);
         const daysRemaining = getDaysUntilExpiration(client.expiresAt);
@@ -847,9 +919,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             } catch {
               failCount++;
             }
-            await new Promise(resolve => setTimeout(resolve, 1500));
           } else {
-            await new Promise(resolve => setTimeout(resolve, 500));
             openWhatsApp(client.whatsapp, personalizedMessage);
             successCount++;
           }
@@ -883,34 +953,46 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           }
         }
         setProgress({ current: i + 1, total: selectedClients.length, success: successCount, failed: failCount });
+
+        // Wait with delay (respects pause) - skip delay on last item
+        if (i < selectedClients.length - 1) {
+          const shouldContinue = await waitWithPause(delaySeconds * 1000);
+          if (!shouldContinue) {
+            toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
+            break;
+          }
+        }
       }
 
       // Save to history
-      await supabase.from('bulk_dispatch_history').insert({
-        user_id: user!.id,
-        dispatch_type: messageMode,
-        target_type: 'clients',
-        total_recipients: selectedClients.length,
-        success_count: successCount,
-        failed_count: failCount,
-        message_content: customMessage,
-        client_filter: clientFilter,
-      });
+      if (!abortRef.current) {
+        await supabase.from('bulk_dispatch_history').insert({
+          user_id: user!.id,
+          dispatch_type: messageMode,
+          target_type: 'clients',
+          total_recipients: selectedClients.length,
+          success_count: successCount,
+          failed_count: failCount,
+          message_content: customMessage,
+          client_filter: clientFilter,
+        });
 
-      if (messageMode === 'whatsapp') {
-        if (useMediaMode) {
-          if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
-          if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
+        if (messageMode === 'whatsapp') {
+          if (useMediaMode) {
+            if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
+            if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
+          } else {
+            toast.success(`WhatsApp aberto para ${successCount} cliente(s)!`);
+          }
         } else {
-          toast.success(`WhatsApp aberto para ${successCount} cliente(s)!`);
+          if (successCount > 0) toast.success(`${successCount} email(s) enviado(s)!`);
+          if (failCount > 0) toast.error(`${failCount} email(s) falhou(aram)`);
         }
-      } else {
-        if (successCount > 0) toast.success(`${successCount} email(s) enviado(s)!`);
-        if (failCount > 0) toast.error(`${failCount} email(s) falhou(aram)`);
       }
     }
 
     setIsSending(false);
+    setIsPaused(false);
     onComplete?.();
   };
 
@@ -1889,12 +1971,46 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           </div>
         )}
 
+        {/* Delay Settings */}
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Timer className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Intervalo entre mensagens</Label>
+            </div>
+            <Badge variant="secondary" className="font-mono">
+              {delaySeconds}s
+            </Badge>
+          </div>
+          
+          <div className="space-y-3">
+            <Slider
+              value={[delaySeconds]}
+              onValueChange={(value) => setDelaySeconds(value[0])}
+              min={1}
+              max={30}
+              step={1}
+              disabled={isSending}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>1s (rápido)</span>
+              <span>15s</span>
+              <span>30s (lento)</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            💡 Um intervalo maior evita bloqueios e parece mais natural. Recomendado: 5-10 segundos.
+          </p>
+        </div>
+
         {/* Progress */}
         {isSending && (
-          <div className="space-y-2">
+          <div className="space-y-3 rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between text-sm">
-              <span>Progresso</span>
-              <span>{progress.current} de {progress.total}</span>
+              <span className="font-medium">Enviando...</span>
+              <span className="text-muted-foreground">{progress.current} de {progress.total}</span>
             </div>
             <Progress value={(progress.current / progress.total) * 100} />
             <div className="flex gap-4 text-xs">
@@ -1907,6 +2023,44 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                 </span>
               )}
             </div>
+
+            {/* Pause/Resume and Cancel buttons */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant={isPaused ? "default" : "outline"}
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={handlePauseToggle}
+              >
+                {isPaused ? (
+                  <>
+                    <Play className="h-4 w-4" />
+                    Continuar
+                  </>
+                ) : (
+                  <>
+                    <Pause className="h-4 w-4" />
+                    Pausar
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-2"
+                onClick={handleAbort}
+              >
+                <X className="h-4 w-4" />
+                Cancelar
+              </Button>
+            </div>
+
+            {isPaused && (
+              <div className="flex items-center gap-2 p-2 rounded-md bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                <Pause className="h-4 w-4" />
+                <span className="text-xs font-medium">Envio pausado. Clique em "Continuar" para retomar.</span>
+              </div>
+            )}
           </div>
         )}
 
