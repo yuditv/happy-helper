@@ -5,6 +5,7 @@ import { ExternalFrame } from "@/components/ExternalFrame";
 import Index from "@/pages/Index";
 import ScheduledMessages from "@/pages/ScheduledMessages";
 import ResellerArea from "@/pages/ResellerArea";
+import Mentorias from "@/pages/Mentorias";
 
 export function MainLayout() {
   const [activeSection, setActiveSection] = useState<AppSection>("clients");
@@ -35,12 +36,7 @@ export function MainLayout() {
           />
         );
       case "mentorias":
-        return (
-          <ExternalFrame
-            url="https://mentorias.example.com"
-            title="Mentorias"
-          />
-        );
+        return <Mentorias />;
       case "paineis":
         return (
           <ExternalFrame
