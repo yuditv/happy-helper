@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner";
 import { ResellerGoalsCard } from "@/components/ResellerGoalsCard";
 import { ResellerManagement } from "@/components/ResellerManagement";
+import { CommissionReport } from "@/components/CommissionReport";
 import {
   ArrowLeft,
   Users,
@@ -45,6 +46,7 @@ import {
   Eye,
   MessageCircle,
   UserPlus,
+  Calculator,
 } from "lucide-react";
 import {
   AreaChart,
@@ -356,7 +358,7 @@ export default function ResellerArea() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Métricas</span>
@@ -364,6 +366,10 @@ export default function ResellerArea() {
             <TabsTrigger value="resellers" className="gap-2">
               <UserPlus className="h-4 w-4" />
               <span className="hidden sm:inline">Revendedores</span>
+            </TabsTrigger>
+            <TabsTrigger value="commissions" className="gap-2">
+              <Calculator className="h-4 w-4" />
+              <span className="hidden sm:inline">Comissões</span>
             </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Users className="h-4 w-4" />
@@ -590,6 +596,15 @@ export default function ResellerArea() {
               onCreateReseller={createReseller}
               onUpdateReseller={updateReseller}
               onDeleteReseller={deleteReseller}
+            />
+          </TabsContent>
+
+          {/* Commissions Tab */}
+          <TabsContent value="commissions" className="space-y-4">
+            <CommissionReport
+              resellers={resellers}
+              clients={clients}
+              planPrices={planPrices}
             />
           </TabsContent>
 
