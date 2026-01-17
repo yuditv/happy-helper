@@ -1,5 +1,4 @@
-// Uazapi Init Instance - Edge Function v3
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// Uazapi Init Instance - Edge Function
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -10,7 +9,7 @@ const corsHeaders = {
 
 const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   console.log('uazapi-init-instance called, method:', req.method);
   
   if (req.method === 'OPTIONS') {
@@ -19,12 +18,14 @@ serve(async (req) => {
 
   try {
     const UAZAPI_ADMIN_TOKEN = Deno.env.get('UAZAPI_ADMIN_TOKEN');
-    console.log('UAZAPI_ADMIN_TOKEN exists:', !!UAZAPI_ADMIN_TOKEN);
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
+    console.log('Env check - UAZAPI_ADMIN_TOKEN:', !!UAZAPI_ADMIN_TOKEN);
+    console.log('Env check - SUPABASE_URL:', !!SUPABASE_URL);
+    console.log('Env check - SUPABASE_SERVICE_ROLE_KEY:', !!SUPABASE_SERVICE_ROLE_KEY);
+    
     if (!UAZAPI_ADMIN_TOKEN) {
-      console.error('UAZAPI_ADMIN_TOKEN not configured');
       return new Response(
         JSON.stringify({ error: 'Token de administrador não configurado' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -32,14 +33,16 @@ serve(async (req) => {
     }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Supabase credentials not configured');
       return new Response(
         JSON.stringify({ error: 'Credenciais do Supabase não configuradas' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { name, user_id } = await req.json();
+    const body = await req.json();
+    const { name, user_id } = body;
+    
+    console.log('Request body:', JSON.stringify(body));
 
     if (!name) {
       return new Response(
@@ -58,7 +61,7 @@ serve(async (req) => {
     console.log(`Creating instance with name: ${name} for user: ${user_id}`);
 
     // Create new instance using Uazapi API
-    const response = await fetch(`${UAZAPI_BASE_URL}/instance/init`, {
+    const uazapiResponse = await fetch(`${UAZAPI_BASE_URL}/instance/init`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -75,14 +78,15 @@ serve(async (req) => {
       }),
     });
 
-    const data = await response.json();
+    const data = await uazapiResponse.json();
+    console.log('Uazapi response status:', uazapiResponse.status);
     console.log('Uazapi response:', JSON.stringify(data));
 
-    if (!response.ok) {
+    if (!uazapiResponse.ok) {
       console.error('Error from Uazapi:', data);
       return new Response(
-        JSON.stringify({ error: data.message || 'Erro ao criar instância' }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: data.message || 'Erro ao criar instância na Uazapi' }),
+        { status: uazapiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -97,7 +101,7 @@ serve(async (req) => {
       status: 'disconnected',
     };
 
-    console.log('Saving instance to database:', instanceData);
+    console.log('Saving instance to database:', JSON.stringify(instanceData));
 
     const { data: savedInstance, error: dbError } = await supabase
       .from('whatsapp_instances')
@@ -120,10 +124,12 @@ serve(async (req) => {
         console.error('Failed to rollback instance:', e);
       }
       return new Response(
-        JSON.stringify({ error: 'Erro ao salvar instância no banco de dados' }),
+        JSON.stringify({ error: 'Erro ao salvar instância no banco de dados', details: dbError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Instance saved successfully:', JSON.stringify(savedInstance));
 
     return new Response(
       JSON.stringify({ 
