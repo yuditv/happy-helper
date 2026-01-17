@@ -23,27 +23,27 @@ serve(async (req: Request): Promise<Response> => {
         EVOLUTION_API_URL: {
           exists: !!evolutionApiUrl,
           value: evolutionApiUrl || "NOT SET",
-          length: evolutionApiUrl?.length || 0,
         },
         EVOLUTION_API_KEY: {
           exists: !!evolutionApiKey,
           length: evolutionApiKey?.length || 0,
-          firstChars: evolutionApiKey ? `${evolutionApiKey.substring(0, 8)}...` : "NOT SET",
+          value: evolutionApiKey ? `${evolutionApiKey.substring(0, 10)}...` : "NOT SET",
         },
       },
-      apiTest: null as any,
+      tests: {} as any,
     };
 
     if (evolutionApiUrl && evolutionApiKey) {
       console.log("Testing connection to Evolution API...");
       console.log("Base URL:", evolutionApiUrl);
+      console.log("API Key:", evolutionApiKey);
       
+      // Test 1: Fetch all instances
       try {
-        // Use the correct endpoint: /instance/fetchInstances
-        const testUrl = `${evolutionApiUrl}/instance/fetchInstances`;
-        console.log("Test URL:", testUrl);
+        const fetchUrl = `${evolutionApiUrl}/instance/fetchInstances`;
+        console.log("Test 1 - Fetching instances:", fetchUrl);
 
-        const response = await fetch(testUrl, {
+        const fetchResponse = await fetch(fetchUrl, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -51,37 +51,52 @@ serve(async (req: Request): Promise<Response> => {
           },
         });
 
-        console.log("Response status:", response.status);
-        const responseText = await response.text();
-        console.log("Response body:", responseText);
+        const fetchText = await fetchResponse.text();
+        console.log("Fetch response:", fetchResponse.status, fetchText);
 
-        let responseData;
-        try {
-          responseData = JSON.parse(responseText);
-        } catch {
-          responseData = responseText;
-        }
+        result.tests.fetchInstances = {
+          success: fetchResponse.ok,
+          status: fetchResponse.status,
+          response: fetchText.length > 500 ? fetchText.substring(0, 500) + "..." : fetchText,
+        };
+      } catch (e: any) {
+        result.tests.fetchInstances = { success: false, error: e.message };
+      }
 
-        result.apiTest = {
-          success: response.ok,
-          status: response.status,
-          statusText: response.statusText,
-          endpoint: testUrl,
-          response: responseData,
+      // Test 2: Create a test instance
+      try {
+        const createUrl = `${evolutionApiUrl}/instance/create`;
+        const testInstanceName = `test-${Date.now()}`;
+        console.log("Test 2 - Creating instance:", createUrl, testInstanceName);
+
+        const createResponse = await fetch(createUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": evolutionApiKey,
+          },
+          body: JSON.stringify({
+            instanceName: testInstanceName,
+            qrcode: true,
+            integration: "WHATSAPP-BAILEYS"
+          }),
+        });
+
+        const createText = await createResponse.text();
+        console.log("Create response:", createResponse.status, createText);
+
+        result.tests.createInstance = {
+          success: createResponse.ok,
+          status: createResponse.status,
+          instanceName: testInstanceName,
+          response: createText.length > 1000 ? createText.substring(0, 1000) + "..." : createText,
         };
-      } catch (fetchError: any) {
-        console.error("Fetch error:", fetchError);
-        result.apiTest = {
-          success: false,
-          error: fetchError.message,
-          type: "FETCH_ERROR",
-        };
+      } catch (e: any) {
+        result.tests.createInstance = { success: false, error: e.message };
       }
     } else {
-      result.apiTest = {
-        success: false,
+      result.tests = {
         error: "Missing API URL or API Key",
-        type: "MISSING_CONFIG",
       };
     }
 
@@ -100,7 +115,6 @@ serve(async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         error: error.message, 
         stack: error.stack,
-        type: "FUNCTION_ERROR"
       }),
       {
         status: 500,
