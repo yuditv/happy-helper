@@ -145,44 +145,61 @@ function formatPhoneForWhatsApp(phone: string): string {
   return numbersOnly;
 }
 
-// Send WhatsApp message via Evolution API
-async function sendWhatsAppEvolution(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
-  const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
-  const evolutionApiKey = Deno.env.get("EVOLUTION_API_KEY");
-  const evolutionInstance = Deno.env.get("EVOLUTION_INSTANCE");
+// Send WhatsApp message via Uazapi
+async function sendWhatsAppUazapi(
+  phone: string, 
+  message: string, 
+  userId: string,
+  supabase: any
+): Promise<{ success: boolean; error?: string }> {
+  const uazapiAdminToken = Deno.env.get("UAZAPI_ADMIN_TOKEN");
 
-  if (!evolutionApiUrl || !evolutionApiKey || !evolutionInstance) {
-    console.log("Evolution API not configured, skipping WhatsApp send");
-    return { success: false, error: "Evolution API not configured" };
+  if (!uazapiAdminToken) {
+    console.log("Uazapi not configured, skipping WhatsApp send");
+    return { success: false, error: "Uazapi not configured" };
+  }
+
+  // Get user's WhatsApp instance
+  const { data: instance, error: instanceError } = await supabase
+    .from('whatsapp_instances')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'connected')
+    .limit(1)
+    .single();
+
+  if (instanceError || !instance) {
+    console.log(`No connected WhatsApp instance for user ${userId}`);
+    return { success: false, error: "No connected WhatsApp instance" };
   }
 
   const formattedPhone = formatPhoneForWhatsApp(phone);
-  const apiUrl = `${evolutionApiUrl}/message/sendText/${evolutionInstance}`;
+  const apiUrl = `https://uazapi.com.br/api/v1/${instance.instance_id}/messages/text`;
 
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": evolutionApiKey,
+        "Authorization": `Bearer ${instance.token}`,
       },
       body: JSON.stringify({
-        number: formattedPhone,
-        text: message,
+        phone: formattedPhone,
+        message: message,
       }),
     });
 
     const responseData = await response.json();
 
     if (!response.ok) {
-      console.error("Evolution API error:", responseData);
+      console.error("Uazapi error:", responseData);
       return { success: false, error: JSON.stringify(responseData) };
     }
 
-    console.log("WhatsApp message sent successfully via Evolution API:", responseData);
+    console.log("WhatsApp message sent successfully via Uazapi:", responseData);
     return { success: true };
   } catch (error: any) {
-    console.error("Error sending WhatsApp via Evolution API:", error);
+    console.error("Error sending WhatsApp via Uazapi:", error);
     return { success: false, error: error.message };
   }
 }
@@ -310,13 +327,13 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
 
-          // Send WhatsApp message via Evolution API if enabled
+          // Send WhatsApp message via Uazapi if enabled
           if (userSettings.whatsapp_reminders_enabled && clientData.phone) {
             const whatsappMessage = generateWhatsAppMessage(clientData.name, planName, days);
             
             console.log(`Sending WhatsApp to ${clientData.name} (${clientData.phone})...`);
             
-            const result = await sendWhatsAppEvolution(clientData.phone, whatsappMessage);
+            const result = await sendWhatsAppUazapi(clientData.phone, whatsappMessage, userSettings.user_id, supabase);
             
             if (result.success) {
               totalWhatsAppSent++;
@@ -326,7 +343,7 @@ const handler = async (req: Request): Promise<Response> => {
               await supabase.from('notification_history').insert({
                 client_id: clientData.id,
                 message_type: 'whatsapp',
-                message_content: `Lembrete de vencimento - ${days} dias (Evolution API)`,
+                message_content: `Lembrete de vencimento - ${days} dias (Uazapi)`,
                 sent_at: new Date().toISOString(),
               });
             } else {
