@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar, AppSection } from "@/components/AppSidebar";
 import { ExternalFrame } from "@/components/ExternalFrame";
+import { WhatsAppNumberFilter } from "@/components/WhatsAppNumberFilter";
 import Index from "@/pages/Index";
 import ScheduledMessages from "@/pages/ScheduledMessages";
 import ResellerArea from "@/pages/ResellerArea";
@@ -18,6 +19,8 @@ export function MainLayout() {
         return <Index />;
       case "disparo":
         return <ScheduledMessages />;
+      case "filtrar":
+        return <WhatsAppNumberFilter />;
       case "revenda":
         return <ResellerArea />;
       case "vpn":
