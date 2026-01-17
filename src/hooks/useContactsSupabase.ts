@@ -3,11 +3,22 @@ import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 
 // Create a separate client for the external Supabase (contacts database)
-const CONTACTS_SUPABASE_URL = import.meta.env.VITE_CONTACTS_SUPABASE_URL || import.meta.env.SUPABASE_URL;
-const CONTACTS_SUPABASE_KEY = import.meta.env.VITE_CONTACTS_SUPABASE_KEY || import.meta.env.SUPABASE_ANON_KEY;
+const CONTACTS_SUPABASE_URL = import.meta.env.VITE_CONTACTS_SUPABASE_URL;
+const CONTACTS_SUPABASE_KEY = import.meta.env.VITE_CONTACTS_SUPABASE_KEY;
 
 // For edge function calls, we'll use the main supabase client
 import { supabase as mainSupabase } from "@/integrations/supabase/client";
+
+// Validate URL format
+const isValidUrl = (url: string | undefined): boolean => {
+  if (!url) return false;
+  try {
+    new URL(url);
+    return url.startsWith('http://') || url.startsWith('https://');
+  } catch {
+    return false;
+  }
+};
 
 export interface Contact {
   id: string;
@@ -42,10 +53,10 @@ function mapDbToContact(db: DbContact): Contact {
   };
 }
 
-// Check if external Supabase is configured
-const isExternalSupabaseConfigured = Boolean(CONTACTS_SUPABASE_URL && CONTACTS_SUPABASE_KEY);
+// Check if external Supabase is configured with valid URLs
+const isExternalSupabaseConfigured = isValidUrl(CONTACTS_SUPABASE_URL) && Boolean(CONTACTS_SUPABASE_KEY);
 
-// Create client only if configured
+// Create client only if configured with valid URL
 const contactsSupabase = isExternalSupabaseConfigured
   ? createClient(CONTACTS_SUPABASE_URL!, CONTACTS_SUPABASE_KEY!, {
       auth: {
