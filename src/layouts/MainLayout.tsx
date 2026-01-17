@@ -2,6 +2,7 @@ import { useState, lazy, Suspense, memo } from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar, AppSection } from "@/components/AppSidebar";
 import { ExternalFrame } from "@/components/ExternalFrame";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
 
 // Lazy load heavy components
 const Index = lazy(() => import("@/pages/Index"));
@@ -13,7 +14,6 @@ const Creditos = lazy(() => import("@/pages/Creditos"));
 const Contacts = lazy(() => import("@/pages/Contacts"));
 const WhatsAppNumberFilter = lazy(() => import("@/components/WhatsAppNumberFilter").then(m => ({ default: m.WhatsAppNumberFilter })));
 const WhatsAppConnection = lazy(() => import("@/components/WhatsAppConnection").then(m => ({ default: m.WhatsAppConnection })));
-
 const ContentLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -60,7 +60,8 @@ export function MainLayout() {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen flex w-full">
+      <AnimatedBackground />
+      <div className="min-h-screen flex w-full relative">
         <AppSidebar
           activeSection={activeSection}
           onSectionChange={setActiveSection}
