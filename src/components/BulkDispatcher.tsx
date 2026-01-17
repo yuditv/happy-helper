@@ -2068,32 +2068,94 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             </Label>
           </div>
 
+          {/* Time Estimate */}
+          {(() => {
+            const totalRecipients = targetMode === 'clients' ? selectedClientIds.size : phoneNumbers.length;
+            if (totalRecipients === 0) return null;
+            
+            const totalSeconds = (totalRecipients - 1) * delaySeconds;
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const pauseCount = enableAutoPause && pauseAfterCount > 0 
+              ? Math.floor(totalRecipients / pauseAfterCount) 
+              : 0;
+            
+            return (
+              <div className="rounded-md bg-muted/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    Tempo estimado
+                  </span>
+                  <Badge variant="outline" className="font-mono text-primary">
+                    {minutes > 0 ? `${minutes}min ` : ''}{seconds}s
+                  </Badge>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>📊 {totalRecipients} destinatário(s) × {delaySeconds}s de intervalo</p>
+                  {pauseCount > 0 && (
+                    <p>⏸️ {pauseCount} pausa(s) automática(s) durante o envio</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           <p className="text-xs text-muted-foreground">
             💡 A pausa automática permite que você revise o progresso e decida se quer continuar enviando.
           </p>
         </div>
 
-        {/* Progress */}
-        {isSending && (
-          <div className="space-y-3 rounded-lg border bg-card p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">Enviando...</span>
-              <span className="text-muted-foreground">{progress.current} de {progress.total}</span>
-            </div>
-            <Progress value={(progress.current / progress.total) * 100} />
-            <div className="flex gap-4 text-xs">
-              <span className="text-green-500 flex items-center gap-1">
-                <CheckCircle className="h-3 w-3" /> {progress.success} sucesso
-              </span>
-              {progress.failed > 0 && (
-                <span className="text-red-500 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> {progress.failed} falhas
+        {/* Progress Bar - Always visible when there are recipients */}
+        {(() => {
+          const totalRecipients = targetMode === 'clients' ? selectedClientIds.size : phoneNumbers.length;
+          if (totalRecipients === 0) return null;
+
+          const progressValue = isSending 
+            ? (progress.current / progress.total) * 100 
+            : 0;
+
+          return (
+            <div className="space-y-3 rounded-lg border bg-card p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {isSending ? 'Enviando...' : 'Pronto para enviar'}
                 </span>
+                <span className="text-muted-foreground">
+                  {isSending ? `${progress.current} de ${progress.total}` : `0 de ${totalRecipients}`}
+                </span>
+              </div>
+              <Progress value={progressValue} className="h-3" />
+              
+              {isSending && (
+                <>
+                  <div className="flex gap-4 text-xs">
+                    <span className="text-green-500 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" /> {progress.success} sucesso
+                    </span>
+                    {progress.failed > 0 && (
+                      <span className="text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> {progress.failed} falhas
+                      </span>
+                    )}
+                    {/* Remaining time estimate */}
+                    {progress.current < progress.total && (
+                      <span className="text-muted-foreground flex items-center gap-1 ml-auto">
+                        <Clock className="h-3 w-3" />
+                        ~{Math.ceil((progress.total - progress.current) * delaySeconds / 60)}min restante
+                      </span>
+                    )}
+                  </div>
+                </>
               )}
             </div>
+          );
+        })()}
 
-            {/* Pause/Resume and Cancel buttons */}
-            <div className="flex gap-2 pt-2">
+        {/* Pause/Resume and Cancel buttons - only when sending */}
+        {isSending && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
               <Button
                 variant={isPaused ? "default" : "outline"}
                 size="sm"
