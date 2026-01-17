@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.get-whatsapp-qrcode]
 verify_jwt = false
+
+[functions.test-evolution-connection]
+verify_jwt = false
