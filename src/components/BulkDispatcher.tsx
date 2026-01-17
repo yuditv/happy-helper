@@ -4,6 +4,7 @@ import { useClients } from '@/hooks/useClients';
 import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useContacts } from '@/hooks/useContacts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -82,7 +83,7 @@ interface PhoneGroup {
 
 type MessageMode = 'whatsapp' | 'email';
 type SendMode = 'immediate' | 'scheduled';
-type TargetMode = 'clients' | 'numbers';
+type TargetMode = 'clients' | 'numbers' | 'contacts';
 type ClientFilter = 'all' | 'expiring7' | 'expiring3' | 'expiring1' | 'expired';
 
 const filterLabels: Record<ClientFilter, string> = {
@@ -207,6 +208,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const { user } = useAuth();
   const { clients } = useClients();
   const { getPlanName } = usePlanSettings();
+  const { contacts } = useContacts();
   
   const [messageMode, setMessageMode] = useState<MessageMode>('whatsapp');
   const [sendMode, setSendMode] = useState<SendMode>('immediate');
@@ -228,6 +230,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   // Custom numbers state
   const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
   const [newNumber, setNewNumber] = useState('');
+  
+  // Personal contacts state
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [showContactList, setShowContactList] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
   
   // Groups state
   const [phoneGroups, setPhoneGroups] = useState<PhoneGroup[]>([]);
@@ -493,10 +500,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
 
   // Update message template when target mode changes
   useEffect(() => {
-    if (targetMode === 'numbers') {
+    if (targetMode === 'numbers' || targetMode === 'contacts') {
       setCustomMessage(defaultMessage);
       setMessageVariations([defaultMessage]);
-      setMessageMode('whatsapp'); // Force WhatsApp for custom numbers
+      setMessageMode('whatsapp'); // Force WhatsApp for custom numbers and contacts
     } else {
       setCustomMessage(defaultClientMessage);
       setMessageVariations([defaultClientMessage]);
@@ -677,6 +684,31 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const selectAll = () => setSelectedClientIds(new Set(filteredClients.map(c => c.id)));
   const deselectAll = () => setSelectedClientIds(new Set());
 
+  // Personal contacts management
+  const filteredContacts = contacts.filter(contact => {
+    if (!contactSearch.trim()) return true;
+    const lower = contactSearch.toLowerCase();
+    return (
+      contact.name.toLowerCase().includes(lower) ||
+      contact.phone.includes(contactSearch)
+    );
+  });
+
+  const toggleContact = (id: string) => {
+    setSelectedContactIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllContacts = () => setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
+  const deselectAllContacts = () => setSelectedContactIds(new Set());
+
   // Phone number management
   const addPhoneNumber = () => {
     const cleaned = newNumber.replace(/\D/g, '');
@@ -845,6 +877,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       return;
     }
 
+    if (targetMode === 'contacts' && selectedContactIds.size === 0) {
+      toast.error('Selecione pelo menos um contato');
+      return;
+    }
+
     if (sendMode === 'scheduled' && !scheduledDate) {
       toast.error('Selecione uma data para o agendamento');
       return;
@@ -856,22 +893,27 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     sendStartTime.current = Date.now();
     pauseCount.current = 0;
 
-    if (targetMode === 'numbers') {
-      // Send to custom phone numbers
+    if (targetMode === 'numbers' || targetMode === 'contacts') {
+      // Get phone numbers from either custom numbers or personal contacts
+      const numbersToSend = targetMode === 'numbers' 
+        ? phoneNumbers 
+        : contacts.filter(c => selectedContactIds.has(c.id)).map(c => c.phone.replace(/\D/g, ''));
+
+      // Send to custom phone numbers or personal contacts
       setIsSending(true);
-      setProgress({ current: 0, total: phoneNumbers.length, success: 0, failed: 0 });
+      setProgress({ current: 0, total: numbersToSend.length, success: 0, failed: 0 });
 
       let successCount = 0;
       let failCount = 0;
 
-      for (let i = 0; i < phoneNumbers.length; i++) {
+      for (let i = 0; i < numbersToSend.length; i++) {
         // Check if aborted
         if (abortRef.current) {
           toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
           break;
         }
 
-        const number = phoneNumbers[i];
+        const number = numbersToSend[i];
         const messageToSend = useVariations ? getRandomVariation() : customMessage;
         
         if (useMediaMode && mediaAttachments.length > 0) {
@@ -900,7 +942,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           successCount++;
         }
         
-        setProgress({ current: i + 1, total: phoneNumbers.length, success: successCount, failed: failCount });
+        setProgress({ current: i + 1, total: numbersToSend.length, success: successCount, failed: failCount });
 
         // Check for auto-pause
         const shouldContinueAfterPause = await checkAutoPause(i);
@@ -910,7 +952,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         }
 
         // Wait with delay (respects pause) - skip delay on last item
-        if (i < phoneNumbers.length - 1) {
+        if (i < numbersToSend.length - 1) {
           const shouldContinue = await waitWithPause(delaySeconds * 1000);
           if (!shouldContinue) {
             toast.info(`Envio cancelado. ${successCount} enviado(s), ${failCount} falha(s)`);
@@ -925,12 +967,12 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         await supabase.from('bulk_dispatch_history').insert({
           user_id: user!.id,
           dispatch_type: 'whatsapp',
-          target_type: 'numbers',
-          total_recipients: phoneNumbers.length,
+          target_type: targetMode === 'contacts' ? 'contacts' : 'numbers',
+          total_recipients: numbersToSend.length,
           success_count: successCount,
           failed_count: failCount,
           message_content: customMessage,
-          phone_group_id: selectedGroupId || null,
+          phone_group_id: targetMode === 'numbers' ? (selectedGroupId || null) : null,
           metadata: {
             delay_seconds: delaySeconds,
             pause_after_count: pauseAfterCount,
@@ -946,11 +988,12 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         // Play completion sound
         playCompleteSound();
 
+        const recipientLabel = targetMode === 'contacts' ? 'contato(s)' : 'número(s)';
         if (useMediaMode) {
           if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) em ${sendDuration}s!`);
           if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
         } else {
-          toast.success(`WhatsApp aberto para ${successCount} número(s) em ${sendDuration}s!`);
+          toast.success(`WhatsApp aberto para ${successCount} ${recipientLabel} em ${sendDuration}s!`);
         }
       }
       
@@ -1161,14 +1204,21 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Enviar para</Label>
           <Tabs value={targetMode} onValueChange={(v) => setTargetMode(v as TargetMode)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="clients" className="gap-2">
                 <Users className="h-4 w-4" />
-                Meus Clientes
+                <span className="hidden sm:inline">Clientes</span>
+              </TabsTrigger>
+              <TabsTrigger value="contacts" className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Contatos</span>
+                {contacts.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 hidden sm:flex">{contacts.length}</Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="numbers" className="gap-2">
                 <Phone className="h-4 w-4" />
-                Números Avulsos
+                <span className="hidden sm:inline">Avulsos</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -1374,6 +1424,80 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                   ))}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Personal Contacts Section */}
+        {targetMode === 'contacts' && (
+          <div className="space-y-4">
+            {contacts.length === 0 ? (
+              <div className="text-center py-8 border border-dashed rounded-lg">
+                <UserPlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  Nenhum contato pessoal cadastrado
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Acesse a aba "Contatos" no menu para adicionar contatos
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Search contacts */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Filter className="h-3 w-3" />
+                    Buscar contatos
+                  </Label>
+                  <Input
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                    placeholder="Buscar por nome ou telefone..."
+                  />
+                </div>
+
+                {/* Selection controls */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">
+                      {selectedContactIds.size} de {filteredContacts.length} selecionados
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={selectAllContacts} className="h-7 px-2">
+                      Selecionar todos
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={deselectAllContacts} className="h-7 px-2">
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Contacts list */}
+                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                  {filteredContacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      className={cn(
+                        "flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer",
+                        selectedContactIds.has(contact.id)
+                          ? "bg-primary/10 border border-primary/30"
+                          : "hover:bg-muted/50 border border-transparent"
+                      )}
+                      onClick={() => toggleContact(contact.id)}
+                    >
+                      <Checkbox
+                        checked={selectedContactIds.has(contact.id)}
+                        onCheckedChange={() => toggleContact(contact.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{contact.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatPhoneDisplay(contact.phone)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -2323,12 +2447,26 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           className="w-full gap-2"
           size="lg"
           onClick={handleSend}
-          disabled={isSending || (targetMode === 'clients' ? selectedClientIds.size === 0 : phoneNumbers.length === 0)}
+          disabled={isSending || (
+            targetMode === 'clients' 
+              ? selectedClientIds.size === 0 
+              : targetMode === 'contacts' 
+                ? selectedContactIds.size === 0 
+                : phoneNumbers.length === 0
+          )}
         >
           {isSending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               {useMediaMode ? 'Enviando mídia...' : 'Enviando...'}
+            </>
+          ) : targetMode === 'contacts' ? (
+            <>
+              {useMediaMode ? <Paperclip className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+              {useMediaMode 
+                ? `Enviar mídia para ${selectedContactIds.size} contato(s)` 
+                : `Enviar para ${selectedContactIds.size} contato(s)`
+              }
             </>
           ) : targetMode === 'numbers' ? (
             <>
