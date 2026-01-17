@@ -98,6 +98,11 @@ export function useContacts() {
     saveContacts([...newContacts, ...contacts]);
   };
 
+  const clearAllContacts = () => {
+    saveContacts([]);
+    toast.success("Todos os contatos foram removidos!");
+  };
+
   return {
     contacts,
     isLoading,
@@ -106,5 +111,6 @@ export function useContacts() {
     deleteContact,
     searchContacts,
     importContacts,
+    clearAllContacts,
   };
 }
