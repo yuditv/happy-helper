@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.uazapi-webhook]
 verify_jwt = false
+
+[functions.uazapi-init-instance]
+verify_jwt = false
+
+[functions.uazapi-list-instances]
+verify_jwt = false
