@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { useClients } from '@/hooks/useClients';
 import { usePlanSettings } from '@/hooks/usePlanSettings';
@@ -207,6 +208,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { clients } = useClients();
   const { getPlanName } = usePlanSettings();
@@ -215,9 +217,23 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   
   const [messageMode, setMessageMode] = useState<MessageMode>('whatsapp');
   const [sendMode, setSendMode] = useState<SendMode>('immediate');
-  const [targetMode, setTargetMode] = useState<TargetMode>('clients');
+  const [targetMode, setTargetMode] = useState<TargetMode>(() => {
+    const target = searchParams.get('target');
+    if (target === 'contacts' || target === 'numbers' || target === 'clients' || target === 'sent') {
+      return target as TargetMode;
+    }
+    return 'clients';
+  });
   const [clientFilter, setClientFilter] = useState<ClientFilter>('expiring7');
   const [customMessage, setCustomMessage] = useState(defaultClientMessage);
+  
+  // Clear URL params after reading
+  useEffect(() => {
+    if (searchParams.get('target')) {
+      searchParams.delete('target');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
   
   // Message variations system
   const [useVariations, setUseVariations] = useState(false);
