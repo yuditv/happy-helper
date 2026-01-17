@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.uazapi-check-numbers]
 verify_jwt = false
+
+[functions.uazapi-webhook]
+verify_jwt = false
