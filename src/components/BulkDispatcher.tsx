@@ -4,7 +4,7 @@ import { useClients } from '@/hooks/useClients';
 import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useContacts } from '@/hooks/useContacts';
+import { useContactsSupabase } from '@/hooks/useContactsSupabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -208,7 +208,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const { user } = useAuth();
   const { clients } = useClients();
   const { getPlanName } = usePlanSettings();
-  const { contacts } = useContacts();
+  const { contacts, getAllPhoneNumbers } = useContactsSupabase();
   
   const [messageMode, setMessageMode] = useState<MessageMode>('whatsapp');
   const [sendMode, setSendMode] = useState<SendMode>('immediate');
@@ -235,6 +235,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [showContactList, setShowContactList] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
+  const [contactsDisplayLimit, setContactsDisplayLimit] = useState(50);
   
   // Groups state
   const [phoneGroups, setPhoneGroups] = useState<PhoneGroup[]>([]);
@@ -684,7 +685,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const selectAll = () => setSelectedClientIds(new Set(filteredClients.map(c => c.id)));
   const deselectAll = () => setSelectedClientIds(new Set());
 
-  // Personal contacts management
+  // Personal contacts management - filter first, then limit for display
   const filteredContacts = contacts.filter(contact => {
     if (!contactSearch.trim()) return true;
     const lower = contactSearch.toLowerCase();
@@ -693,6 +694,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       contact.phone.includes(contactSearch)
     );
   });
+
+  // Limit displayed contacts to avoid browser freeze
+  const displayedContacts = filteredContacts.slice(0, contactsDisplayLimit);
+  const hasMoreContacts = filteredContacts.length > contactsDisplayLimit;
 
   const toggleContact = (id: string) => {
     setSelectedContactIds(prev => {
@@ -708,6 +713,10 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
 
   const selectAllContacts = () => setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
   const deselectAllContacts = () => setSelectedContactIds(new Set());
+  
+  const loadMoreContacts = () => {
+    setContactsDisplayLimit(prev => prev + 50);
+  };
 
   // Phone number management
   const addPhoneNumber = () => {
@@ -1473,29 +1482,47 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                   </div>
                 </div>
 
-                {/* Contacts list */}
+                {/* Contacts list - with load more to avoid browser freeze */}
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                  {filteredContacts.map((contact) => (
-                    <div
-                      key={contact.id}
-                      className={cn(
-                        "flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer",
-                        selectedContactIds.has(contact.id)
-                          ? "bg-primary/10 border border-primary/30"
-                          : "hover:bg-muted/50 border border-transparent"
+                  {displayedContacts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum contato encontrado
+                    </p>
+                  ) : (
+                    <>
+                      {displayedContacts.map((contact) => (
+                        <div
+                          key={contact.id}
+                          className={cn(
+                            "flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer",
+                            selectedContactIds.has(contact.id)
+                              ? "bg-primary/10 border border-primary/30"
+                              : "hover:bg-muted/50 border border-transparent"
+                          )}
+                          onClick={() => toggleContact(contact.id)}
+                        >
+                          <Checkbox
+                            checked={selectedContactIds.has(contact.id)}
+                            onCheckedChange={() => toggleContact(contact.id)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{contact.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatPhoneDisplay(contact.phone)}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {hasMoreContacts && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={loadMoreContacts}
+                        >
+                          Carregar mais ({filteredContacts.length - contactsDisplayLimit} restantes)
+                        </Button>
                       )}
-                      onClick={() => toggleContact(contact.id)}
-                    >
-                      <Checkbox
-                        checked={selectedContactIds.has(contact.id)}
-                        onCheckedChange={() => toggleContact(contact.id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{contact.name}</p>
-                        <p className="text-xs text-muted-foreground">{formatPhoneDisplay(contact.phone)}</p>
-                      </div>
-                    </div>
-                  ))}
+                    </>
+                  )}
                 </div>
               </>
             )}
