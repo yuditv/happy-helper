@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, User, Download, Upload } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, User, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useContacts, type Contact } from "@/hooks/useContacts";
 import { ContactForm } from "@/components/ContactForm";
 import { exportContactAsVCard, exportContactsAsVCard } from "@/lib/exportVCard";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 export default function Contacts() {
   const { contacts, isLoading, addContact, updateContact, deleteContact, importContacts } = useContacts();
@@ -24,7 +31,8 @@ export default function Contacts() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Contact | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+  const excelInputRef = useRef<HTMLInputElement>(null);
 
   const filteredContacts = useMemo(() => {
     if (!search.trim()) return contacts;
@@ -110,7 +118,6 @@ export default function Contacts() {
           return;
         }
 
-        // Validate each contact has required fields
         const validContacts = imported.filter(
           (c: any) => c.name && c.phone
         );
@@ -129,9 +136,90 @@ export default function Contacts() {
     };
     reader.readAsText(file);
     
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (jsonInputRef.current) {
+      jsonInputRef.current.value = "";
+    }
+  };
+
+  const handleImportExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+        
+        if (jsonData.length < 2) {
+          toast.error("Arquivo vazio ou sem dados válidos");
+          return;
+        }
+
+        // Get header row and normalize column names
+        const headers = (jsonData[0] as string[]).map((h) => 
+          String(h || "").toLowerCase().trim()
+        );
+        
+        // Find column indices
+        const nameIdx = headers.findIndex((h) => 
+          h.includes("nome") || h.includes("name") || h === "contato" || h === "contact"
+        );
+        const phoneIdx = headers.findIndex((h) => 
+          h.includes("telefone") || h.includes("phone") || h.includes("celular") || h.includes("whatsapp") || h.includes("número") || h.includes("numero")
+        );
+        const emailIdx = headers.findIndex((h) => 
+          h.includes("email") || h.includes("e-mail")
+        );
+        const notesIdx = headers.findIndex((h) => 
+          h.includes("nota") || h.includes("notes") || h.includes("observa") || h.includes("obs")
+        );
+
+        if (nameIdx === -1 && phoneIdx === -1) {
+          toast.error("Colunas 'nome' e 'telefone/phone' não encontradas. Verifique o cabeçalho.");
+          return;
+        }
+
+        const contacts: Array<Omit<Contact, "id" | "createdAt" | "updatedAt">> = [];
+        
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!row || row.length === 0) continue;
+          
+          const name = nameIdx >= 0 ? String(row[nameIdx] || "").trim() : "";
+          const phone = phoneIdx >= 0 ? String(row[phoneIdx] || "").trim() : "";
+          
+          if (!name && !phone) continue;
+          
+          contacts.push({
+            name: name || "Sem nome",
+            phone: phone.replace(/\D/g, ""), // Keep only numbers
+            email: emailIdx >= 0 ? String(row[emailIdx] || "").trim() : undefined,
+            notes: notesIdx >= 0 ? String(row[notesIdx] || "").trim() : undefined,
+          });
+        }
+
+        if (contacts.length === 0) {
+          toast.error("Nenhum contato válido encontrado no arquivo");
+          return;
+        }
+
+        importContacts(contacts);
+        toast.success(`${contacts.length} contato(s) importado(s) com sucesso!`);
+      } catch (error) {
+        console.error("Error parsing Excel/CSV:", error);
+        toast.error("Erro ao ler arquivo. Verifique o formato.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    if (excelInputRef.current) {
+      excelInputRef.current.value = "";
     }
   };
 
@@ -155,16 +243,39 @@ export default function Contacts() {
         </div>
         <div className="flex flex-wrap gap-2">
           <input
-            ref={fileInputRef}
+            ref={jsonInputRef}
             type="file"
             accept=".json"
             onChange={handleImportJSON}
             className="hidden"
           />
-          <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="gap-2">
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Importar JSON</span>
-          </Button>
+          <input
+            ref={excelInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleImportExcel}
+            className="hidden"
+          />
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline">Importar</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => excelInputRef.current?.click()}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Excel / CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => jsonInputRef.current?.click()}>
+                <FileText className="h-4 w-4 mr-2" />
+                JSON (Backup)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {contacts.length > 0 && (
             <>
               <Button onClick={handleExportJSON} variant="outline" className="gap-2">
