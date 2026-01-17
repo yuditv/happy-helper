@@ -98,8 +98,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
   };
 
   const handleMouseLeave = () => {
-    // Optional: close on mouse leave
-    // setOpen(false);
+    setOpen(false);
   };
 
   return (
