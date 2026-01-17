@@ -1,33 +1,5 @@
 project_id = "tlanmmbgyyxuqvezudir"
 
-# Uazapi WhatsApp integration functions
-[functions.uazapi-status]
-verify_jwt = false
-
-[functions.uazapi-connect]
-verify_jwt = false
-
-[functions.uazapi-disconnect]
-verify_jwt = false
-
-[functions.uazapi-send-message]
-verify_jwt = false
-
-[functions.uazapi-check-numbers]
-verify_jwt = false
-
-[functions.uazapi-webhook]
-verify_jwt = false
-
-[functions.uazapi-init-instance]
-verify_jwt = false
-
-[functions.uazapi-list-instances]
-verify_jwt = false
-
-[functions.uazapi-delete-instance]
-verify_jwt = false
-
 # Other functions
 [functions.send-whatsapp-media]
 verify_jwt = false
