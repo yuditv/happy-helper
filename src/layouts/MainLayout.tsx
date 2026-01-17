@@ -10,6 +10,7 @@ import ResellerArea from "@/pages/ResellerArea";
 import Mentorias from "@/pages/Mentorias";
 import Paineis from "@/pages/Paineis";
 import Creditos from "@/pages/Creditos";
+import Contacts from "@/pages/Contacts";
 
 export function MainLayout() {
   const [activeSection, setActiveSection] = useState<AppSection>("clients");
@@ -18,6 +19,8 @@ export function MainLayout() {
     switch (activeSection) {
       case "clients":
         return <Index />;
+      case "contatos":
+        return <Contacts />;
       case "disparo":
         return <ScheduledMessages />;
       case "filtrar":
