@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, User } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, User, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useContacts, type Contact } from "@/hooks/useContacts";
 import { ContactForm } from "@/components/ContactForm";
+import { exportContactAsVCard, exportContactsAsVCard } from "@/lib/exportVCard";
+import { toast } from "sonner";
 
 export default function Contacts() {
   const { contacts, isLoading, addContact, updateContact, deleteContact } = useContacts();
@@ -60,6 +62,20 @@ export default function Contacts() {
     setFormOpen(true);
   };
 
+  const handleExportAll = () => {
+    if (contacts.length === 0) {
+      toast.error("Nenhum contato para exportar");
+      return;
+    }
+    exportContactsAsVCard(contacts);
+    toast.success(`${contacts.length} contato(s) exportado(s) como vCard`);
+  };
+
+  const handleExportSingle = (contact: Contact) => {
+    exportContactAsVCard(contact);
+    toast.success(`Contato "${contact.name}" exportado como vCard`);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -78,10 +94,18 @@ export default function Contacts() {
             {contacts.length} {contacts.length === 1 ? "contato salvo" : "contatos salvos"}
           </p>
         </div>
-        <Button onClick={handleNewContact} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Contato
-        </Button>
+        <div className="flex gap-2">
+          {contacts.length > 0 && (
+            <Button onClick={handleExportAll} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Exportar Todos</span>
+            </Button>
+          )}
+          <Button onClick={handleNewContact} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Contato
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -126,6 +150,15 @@ export default function Contacts() {
                     {contact.name}
                   </CardTitle>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => handleExportSingle(contact)}
+                      title="Exportar como vCard"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"
