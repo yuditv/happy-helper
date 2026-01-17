@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.uazapi-send-message]
 verify_jwt = false
+
+[functions.uazapi-check-numbers]
+verify_jwt = false
