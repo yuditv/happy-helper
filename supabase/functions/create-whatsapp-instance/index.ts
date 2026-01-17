@@ -17,11 +17,11 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
+    // Use hardcoded URL since we know the correct endpoint
+    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evo.iadespertardigital.shop";
     const evolutionApiKey = Deno.env.get("EVOLUTION_API_KEY");
 
-    console.log("EVOLUTION_API_URL exists:", !!evolutionApiUrl);
-    console.log("EVOLUTION_API_URL value:", evolutionApiUrl ? evolutionApiUrl.substring(0, 30) + "..." : "NOT SET");
+    console.log("EVOLUTION_API_URL:", evolutionApiUrl);
     console.log("EVOLUTION_API_KEY exists:", !!evolutionApiKey);
     console.log("EVOLUTION_API_KEY length:", evolutionApiKey ? evolutionApiKey.length : 0);
 
