@@ -19,6 +19,7 @@ const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const Install = lazy(() => import("./pages/Install"));
 const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
 const ResellerArea = lazy(() => import("./pages/ResellerArea"));
+const DispatchHistory = lazy(() => import("./pages/DispatchHistory"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -113,6 +114,11 @@ const AppRoutes = () => (
       <Route path="/reseller" element={
         <ProtectedRoute>
           <ResellerArea />
+        </ProtectedRoute>
+      } />
+      <Route path="/dispatch-history" element={
+        <ProtectedRoute>
+          <DispatchHistory />
         </ProtectedRoute>
       } />
       <Route path="/install" element={<Install />} />

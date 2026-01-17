@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import {
   History,
   MessageCircle,
@@ -18,6 +19,7 @@ import {
   Trash2,
   Loader2,
   BarChart3,
+  ExternalLink,
 } from 'lucide-react';
 
 interface DispatchRecord {
@@ -34,6 +36,7 @@ interface DispatchRecord {
 
 export function BulkDispatchHistory() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [history, setHistory] = useState<DispatchRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -114,15 +117,28 @@ export function BulkDispatchHistory() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <History className="h-4 w-4 text-white" />
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <History className="h-4 w-4 text-white" />
+              </div>
+              Histórico de Disparos
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Acompanhe todos os envios em massa realizados
+            </CardDescription>
           </div>
-          Histórico de Disparos
-        </CardTitle>
-        <CardDescription>
-          Acompanhe todos os envios em massa realizados
-        </CardDescription>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2"
+            onClick={() => navigate('/dispatch-history')}
+          >
+            <ExternalLink className="h-4 w-4" />
+            Ver Detalhado
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Stats */}
