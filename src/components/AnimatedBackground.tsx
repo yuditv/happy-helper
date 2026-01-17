@@ -60,7 +60,7 @@ export function AnimatedBackground() {
       duration: Math.random() * 20 + 15,
       delay: Math.random() * 5,
       opacity: Math.random() * 0.5 + 0.1,
-      parallaxFactor: Math.random() * 30 + 10,
+      parallaxFactor: Math.random() * 8 + 3,
     }));
   }, []);
 
@@ -74,7 +74,7 @@ export function AnimatedBackground() {
       color: "hsl(260 100% 65% / 0.08)",
       duration: 25,
       delay: 0,
-      parallaxFactor: 40,
+      parallaxFactor: 10,
     },
     {
       id: 2,
@@ -84,7 +84,7 @@ export function AnimatedBackground() {
       color: "hsl(200 100% 50% / 0.06)",
       duration: 30,
       delay: 2,
-      parallaxFactor: 60,
+      parallaxFactor: 15,
     },
     {
       id: 3,
@@ -94,7 +94,7 @@ export function AnimatedBackground() {
       color: "hsl(160 100% 45% / 0.05)",
       duration: 20,
       delay: 4,
-      parallaxFactor: 30,
+      parallaxFactor: 8,
     },
     {
       id: 4,
@@ -104,7 +104,7 @@ export function AnimatedBackground() {
       color: "hsl(280 100% 60% / 0.07)",
       duration: 22,
       delay: 1,
-      parallaxFactor: 50,
+      parallaxFactor: 12,
     },
     {
       id: 5,
@@ -114,15 +114,15 @@ export function AnimatedBackground() {
       color: "hsl(220 100% 55% / 0.05)",
       duration: 28,
       delay: 3,
-      parallaxFactor: 45,
+      parallaxFactor: 10,
     },
   ], []);
 
   // Transform mouse position to parallax offset
-  const orbTransformX = useTransform(mouseXSpring, [0, 1], [-1, 1]);
-  const orbTransformY = useTransform(mouseYSpring, [0, 1], [-1, 1]);
-  const gridTransformX = useTransform(mouseXSpring, [0, 1], [10, -10]);
-  const gridTransformY = useTransform(mouseYSpring, [0, 1], [10, -10]);
+  const orbTransformX = useTransform(mouseXSpring, [0, 1], [-0.5, 0.5]);
+  const orbTransformY = useTransform(mouseYSpring, [0, 1], [-0.5, 0.5]);
+  const gridTransformX = useTransform(mouseXSpring, [0, 1], [3, -3]);
+  const gridTransformY = useTransform(mouseYSpring, [0, 1], [3, -3]);
 
   return (
     <div
@@ -137,8 +137,8 @@ export function AnimatedBackground() {
       <motion.div 
         className="absolute inset-0 opacity-60"
         style={{
-          x: useTransform(mouseXSpring, [0, 1], [-20, 20]),
-          y: useTransform(mouseYSpring, [0, 1], [-20, 20]),
+          x: useTransform(mouseXSpring, [0, 1], [-5, 5]),
+          y: useTransform(mouseYSpring, [0, 1], [-5, 5]),
         }}
       >
         <motion.div
@@ -254,15 +254,15 @@ export function AnimatedBackground() {
       <motion.div 
         className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent blur-3xl"
         style={{
-          x: useTransform(mouseXSpring, [0, 1], [-30, 30]),
-          y: useTransform(mouseYSpring, [0, 1], [-30, 30]),
+          x: useTransform(mouseXSpring, [0, 1], [-8, 8]),
+          y: useTransform(mouseYSpring, [0, 1], [-8, 8]),
         }}
       />
       <motion.div 
         className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-accent/10 to-transparent blur-3xl"
         style={{
-          x: useTransform(mouseXSpring, [0, 1], [30, -30]),
-          y: useTransform(mouseYSpring, [0, 1], [30, -30]),
+          x: useTransform(mouseXSpring, [0, 1], [8, -8]),
+          y: useTransform(mouseYSpring, [0, 1], [8, -8]),
         }}
       />
 
