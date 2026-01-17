@@ -338,6 +338,41 @@ export default function Settings() {
                           variant="outline"
                           className="gap-2"
                           onClick={async () => {
+                            // Primeiro verificar se há instância WhatsApp conectada
+                            if (notificationPrefs.whatsappReminders) {
+                              toast.loading('Verificando conexão WhatsApp...');
+                              
+                              try {
+                                const { data: instanceData, error: instanceError } = await supabase.functions.invoke('uazapi-list-instances');
+                                
+                                toast.dismiss();
+                                
+                                if (instanceError) {
+                                  toast.error('Erro ao verificar instâncias WhatsApp');
+                                  return;
+                                }
+                                
+                                const instances = instanceData?.instances || [];
+                                const connectedInstance = instances.find((inst: any) => 
+                                  inst.status === 'open' || inst.status === 'connected'
+                                );
+                                
+                                if (!connectedInstance) {
+                                  toast.error(
+                                    'Nenhuma instância WhatsApp conectada! Vá em "Conexão WhatsApp" para conectar.', 
+                                    { duration: 5000 }
+                                  );
+                                  return;
+                                }
+                                
+                                toast.success(`WhatsApp conectado: ${connectedInstance.name || connectedInstance.phone}`, { duration: 2000 });
+                              } catch (err) {
+                                toast.dismiss();
+                                toast.error('Erro ao verificar WhatsApp');
+                                return;
+                              }
+                            }
+                            
                             toast.loading('Executando verificação de envio automático...');
                             try {
                               const { data, error } = await supabase.functions.invoke('auto-send-reminders');
