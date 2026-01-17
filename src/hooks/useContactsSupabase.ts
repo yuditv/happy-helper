@@ -70,7 +70,7 @@ export function useContactsSupabase() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch contacts
+  // Fetch contacts - paginate through all results to bypass 1000 limit
   const fetchContacts = useCallback(async () => {
     if (!userId) {
       setContacts([]);
@@ -80,16 +80,33 @@ export function useContactsSupabase() {
 
     try {
       setIsLoading(true);
-      // Use type assertion since contacts table may not be in generated types
-      const { data, error } = await (supabase as any)
-        .from("contacts")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
       
-      setContacts((data as DbContact[] || []).map(mapDbToContact));
+      // Fetch all contacts using pagination to bypass Supabase 1000 row limit
+      const allContacts: DbContact[] = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await (supabase as any)
+          .from("contacts")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allContacts.push(...data);
+          page++;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      setContacts(allContacts.map(mapDbToContact));
     } catch (error) {
       console.error("Error fetching contacts:", error);
       toast.error("Erro ao carregar contatos do banco de dados");
