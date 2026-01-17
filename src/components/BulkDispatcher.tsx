@@ -1532,6 +1532,38 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                     >
                       +1000
                     </Button>
+                    <div className="flex items-center gap-1 ml-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Qtd"
+                        className="h-7 w-20 text-xs"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const value = parseInt((e.target as HTMLInputElement).value);
+                            if (value > 0) {
+                              selectNextBatch(value);
+                              (e.target as HTMLInputElement).value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={(e) => {
+                          const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                          const value = parseInt(input.value);
+                          if (value > 0) {
+                            selectNextBatch(value);
+                            input.value = '';
+                          }
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        +
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
