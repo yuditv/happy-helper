@@ -79,7 +79,9 @@ const menuItems = [
   },
 ];
 
+// Version: 2 - Force rebuild
 export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) {
+  console.log('[AppSidebar] Menu items:', menuItems.length, menuItems.map(m => m.id));
   const { state, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed";
 
