@@ -436,18 +436,40 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     name?: string;
     loading: boolean;
     error?: string;
+    lastChecked?: Date;
   }>({ connected: false, loading: true });
+  
+  const statusRetryCount = useRef(0);
+  const maxRetries = 3;
 
-  // Check WhatsApp connection status
-  const checkConnectionStatus = useCallback(async () => {
-    setConnectionStatus(prev => ({ ...prev, loading: true, error: undefined }));
+  // Check WhatsApp connection status - silent error handling
+  const checkConnectionStatus = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setConnectionStatus(prev => ({ ...prev, loading: true }));
+    }
+    
     try {
       const { data, error } = await supabase.functions.invoke('uazapi-status');
       
       if (error) {
-        setConnectionStatus({ connected: false, loading: false, error: error.message });
+        // Silent fail - just log to console, don't show error to user
+        console.warn('Status check failed:', error.message);
+        statusRetryCount.current++;
+        
+        // Only update error state after max retries
+        if (statusRetryCount.current >= maxRetries) {
+          setConnectionStatus(prev => ({ 
+            ...prev, 
+            loading: false, 
+            error: 'Não foi possível verificar',
+            lastChecked: new Date()
+          }));
+        }
         return;
       }
+      
+      // Reset retry count on success
+      statusRetryCount.current = 0;
       
       setConnectionStatus({
         connected: data?.connected || false,
@@ -455,20 +477,27 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         name: data?.name,
         loading: false,
         error: data?.error,
+        lastChecked: new Date()
       });
     } catch (err) {
-      setConnectionStatus({
-        connected: false,
-        loading: false,
-        error: err instanceof Error ? err.message : 'Erro desconhecido',
-      });
+      // Silent fail - only log, don't show toast or update UI aggressively
+      console.warn('Status check exception:', err);
+      statusRetryCount.current++;
+      
+      if (statusRetryCount.current >= maxRetries) {
+        setConnectionStatus(prev => ({ 
+          ...prev, 
+          loading: false,
+          lastChecked: new Date()
+        }));
+      }
     }
   }, []);
 
-  // Check connection on mount and periodically
+  // Check connection on mount and periodically (less frequently)
   useEffect(() => {
-    checkConnectionStatus();
-    const interval = setInterval(checkConnectionStatus, 60000); // Check every minute
+    checkConnectionStatus(true);
+    const interval = setInterval(() => checkConnectionStatus(false), 120000); // Check every 2 minutes
     return () => clearInterval(interval);
   }, [checkConnectionStatus]);
   
@@ -1451,7 +1480,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={checkConnectionStatus}
+              onClick={() => checkConnectionStatus(true)}
               disabled={connectionStatus.loading}
               className="gap-2"
             >
