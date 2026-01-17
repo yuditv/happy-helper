@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff, Zap, Signal, Trash2, Settings, MoreVertical, Eye, Copy, Check, Database } from "lucide-react";
+import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff, Zap, Signal, Trash2, Settings, MoreVertical, Eye, Copy, Check, Database, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,7 +14,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useWhatsAppInstances, WhatsAppInstance } from "@/hooks/useWhatsAppInstances";
 import { QRCodeTimer } from "@/components/QRCodeTimer";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WhatsAppDashboard } from "@/components/WhatsAppDashboard";
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "qrcode";
 
 export function WhatsAppConnection() {
@@ -226,7 +227,7 @@ export function WhatsAppConnection() {
   const connectedCount = instances.filter(i => i.status === "connected").length;
 
   return (
-    <div className="space-y-8 relative">
+    <div className="space-y-6 relative">
       {/* Background Effects */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-20 left-10 w-72 h-72 bg-green-500/10 rounded-full blur-3xl"></div>
@@ -234,102 +235,126 @@ export function WhatsAppConnection() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/5 rounded-full blur-3xl"></div>
       </div>
 
-      {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between flex-wrap gap-4"
-      >
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl blur-lg opacity-50"></div>
-            <div className="relative p-4 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl">
-              <Smartphone className="h-8 w-8 text-white" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
-              Conexão WhatsApp
-            </h1>
-            <p className="text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
-              <Signal className="h-4 w-4" />
-              Uazapi Integration
-              <Badge variant="outline" className="ml-2 border-green-500/30 text-green-400">
-                <Database className="h-3 w-3 mr-1" />
-                Sincronizado
-              </Badge>
-              {!isLoading && (
-                <>
-                  <span>• {instances.length} instância{instances.length !== 1 ? "s" : ""}</span>
-                  {connectedCount > 0 && (
-                    <span className="text-emerald-400">• {connectedCount} online</span>
-                  )}
-                </>
-              )}
-            </p>
-          </div>
-        </div>
-
-        {/* Create Instance Button */}
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/25 transition-all duration-300 hover:shadow-green-500/40 hover:scale-105"
-            >
-              <Plus className="mr-2 h-5 w-5" />
-              Nova Instância
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-gradient-to-br from-card to-card/80 backdrop-blur-xl border-green-500/20">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3 text-xl">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20">
-                  <Plus className="h-5 w-5 text-green-400" />
-                </div>
-                Criar Nova Instância
-              </DialogTitle>
-              <DialogDescription className="text-muted-foreground/80">
-                Digite um nome único para identificar sua instância do WhatsApp
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="instanceName" className="text-sm font-medium">
-                  Nome da Instância
-                </Label>
-                <Input
-                  id="instanceName"
-                  placeholder="minha-instancia"
-                  value={instanceName}
-                  onChange={(e) => setInstanceName(e.target.value)}
-                  disabled={isCreating}
-                  className="bg-background/50 border-border/50 focus:border-green-500/50"
-                />
-                <p className="text-xs text-muted-foreground/70">
-                  Use apenas letras, números e hífens
-                </p>
+      {/* Tabs for Instances and Dashboard */}
+      <Tabs defaultValue="instances" className="w-full">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-4"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl blur-lg opacity-50"></div>
+              <div className="relative p-4 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl">
+                <Smartphone className="h-8 w-8 text-white" />
               </div>
-              <Button 
-                onClick={createInstance} 
-                disabled={isCreating || !instanceName.trim()}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-              >
-                {isCreating ? (
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                Conexão WhatsApp
+              </h1>
+              <p className="text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                <Signal className="h-4 w-4" />
+                Uazapi Integration
+                <Badge variant="outline" className="ml-2 border-green-500/30 text-green-400">
+                  <Database className="h-3 w-3 mr-1" />
+                  Sincronizado
+                </Badge>
+                {!isLoading && (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Criando...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="mr-2 h-4 w-4" />
-                    Criar Instância
+                    <span>• {instances.length} instância{instances.length !== 1 ? "s" : ""}</span>
+                    {connectedCount > 0 && (
+                      <span className="text-emerald-400">• {connectedCount} online</span>
+                    )}
                   </>
                 )}
-              </Button>
+              </p>
             </div>
-          </DialogContent>
-        </Dialog>
-      </motion.div>
+          </motion.div>
+
+          <TabsList className="bg-muted/50 backdrop-blur border border-border/50">
+            <TabsTrigger value="instances" className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
+              <Smartphone className="h-4 w-4 mr-2" />
+              Instâncias
+            </TabsTrigger>
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Dashboard
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Dashboard Tab */}
+        <TabsContent value="dashboard" className="mt-0">
+          <WhatsAppDashboard />
+        </TabsContent>
+
+        <TabsContent value="instances" className="space-y-6 mt-0">
+          {/* Create Instance Button */}
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-end"
+          >
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button 
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/25 transition-all duration-300 hover:shadow-green-500/40 hover:scale-105"
+                >
+                  <Plus className="mr-2 h-5 w-5" />
+                  Nova Instância
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-gradient-to-br from-card to-card/80 backdrop-blur-xl border-green-500/20">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-3 text-xl">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20">
+                      <Plus className="h-5 w-5 text-green-400" />
+                    </div>
+                    Criar Nova Instância
+                  </DialogTitle>
+                  <DialogDescription className="text-muted-foreground/80">
+                    Digite um nome único para identificar sua instância do WhatsApp
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="instanceName" className="text-sm font-medium">
+                      Nome da Instância
+                    </Label>
+                    <Input
+                      id="instanceName"
+                      placeholder="minha-instancia"
+                      value={instanceName}
+                      onChange={(e) => setInstanceName(e.target.value)}
+                      disabled={isCreating}
+                      className="bg-background/50 border-border/50 focus:border-green-500/50"
+                    />
+                    <p className="text-xs text-muted-foreground/70">
+                      Use apenas letras, números e hífens
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={createInstance} 
+                    disabled={isCreating || !instanceName.trim()}
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                  >
+                    {isCreating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Criando...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="mr-2 h-4 w-4" />
+                        Criar Instância
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </motion.div>
 
       <AnimatePresence>
         {error && (
@@ -720,6 +745,8 @@ export function WhatsAppConnection() {
           </CardContent>
         </Card>
       </motion.div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
