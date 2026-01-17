@@ -133,50 +133,46 @@ export function useWhatsAppInstances() {
     }
   }, [fetchInstances]);
 
-  // Get QR Code
-  const getQRCode = useCallback(async (token: string): Promise<string | null> => {
+  // Connect instance - get QR Code or Pairing Code
+  const connect = useCallback(async (token: string, phone?: string): Promise<{ qrcode?: string; pairingCode?: string } | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke('uazapi-qrcode', {
-        body: { token }
-      });
-
-      if (error) {
-        console.error('Error getting QR code:', error);
-        return null;
-      }
-
-      return data?.qrcode || null;
-    } catch (error) {
-      console.error('Error:', error);
-      return null;
-    }
-  }, []);
-
-  // Get pairing code
-  const getPairingCode = useCallback(async (token: string, phone: string): Promise<string | null> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('uazapi-pairing-code', {
+      const { data, error } = await supabase.functions.invoke('uazapi-connect', {
         body: { token, phone }
       });
 
       if (error) {
-        console.error('Error getting pairing code:', error);
-        toast.error('Erro ao gerar código de pareamento');
+        console.error('Error connecting:', error);
+        toast.error('Erro ao conectar instância');
         return null;
       }
 
-      if (data?.pairingCode) {
-        return data.pairingCode;
+      if (data?.success) {
+        return {
+          qrcode: data.qrcode,
+          pairingCode: data.pairingCode
+        };
       }
 
-      toast.error(data?.error || 'Erro ao gerar código');
+      toast.error(data?.error || 'Erro ao conectar');
       return null;
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Erro ao gerar código de pareamento');
+      toast.error('Erro ao conectar instância');
       return null;
     }
   }, []);
+
+  // Legacy method for backwards compatibility - get QR Code
+  const getQRCode = useCallback(async (token: string): Promise<string | null> => {
+    const result = await connect(token);
+    return result?.qrcode || null;
+  }, [connect]);
+
+  // Legacy method for backwards compatibility - get pairing code
+  const getPairingCode = useCallback(async (token: string, phone: string): Promise<string | null> => {
+    const result = await connect(token, phone);
+    return result?.pairingCode || null;
+  }, [connect]);
 
   // Get status and update in database
   const getStatus = useCallback(async (instance: WhatsAppInstance) => {
@@ -242,6 +238,7 @@ export function useWhatsAppInstances() {
     fetchInstances,
     createInstance,
     deleteInstance,
+    connect,
     getQRCode,
     getPairingCode,
     getStatus,
