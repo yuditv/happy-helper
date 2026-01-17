@@ -20,24 +20,3 @@ verify_jwt = false
 
 [functions.send-referral-notification]
 verify_jwt = false
-
-[functions.uazapi-init-instance]
-verify_jwt = false
-
-[functions.uazapi-list-instances]
-verify_jwt = false
-
-[functions.uazapi-delete-instance]
-verify_jwt = false
-
-[functions.uazapi-qrcode]
-verify_jwt = false
-
-[functions.uazapi-pairing-code]
-verify_jwt = false
-
-[functions.uazapi-status]
-verify_jwt = false
-
-[functions.uazapi-disconnect]
-verify_jwt = false
