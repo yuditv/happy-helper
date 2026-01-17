@@ -58,32 +58,50 @@ export function useWhatsAppInstances() {
       return null;
     }
 
+    console.log('=== createInstance START ===');
+    console.log('Name:', name);
+    console.log('User ID:', user.id);
+
     setIsCreating(true);
     try {
+      console.log('Invoking uazapi-init-instance...');
       const { data, error } = await supabase.functions.invoke('uazapi-init-instance', {
         body: { name, user_id: user.id }
       });
 
+      console.log('Response data:', JSON.stringify(data, null, 2));
+      console.log('Response error:', JSON.stringify(error, null, 2));
+
       if (error) {
-        console.error('Error creating instance:', error);
-        toast.error('Erro ao criar instância');
+        console.error('Supabase function error:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error context:', (error as any).context);
+        toast.error(`Erro: ${error.message || 'Erro ao criar instância'}`);
         return null;
       }
 
       if (data?.success) {
+        console.log('Instance created successfully:', data.instance);
         toast.success('Instância criada com sucesso!');
         await fetchInstances();
         return data.instance;
       }
 
-      toast.error(data?.error || 'Erro ao criar instância');
+      console.error('API returned error:', data);
+      toast.error(data?.error || data?.message || 'Erro ao criar instância');
       return null;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('=== CATCH ERROR ===');
+      console.error('Error type:', typeof error);
       console.error('Error:', error);
-      toast.error('Erro ao criar instância');
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
+      toast.error(`Erro: ${error?.message || 'Erro ao criar instância'}`);
       return null;
     } finally {
       setIsCreating(false);
+      console.log('=== createInstance END ===');
     }
   }, [user?.id, fetchInstances]);
 
