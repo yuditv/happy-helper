@@ -5,6 +5,8 @@ import { usePlanSettings } from '@/hooks/usePlanSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useContactsSupabase } from '@/hooks/useContactsSupabase';
+import { useSentContacts } from '@/hooks/useSentContacts';
+import { SentContactsList } from '@/components/SentContactsList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -83,7 +85,7 @@ interface PhoneGroup {
 
 type MessageMode = 'whatsapp' | 'email';
 type SendMode = 'immediate' | 'scheduled';
-type TargetMode = 'clients' | 'numbers' | 'contacts';
+type TargetMode = 'clients' | 'numbers' | 'contacts' | 'sent';
 type ClientFilter = 'all' | 'expiring7' | 'expiring3' | 'expiring1' | 'expired';
 
 const filterLabels: Record<ClientFilter, string> = {
@@ -208,7 +210,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const { user } = useAuth();
   const { clients } = useClients();
   const { getPlanName } = usePlanSettings();
-  const { contacts, getAllPhoneNumbers } = useContactsSupabase();
+  const { contacts, refetch: refetchContacts } = useContactsSupabase();
+  const { moveContactsToSent, getSentPhoneNumbers, sentContacts } = useSentContacts();
   
   const [messageMode, setMessageMode] = useState<MessageMode>('whatsapp');
   const [sendMode, setSendMode] = useState<SendMode>('immediate');
@@ -1010,6 +1013,24 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           },
         });
 
+        // Move sent contacts to sent_contacts table (only for personal contacts mode)
+        if (targetMode === 'contacts' && successCount > 0) {
+          const sentContactsList = contacts
+            .filter(c => selectedContactIds.has(c.id))
+            .map(c => ({
+              id: c.id,
+              name: c.name,
+              phone: c.phone,
+              email: c.email,
+              notes: c.notes,
+            }));
+          
+          await moveContactsToSent(sentContactsList);
+          setSelectedContactIds(new Set());
+          refetchContacts();
+          toast.info(`${sentContactsList.length} contato(s) movido(s) para "Contatos Enviados"`);
+        }
+
         // Play completion sound
         playCompleteSound();
 
@@ -1229,7 +1250,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Enviar para</Label>
           <Tabs value={targetMode} onValueChange={(v) => setTargetMode(v as TargetMode)} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="clients" className="gap-2">
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Clientes</span>
@@ -1241,6 +1262,13 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                   <Badge variant="secondary" className="ml-1 hidden sm:flex">{contacts.length}</Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="sent" className="gap-2">
+                <CheckCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">Enviados</span>
+                {sentContacts.length > 0 && (
+                  <Badge variant="outline" className="ml-1 hidden sm:flex">{sentContacts.length}</Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="numbers" className="gap-2">
                 <Phone className="h-4 w-4" />
                 <span className="hidden sm:inline">Avulsos</span>
@@ -1248,6 +1276,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             </TabsList>
           </Tabs>
         </div>
+
 
         {/* Mode Selection - only show email option for clients */}
         <div className="grid grid-cols-2 gap-3">
@@ -1302,6 +1331,11 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             </div>
           )}
         </div>
+
+        {/* Sent Contacts Section */}
+        {targetMode === 'sent' && (
+          <SentContactsList />
+        )}
 
         {/* Custom Numbers Section */}
         {targetMode === 'numbers' && (
