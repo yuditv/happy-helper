@@ -27,14 +27,45 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { getDaysUntilExpiration } from '@/types/client';
 import { openWhatsApp } from '@/lib/whatsapp';
-import { 
-  MediaType, 
-  MediaAttachment, 
-  getMediaTypeFromFile, 
-  getMediaTypeLabel, 
-  fileToBase64,
-  sendWhatsAppMedia 
-} from '@/lib/uazapi';
+
+// Media types (placeholder - will be reimplemented with new WhatsApp integration)
+type MediaType = 'image' | 'video' | 'audio' | 'document';
+
+interface MediaAttachment {
+  file: File;
+  type: MediaType;
+  preview?: string;
+}
+
+const getMediaTypeFromFile = (file: File): MediaType => {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('video/')) return 'video';
+  if (file.type.startsWith('audio/')) return 'audio';
+  return 'document';
+};
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+  });
+};
+
+const sendWhatsAppMedia = async (
+  phone: string,
+  _base64: string,
+  _type: MediaType,
+  _filename: string,
+  _mimetype: string,
+  caption?: string
+): Promise<{ success: boolean; error?: string }> => {
+  // Placeholder - will be reimplemented with new WhatsApp integration
+  // For now, open WhatsApp web with text message
+  openWhatsApp(phone, caption || '');
+  return { success: true };
+};
 import {
   Zap,
   Send,
