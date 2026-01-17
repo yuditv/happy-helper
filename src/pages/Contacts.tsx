@@ -1,8 +1,7 @@
-import { useState, useMemo, useRef } from "react";
-import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, User, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,69 +20,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useContacts, type Contact } from "@/hooks/useContacts";
 import { ContactForm } from "@/components/ContactForm";
-import { exportContactAsVCard, exportContactsAsVCard } from "@/lib/exportVCard";
+import { exportContactsAsVCard } from "@/lib/exportVCard";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
 export default function Contacts() {
-  const { contacts, isLoading, addContact, updateContact, deleteContact, importContacts, clearAllContacts } = useContacts();
-  const [search, setSearch] = useState("");
+  const { contacts, isLoading, addContact, importContacts, clearAllContacts } = useContacts();
   const [formOpen, setFormOpen] = useState(false);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<Contact | null>(null);
   const [clearAllConfirm, setClearAllConfirm] = useState(false);
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
-
-  const filteredContacts = useMemo(() => {
-    if (!search.trim()) return contacts;
-    const lower = search.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(lower) ||
-        c.phone.includes(search) ||
-        c.email?.toLowerCase().includes(lower)
-    );
-  }, [contacts, search]);
+  const navigate = useNavigate();
 
   const handleSubmit = (data: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
-    if (editingContact) {
-      updateContact(editingContact.id, data);
-    } else {
-      addContact(data);
-    }
-    setEditingContact(null);
-  };
-
-  const handleEdit = (contact: Contact) => {
-    setEditingContact(contact);
-    setFormOpen(true);
-  };
-
-  const handleDelete = () => {
-    if (deleteConfirm) {
-      deleteContact(deleteConfirm.id);
-      setDeleteConfirm(null);
-    }
-  };
-
-  const handleNewContact = () => {
-    setEditingContact(null);
-    setFormOpen(true);
-  };
-
-  const handleExportAll = () => {
-    if (contacts.length === 0) {
-      toast.error("Nenhum contato para exportar");
-      return;
-    }
-    exportContactsAsVCard(contacts);
-    toast.success(`${contacts.length} contato(s) exportado(s) como vCard`);
-  };
-
-  const handleExportSingle = (contact: Contact) => {
-    exportContactAsVCard(contact);
-    toast.success(`Contato "${contact.name}" exportado como vCard`);
+    addContact(data);
   };
 
   const handleExportJSON = () => {
@@ -102,6 +53,15 @@ export default function Contacts() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success(`${contacts.length} contato(s) exportado(s) como JSON`);
+  };
+
+  const handleExportVCard = () => {
+    if (contacts.length === 0) {
+      toast.error("Nenhum contato para exportar");
+      return;
+    }
+    exportContactsAsVCard(contacts);
+    toast.success(`${contacts.length} contato(s) exportado(s) como vCard`);
   };
 
   const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,12 +122,10 @@ export default function Contacts() {
           return;
         }
 
-        // Get header row and normalize column names
         const headers = (jsonData[0] as string[]).map((h) => 
           String(h || "").toLowerCase().trim()
         );
         
-        // Find column indices
         const nameIdx = headers.findIndex((h) => 
           h.includes("nome") || h.includes("name") || h === "contato" || h === "contact"
         );
@@ -186,7 +144,7 @@ export default function Contacts() {
           return;
         }
 
-        const contacts: Array<Omit<Contact, "id" | "createdAt" | "updatedAt">> = [];
+        const importedContacts: Array<Omit<Contact, "id" | "createdAt" | "updatedAt">> = [];
         
         for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i];
@@ -197,21 +155,21 @@ export default function Contacts() {
           
           if (!name && !phone) continue;
           
-          contacts.push({
+          importedContacts.push({
             name: name || "Sem nome",
-            phone: phone.replace(/\D/g, ""), // Keep only numbers
+            phone: phone.replace(/\D/g, ""),
             email: emailIdx >= 0 ? String(row[emailIdx] || "").trim() : undefined,
             notes: notesIdx >= 0 ? String(row[notesIdx] || "").trim() : undefined,
           });
         }
 
-        if (contacts.length === 0) {
+        if (importedContacts.length === 0) {
           toast.error("Nenhum contato válido encontrado no arquivo");
           return;
         }
 
-        importContacts(contacts);
-        toast.success(`${contacts.length} contato(s) importado(s) com sucesso!`);
+        importContacts(importedContacts);
+        toast.success(`${importedContacts.length} contato(s) importado(s) com sucesso!`);
       } catch (error) {
         console.error("Error parsing Excel/CSV:", error);
         toast.error("Erro ao ler arquivo. Verifique o formato.");
@@ -237,194 +195,153 @@ export default function Contacts() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Contatos</h1>
+          <h1 className="text-2xl font-bold text-foreground">Lista de Contatos</h1>
           <p className="text-muted-foreground">
-            {contacts.length} {contacts.length === 1 ? "contato salvo" : "contatos salvos"}
+            Gerencie sua lista para disparos em massa
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <input
-            ref={jsonInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportJSON}
-            className="hidden"
-          />
-          <input
-            ref={excelInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleImportExcel}
-            className="hidden"
-          />
+      </div>
+
+      {/* Hidden file inputs */}
+      <input
+        ref={jsonInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleImportJSON}
+        className="hidden"
+      />
+      <input
+        ref={excelInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleImportExcel}
+        className="hidden"
+      />
+
+      {/* Summary Card */}
+      <Card className="border-2">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-4">
+            <div className="p-4 rounded-full bg-primary/10">
+              <Database className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-3xl font-bold">{contacts.length}</CardTitle>
+              <CardDescription className="text-base">
+                {contacts.length === 1 ? "Contato armazenado" : "Contatos armazenados"}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-6">
+            Seus contatos estão salvos localmente e prontos para uso no disparo em massa. 
+            Importe planilhas ou adicione manualmente.
+          </p>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" />
-                <span className="hidden sm:inline">Importar</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => excelInputRef.current?.click()}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Excel / CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => jsonInputRef.current?.click()}>
-                <FileText className="h-4 w-4 mr-2" />
-                JSON (Backup)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex flex-wrap gap-3">
+            {/* Add Contact */}
+            <Button onClick={() => setFormOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Adicionar Contato
+            </Button>
 
-          {contacts.length > 0 && (
-            <>
-              <Button onClick={handleExportJSON} variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Exportar JSON</span>
-              </Button>
-              <Button onClick={handleExportAll} variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Exportar vCard</span>
-              </Button>
-              <Button onClick={() => setClearAllConfirm(true)} variant="destructive" className="gap-2">
-                <Trash2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Remover Todos</span>
-              </Button>
-            </>
-          )}
-          <Button onClick={handleNewContact} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Contato
-          </Button>
-        </div>
-      </div>
+            {/* Import Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  Importar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => excelInputRef.current?.click()}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Excel / CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => jsonInputRef.current?.click()}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  JSON (Backup)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, telefone ou email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+            {contacts.length > 0 && (
+              <>
+                {/* Export Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <Download className="h-4 w-4" />
+                      Exportar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={handleExportJSON}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      JSON (Backup)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportVCard}>
+                      <Users className="h-4 w-4 mr-2" />
+                      vCard
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-      {/* Contact List */}
-      {filteredContacts.length === 0 ? (
+                {/* Go to Bulk Dispatcher */}
+                <Button 
+                  variant="secondary" 
+                  className="gap-2"
+                  onClick={() => navigate("/")}
+                >
+                  <Send className="h-4 w-4" />
+                  Usar no Disparo
+                </Button>
+
+                {/* Clear All */}
+                <Button 
+                  variant="destructive" 
+                  className="gap-2"
+                  onClick={() => setClearAllConfirm(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpar Lista
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Empty State Info */}
+      {contacts.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <User className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-1">
-              {search ? "Nenhum contato encontrado" : "Nenhum contato cadastrado"}
+              Lista vazia
             </h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              {search
-                ? "Tente buscar por outro termo"
-                : "Clique em 'Novo Contato' para adicionar"}
+            <p className="text-muted-foreground text-sm max-w-md">
+              Importe uma planilha Excel/CSV com colunas "nome" e "telefone", 
+              ou adicione contatos manualmente para começar.
             </p>
-            {!search && (
-              <Button onClick={handleNewContact} variant="outline" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Adicionar primeiro contato
-              </Button>
-            )}
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredContacts.map((contact) => (
-            <Card key={contact.id} className="group hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg font-semibold truncate">
-                    {contact.name}
-                  </CardTitle>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => handleExportSingle(contact)}
-                      title="Exportar como vCard"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => handleEdit(contact)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => setDeleteConfirm(contact)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-foreground">{contact.phone}</span>
-                </div>
-                {contact.email && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground truncate">{contact.email}</span>
-                  </div>
-                )}
-                {contact.notes && (
-                  <div className="flex items-start gap-2 text-sm">
-                    <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <span className="text-muted-foreground line-clamp-2">{contact.notes}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       )}
 
-      {/* Form Dialog */}
+      {/* Contact Form Dialog */}
       <ContactForm
         open={formOpen}
         onOpenChange={setFormOpen}
-        contact={editingContact}
+        contact={null}
         onSubmit={handleSubmit}
       />
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir contato?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir o contato "{deleteConfirm?.name}"? 
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Clear All Confirmation */}
       <AlertDialog open={clearAllConfirm} onOpenChange={setClearAllConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover todos os contatos?</AlertDialogTitle>
+            <AlertDialogTitle>Limpar toda a lista?</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja remover todos os {contacts.length} contato(s)? 
               Esta ação não pode ser desfeita. Recomendamos exportar um backup antes.
@@ -439,7 +356,7 @@ export default function Contacts() {
               }} 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remover Todos
+              Limpar Lista
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
