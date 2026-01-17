@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database, CloudOff, Cloud, RefreshCw, ArrowRightLeft, Pencil, Search, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useContactsSupabase, type Contact } from "@/hooks/useContactsSupabase";
+import { useContactsSupabase, type Contact, type ImportProgress } from "@/hooks/useContactsSupabase";
 import { ContactForm } from "@/components/ContactForm";
 import { exportContactsAsVCard } from "@/lib/exportVCard";
 import { toast } from "sonner";
@@ -26,7 +27,7 @@ import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
 export default function Contacts() {
-  const { contacts, isLoading, userId, isConfigured, addContact, updateContact, deleteContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
+  const { contacts, isLoading, userId, isConfigured, importProgress, addContact, updateContact, deleteContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Contact | null>(null);
@@ -359,6 +360,29 @@ export default function Contacts() {
         className="hidden"
       />
 
+      {/* Import Progress Bar */}
+      {importProgress.isImporting && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Importando contatos...</span>
+                <span className="text-sm text-muted-foreground">
+                  {importProgress.current.toLocaleString()} / {importProgress.total.toLocaleString()}
+                </span>
+              </div>
+              <Progress 
+                value={(importProgress.current / importProgress.total) * 100} 
+                className="h-3"
+              />
+              <p className="text-xs text-muted-foreground">
+                {Math.round((importProgress.current / importProgress.total) * 100)}% concluído
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Card */}
       <Card className="border-2">
         <CardHeader className="pb-4">
@@ -367,16 +391,21 @@ export default function Contacts() {
               <Database className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-3xl font-bold">{contacts.length}</CardTitle>
+              <CardTitle className="text-3xl font-bold">{contactCount.toLocaleString()}</CardTitle>
               <CardDescription className="text-base">
-                {contacts.length === 1 ? "Contato armazenado" : "Contatos armazenados"}
+                {contactCount === 1 ? "Contato no banco de dados" : "Contatos no banco de dados"}
               </CardDescription>
+              {contacts.length !== contactCount && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Exibindo {contacts.length.toLocaleString()} na tela
+                </p>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-6">
-            Seus contatos estão salvos localmente e prontos para uso no disparo em massa. 
+            Seus contatos estão salvos no banco de dados e prontos para uso no disparo em massa. 
             Importe planilhas ou adicione manualmente.
           </p>
           
