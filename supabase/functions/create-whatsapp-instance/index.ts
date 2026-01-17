@@ -1,4 +1,4 @@
-// Evolution API WhatsApp Instance Creator - v2
+// Evolution API WhatsApp Instance Creator - v3 (forced redeploy)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
