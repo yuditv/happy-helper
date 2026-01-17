@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.send-referral-notification]
 verify_jwt = false
+
+[functions.uazapi-connect]
+verify_jwt = false
+
+[functions.uazapi-status]
+verify_jwt = false
+
+[functions.uazapi-disconnect]
+verify_jwt = false
