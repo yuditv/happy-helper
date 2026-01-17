@@ -13,7 +13,7 @@ const Paineis = lazy(() => import("@/pages/Paineis"));
 const Creditos = lazy(() => import("@/pages/Creditos"));
 const Contacts = lazy(() => import("@/pages/Contacts"));
 const WhatsAppNumberFilter = lazy(() => import("@/components/WhatsAppNumberFilter").then(m => ({ default: m.WhatsAppNumberFilter })));
-const WhatsAppConnection = lazy(() => import("@/components/WhatsAppConnection").then(m => ({ default: m.WhatsAppConnection })));
+
 const ContentLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -33,8 +33,6 @@ export function MainLayout() {
         return <ScheduledMessages />;
       case "filtrar":
         return <WhatsAppNumberFilter />;
-      case "conexao":
-        return <WhatsAppConnection />;
       case "revenda":
         return <ResellerArea />;
       case "vpn":
