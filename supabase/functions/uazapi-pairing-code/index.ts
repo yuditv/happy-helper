@@ -36,7 +36,7 @@ serve(async (req) => {
 
     console.log(`Getting pairing code for phone: ${formattedPhone}`);
 
-    const response = await fetch('https://yudipro.uazapi.com/instance/pairingcode', {
+    const response = await fetch('https://zynk2.uazapi.com/instance/pairingcode', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
