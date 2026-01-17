@@ -59,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         instanceName: instanceName,
         qrcode: true,
-        integration: "WHATSAPP-BAILEYS",
+        integration: "WHATSAPP-BAILEYS"
       }),
     });
 
