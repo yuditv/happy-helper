@@ -1,16 +1,24 @@
-import { useState } from "react";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { useState, lazy, Suspense, memo } from "react";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar, AppSection } from "@/components/AppSidebar";
 import { ExternalFrame } from "@/components/ExternalFrame";
-import { WhatsAppNumberFilter } from "@/components/WhatsAppNumberFilter";
-import { WhatsAppConnection } from "@/components/WhatsAppConnection";
-import Index from "@/pages/Index";
-import ScheduledMessages from "@/pages/ScheduledMessages";
-import ResellerArea from "@/pages/ResellerArea";
-import Mentorias from "@/pages/Mentorias";
-import Paineis from "@/pages/Paineis";
-import Creditos from "@/pages/Creditos";
-import Contacts from "@/pages/Contacts";
+
+// Lazy load heavy components
+const Index = lazy(() => import("@/pages/Index"));
+const ScheduledMessages = lazy(() => import("@/pages/ScheduledMessages"));
+const ResellerArea = lazy(() => import("@/pages/ResellerArea"));
+const Mentorias = lazy(() => import("@/pages/Mentorias"));
+const Paineis = lazy(() => import("@/pages/Paineis"));
+const Creditos = lazy(() => import("@/pages/Creditos"));
+const Contacts = lazy(() => import("@/pages/Contacts"));
+const WhatsAppNumberFilter = lazy(() => import("@/components/WhatsAppNumberFilter").then(m => ({ default: m.WhatsAppNumberFilter })));
+const WhatsAppConnection = lazy(() => import("@/components/WhatsAppConnection").then(m => ({ default: m.WhatsAppConnection })));
+
+const ContentLoader = () => (
+  <div className="flex items-center justify-center h-full min-h-[200px]">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
 
 export function MainLayout() {
   const [activeSection, setActiveSection] = useState<AppSection>("clients");
@@ -59,7 +67,9 @@ export function MainLayout() {
         />
         <SidebarInset className="flex flex-col">
           <main className="flex-1 relative overflow-auto">
-            {renderContent()}
+            <Suspense fallback={<ContentLoader />}>
+              {renderContent()}
+            </Suspense>
           </main>
         </SidebarInset>
       </div>

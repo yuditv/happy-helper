@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { useClients } from '@/hooks/useClients';
@@ -672,22 +672,24 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Filter clients based on selection
-  const filteredClients = clients.filter(client => {
-    const days = getDaysUntilExpiration(client.expiresAt);
-    switch (clientFilter) {
-      case 'expiring7': return days >= 0 && days <= 7;
-      case 'expiring3': return days >= 0 && days <= 3;
-      case 'expiring1': return days >= 0 && days <= 1;
-      case 'expired': return days < 0;
-      default: return true;
-    }
-  });
+  // Filter clients based on selection - memoized for performance
+  const filteredClients = useMemo(() => {
+    return clients.filter(client => {
+      const days = getDaysUntilExpiration(client.expiresAt);
+      switch (clientFilter) {
+        case 'expiring7': return days >= 0 && days <= 7;
+        case 'expiring3': return days >= 0 && days <= 3;
+        case 'expiring1': return days >= 0 && days <= 1;
+        case 'expired': return days < 0;
+        default: return true;
+      }
+    });
+  }, [clients, clientFilter]);
 
   // Auto-select all filtered clients when filter changes
   useEffect(() => {
     setSelectedClientIds(new Set(filteredClients.map(c => c.id)));
-  }, [clientFilter, clients]);
+  }, [filteredClients]);
 
   const toggleClient = (id: string) => {
     setSelectedClientIds(prev => {
@@ -704,18 +706,21 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const selectAll = () => setSelectedClientIds(new Set(filteredClients.map(c => c.id)));
   const deselectAll = () => setSelectedClientIds(new Set());
 
-  // Personal contacts management - filter first, then limit for display
-  const filteredContacts = contacts.filter(contact => {
-    if (!contactSearch.trim()) return true;
+  // Personal contacts management - memoized filter for performance
+  const filteredContacts = useMemo(() => {
+    if (!contactSearch.trim()) return contacts;
     const lower = contactSearch.toLowerCase();
-    return (
+    return contacts.filter(contact => 
       contact.name.toLowerCase().includes(lower) ||
       contact.phone.includes(contactSearch)
     );
-  });
+  }, [contacts, contactSearch]);
 
   // Limit displayed contacts to avoid browser freeze
-  const displayedContacts = filteredContacts.slice(0, contactsDisplayLimit);
+  const displayedContacts = useMemo(() => 
+    filteredContacts.slice(0, contactsDisplayLimit), 
+    [filteredContacts, contactsDisplayLimit]
+  );
   const hasMoreContacts = filteredContacts.length > contactsDisplayLimit;
 
   const toggleContact = (id: string) => {
@@ -733,8 +738,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const selectAllContacts = () => setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
   const deselectAllContacts = () => setSelectedContactIds(new Set());
 
-  // Batch selection - select next N contacts that aren't already selected
-  const selectNextBatch = (batchSize: number) => {
+  // Batch selection - memoized callback for performance
+  const selectNextBatch = useCallback((batchSize: number) => {
     setSelectedContactIds(prev => {
       const newSet = new Set(prev);
       let added = 0;
@@ -747,7 +752,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       }
       return newSet;
     });
-  };
+  }, [filteredContacts]);
   
   const loadMoreContacts = () => {
     setContactsDisplayLimit(prev => prev + 50);

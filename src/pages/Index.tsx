@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import logoFuturistic from '@/assets/logo-futuristic.png';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
@@ -132,7 +132,8 @@ const Index = () => {
   }, [filteredAndSortedClients, currentPage, clientsPerPage]);
 
   // Reset page when filters change
-  useMemo(() => {
+  // Reset page when filters change
+  useEffect(() => {
     setCurrentPage(1);
   }, [search, planFilter, sortBy, sortOrder]);
 
