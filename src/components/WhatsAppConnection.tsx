@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff } from "lucide-react";
+import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff, Zap, Signal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "qrcode";
 
@@ -26,7 +27,6 @@ export function WhatsAppConnection() {
   const [instance, setInstance] = useState<InstanceData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Check saved instance on mount
   useEffect(() => {
     const savedInstance = localStorage.getItem("whatsapp_instance");
     if (savedInstance) {
@@ -56,8 +56,6 @@ export function WhatsAppConnection() {
         throw new Error(data.error);
       }
 
-      console.log("Instance created:", data);
-
       const newInstance: InstanceData = {
         instanceName: instanceName.trim(),
         status: "qrcode",
@@ -68,7 +66,6 @@ export function WhatsAppConnection() {
       localStorage.setItem("whatsapp_instance", JSON.stringify({ instanceName: instanceName.trim() }));
       toast.success("Instância criada com sucesso!");
 
-      // If no QR code in response, fetch it
       if (!data?.data?.qrcode?.base64) {
         await getQRCode(instanceName.trim());
       }
@@ -92,8 +89,6 @@ export function WhatsAppConnection() {
 
       if (error) throw error;
 
-      console.log("Instance status:", data);
-
       const state = data?.data?.instance?.state || data?.data?.state;
       
       if (state === "open" || state === "connected") {
@@ -102,12 +97,10 @@ export function WhatsAppConnection() {
       } else if (state === "close" || state === "disconnected") {
         setInstance(prev => prev ? { ...prev, status: "disconnected" } : null);
       } else {
-        // Need to scan QR code
         await getQRCode(name);
       }
     } catch (err: any) {
       console.error("Error checking status:", err);
-      // Instance might not exist, try to get QR code
       await getQRCode(name);
     } finally {
       setIsChecking(false);
@@ -123,8 +116,6 @@ export function WhatsAppConnection() {
       });
 
       if (error) throw error;
-
-      console.log("QR Code response:", data);
 
       const base64 = data?.data?.base64 || data?.data?.qrcode?.base64;
       
@@ -164,246 +155,360 @@ export function WhatsAppConnection() {
     switch (instance?.status) {
       case "connected":
         return (
-          <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
+          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+            <span className="relative flex h-2 w-2 mr-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
             Conectado
           </Badge>
         );
       case "qrcode":
         return (
-          <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
+          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
             <QrCode className="w-3 h-3 mr-1" />
-            Aguardando QR Code
+            Aguardando Scan
           </Badge>
         );
       case "connecting":
         return (
-          <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30">
+          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
             Conectando
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-red-500/20 text-red-500 border-red-500/30">
+          <Badge className="bg-red-500/20 text-red-400 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
             <XCircle className="w-3 h-3 mr-1" />
-            Desconectado
+            Offline
           </Badge>
         );
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Smartphone className="h-6 w-6 text-green-500" />
-            Conexão WhatsApp
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Conecte sua instância do WhatsApp via Evolution API
-          </p>
-        </div>
+    <div className="space-y-8 relative">
+      {/* Background Effects */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-green-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl blur-lg opacity-50"></div>
+            <div className="relative p-4 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl">
+              <Smartphone className="h-8 w-8 text-white" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              Conexão WhatsApp
+            </h1>
+            <p className="text-muted-foreground mt-1 flex items-center gap-2">
+              <Signal className="h-4 w-4" />
+              Evolution API Integration
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+          >
+            <Alert variant="destructive" className="border-red-500/50 bg-red-500/10 backdrop-blur-sm">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {!instance ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Criar Nova Instância
-            </CardTitle>
-            <CardDescription>
-              Digite um nome único para identificar sua instância do WhatsApp
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="instanceName">Nome da Instância</Label>
-              <Input
-                id="instanceName"
-                placeholder="minha-instancia"
-                value={instanceName}
-                onChange={(e) => setInstanceName(e.target.value)}
-                disabled={isCreating}
-              />
-              <p className="text-xs text-muted-foreground">
-                Use apenas letras, números e hífens. Sem espaços ou caracteres especiais.
-              </p>
-            </div>
-            <Button onClick={createInstance} disabled={isCreating || !instanceName.trim()}>
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar Instância
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="border-0 bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl shadow-2xl shadow-green-500/5 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-emerald-500/5"></div>
+            <CardHeader className="relative">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20">
+                  <Plus className="h-5 w-5 text-green-400" />
+                </div>
+                Criar Nova Instância
+              </CardTitle>
+              <CardDescription className="text-muted-foreground/80">
+                Digite um nome único para identificar sua instância do WhatsApp
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 relative">
+              <div className="space-y-3">
+                <Label htmlFor="instanceName" className="text-sm font-medium text-foreground/90">
+                  Nome da Instância
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="instanceName"
+                    placeholder="minha-instancia"
+                    value={instanceName}
+                    onChange={(e) => setInstanceName(e.target.value)}
+                    disabled={isCreating}
+                    className="bg-background/50 border-border/50 focus:border-green-500/50 focus:ring-green-500/20 transition-all duration-300 pl-4 pr-4 py-6 text-lg"
+                  />
+                  <div className="absolute inset-0 rounded-md bg-gradient-to-r from-green-500/0 via-green-500/5 to-emerald-500/0 pointer-events-none"></div>
+                </div>
+                <p className="text-xs text-muted-foreground/70">
+                  Use apenas letras, números e hífens. Sem espaços ou caracteres especiais.
+                </p>
+              </div>
+              <Button 
+                onClick={createInstance} 
+                disabled={isCreating || !instanceName.trim()}
+                className="w-full py-6 text-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/25 transition-all duration-300 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Criando Instância...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="mr-2 h-5 w-5" />
+                    Criar Instância
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Instance Info Card */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="h-5 w-5" />
-                  {instance.instanceName}
-                </CardTitle>
-                {getStatusBadge()}
-              </div>
-              <CardDescription>
-                Informações da sua instância WhatsApp
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                {instance.status === "connected" ? (
-                  <Wifi className="h-5 w-5 text-green-500" />
-                ) : (
-                  <WifiOff className="h-5 w-5 text-muted-foreground" />
-                )}
-                <div>
-                  <p className="font-medium">Status da Conexão</p>
-                  <p className="text-sm text-muted-foreground">
-                    {instance.status === "connected"
-                      ? "WhatsApp conectado e pronto para enviar mensagens"
-                      : instance.status === "qrcode"
-                      ? "Escaneie o QR Code para conectar"
-                      : "Instância desconectada"}
-                  </p>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="h-full border-0 bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl shadow-2xl shadow-green-500/5 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-emerald-500/5"></div>
+              <CardHeader className="relative">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20">
+                      <Smartphone className="h-5 w-5 text-green-400" />
+                    </div>
+                    <span className="font-mono text-lg">{instance.instanceName}</span>
+                  </CardTitle>
+                  {getStatusBadge()}
                 </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={refreshStatus}
-                  disabled={isChecking}
-                  className="flex-1"
-                >
-                  {isChecking ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              </CardHeader>
+              <CardContent className="space-y-6 relative">
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-background/80 to-background/40 border border-border/30">
+                  {instance.status === "connected" ? (
+                    <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+                      <Wifi className="h-6 w-6 text-emerald-400" />
+                    </div>
                   ) : (
-                    <RefreshCw className="mr-2 h-4 w-4" />
+                    <div className="p-3 rounded-xl bg-muted/50 border border-border/30">
+                      <WifiOff className="h-6 w-6 text-muted-foreground" />
+                    </div>
                   )}
-                  Atualizar Status
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={disconnectInstance}
-                  className="flex-1"
-                >
-                  <XCircle className="mr-2 h-4 w-4" />
-                  Desconectar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* QR Code Card */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5" />
-                  QR Code
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={refreshQRCode}
-                  disabled={isLoadingQR || instance.status === "connected"}
-                >
-                  {isLoadingQR ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              <CardDescription>
-                Escaneie com o WhatsApp do seu celular
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {instance.status === "connected" ? (
-                <div className="flex flex-col items-center justify-center p-8 rounded-lg bg-green-500/10 border border-green-500/30">
-                  <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                  <p className="text-lg font-medium text-green-500">WhatsApp Conectado!</p>
-                  <p className="text-sm text-muted-foreground text-center mt-2">
-                    Sua instância está pronta para enviar mensagens
-                  </p>
-                </div>
-              ) : isLoadingQR ? (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <Loader2 className="h-16 w-16 animate-spin text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Carregando QR Code...</p>
-                </div>
-              ) : instance.base64 ? (
-                <div className="flex flex-col items-center">
-                  <div className="p-4 bg-white rounded-lg">
-                    <img
-                      src={instance.base64}
-                      alt="QR Code"
-                      className="w-64 h-64"
-                    />
+                  <div>
+                    <p className="font-semibold text-foreground/90">Status da Conexão</p>
+                    <p className="text-sm text-muted-foreground/80">
+                      {instance.status === "connected"
+                        ? "Pronto para enviar mensagens"
+                        : instance.status === "qrcode"
+                        ? "Escaneie o QR Code"
+                        : "Instância offline"}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-4 text-center">
-                    Abra o WhatsApp → Menu (⋮) → Aparelhos conectados → Conectar
-                  </p>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-8 rounded-lg bg-muted/50">
-                  <QrCode className="h-16 w-16 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground text-center">
-                    Clique em "Atualizar Status" para gerar o QR Code
-                  </p>
+
+                <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    onClick={refreshQRCode}
-                    disabled={isLoadingQR}
-                    className="mt-4"
+                    onClick={refreshStatus}
+                    disabled={isChecking}
+                    className="py-6 bg-background/50 border-border/50 hover:bg-green-500/10 hover:border-green-500/50 hover:text-green-400 transition-all duration-300"
                   >
-                    <QrCode className="mr-2 h-4 w-4" />
-                    Gerar QR Code
+                    {isChecking ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Atualizar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={disconnectInstance}
+                    className="py-6 bg-background/50 border-border/50 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-400 transition-all duration-300"
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Desconectar
                   </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* QR Code Card */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="h-full border-0 bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl shadow-2xl shadow-green-500/5 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-emerald-500/5"></div>
+              <CardHeader className="relative">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20">
+                      <QrCode className="h-5 w-5 text-green-400" />
+                    </div>
+                    QR Code
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refreshQRCode}
+                    disabled={isLoadingQR || instance.status === "connected"}
+                    className="hover:bg-green-500/10 hover:text-green-400 transition-all"
+                  >
+                    {isLoadingQR ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <CardDescription className="text-muted-foreground/80">
+                  Escaneie com o WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="relative">
+                {instance.status === "connected" ? (
+                  <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex flex-col items-center justify-center p-8 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-green-500/5 border border-emerald-500/30"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-emerald-500/30 rounded-full blur-xl"></div>
+                      <CheckCircle2 className="relative h-20 w-20 text-emerald-400" />
+                    </div>
+                    <p className="text-xl font-bold text-emerald-400 mt-4">Conectado!</p>
+                    <p className="text-sm text-muted-foreground text-center mt-2">
+                      Sua instância está pronta
+                    </p>
+                  </motion.div>
+                ) : isLoadingQR ? (
+                  <div className="flex flex-col items-center justify-center p-8">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
+                      <Loader2 className="relative h-20 w-20 animate-spin text-green-400" />
+                    </div>
+                    <p className="text-muted-foreground mt-4">Carregando QR Code...</p>
+                  </div>
+                ) : instance.base64 ? (
+                  <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex flex-col items-center"
+                  >
+                    <div className="relative p-1 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600">
+                      <div className="p-4 bg-white rounded-xl">
+                        <img
+                          src={instance.base64}
+                          alt="QR Code"
+                          className="w-56 h-56"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-4 text-center">
+                      WhatsApp → Menu → Aparelhos conectados
+                    </p>
+                  </motion.div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 border border-border/30">
+                    <div className="p-4 rounded-xl bg-muted/50 border border-border/30">
+                      <QrCode className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground text-center mt-4">
+                      Clique para gerar o QR Code
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={refreshQRCode}
+                      disabled={isLoadingQR}
+                      className="mt-4 bg-background/50 border-border/50 hover:bg-green-500/10 hover:border-green-500/50 hover:text-green-400 transition-all duration-300"
+                    >
+                      <QrCode className="mr-2 h-4 w-4" />
+                      Gerar QR Code
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       )}
 
       {/* Instructions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Como conectar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-            <li>Crie uma nova instância com um nome único</li>
-            <li>Aguarde o QR Code ser gerado</li>
-            <li>Abra o WhatsApp no seu celular</li>
-            <li>Vá em Menu (⋮) → Aparelhos conectados → Conectar um aparelho</li>
-            <li>Escaneie o QR Code exibido na tela</li>
-            <li>Aguarde a conexão ser estabelecida</li>
-          </ol>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card className="border-0 bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl shadow-2xl shadow-green-500/5 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-emerald-500/5"></div>
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20">
+                <Zap className="h-5 w-5 text-green-400" />
+              </div>
+              Como Conectar
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { step: "01", text: "Crie uma instância com nome único" },
+                { step: "02", text: "Aguarde o QR Code ser gerado" },
+                { step: "03", text: "Abra o WhatsApp no celular" },
+                { step: "04", text: "Menu (⋮) → Aparelhos conectados" },
+                { step: "05", text: "Escaneie o QR Code" },
+                { step: "06", text: "Pronto! Instância conectada" },
+              ].map((item, index) => (
+                <motion.div
+                  key={item.step}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 + index * 0.1 }}
+                  className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-br from-background/80 to-background/40 border border-border/30 hover:border-green-500/30 transition-all duration-300"
+                >
+                  <span className="text-2xl font-bold bg-gradient-to-br from-green-400 to-emerald-500 bg-clip-text text-transparent">
+                    {item.step}
+                  </span>
+                  <p className="text-sm text-muted-foreground/90 mt-1">{item.text}</p>
+                </motion.div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }
