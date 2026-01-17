@@ -1,4 +1,4 @@
-// Uazapi - Send WhatsApp Media
+// Uazapi - Send WhatsApp Message
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -6,16 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type MediaType = 'image' | 'video' | 'audio' | 'document';
-
-interface SendWhatsAppMediaRequest {
+interface SendWhatsAppRequest {
   phone: string;
-  message?: string;
-  mediaUrl?: string;
-  mediaBase64?: string;
-  mediaType: MediaType;
-  fileName?: string;
-  mimetype?: string;
+  message: string;
 }
 
 function formatPhoneForWhatsApp(phone: string): string {
@@ -27,6 +20,8 @@ function formatPhoneForWhatsApp(phone: string): string {
 }
 
 serve(async (req: Request): Promise<Response> => {
+  console.log("=== UAZAPI SEND MESSAGE ===");
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -43,58 +38,29 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { 
-      phone, 
-      message, 
-      mediaUrl, 
-      mediaBase64, 
-      mediaType, 
-      fileName,
-      mimetype 
-    }: SendWhatsAppMediaRequest = await req.json();
+    const { phone, message }: SendWhatsAppRequest = await req.json();
 
-    if (!phone) {
+    if (!phone || !message) {
       return new Response(
-        JSON.stringify({ error: "Phone is required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    if (!mediaUrl && !mediaBase64) {
-      return new Response(
-        JSON.stringify({ error: "Either mediaUrl or mediaBase64 is required" }),
+        JSON.stringify({ error: "Phone and message are required" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     const formattedPhone = formatPhoneForWhatsApp(phone);
-    
-    console.log(`Sending ${mediaType} to ${formattedPhone}`);
+    console.log(`Sending message to ${formattedPhone}`);
 
-    // Uazapi uses /message/media endpoint
-    const body: Record<string, unknown> = {
-      phone: formattedPhone,
-      media: mediaUrl || mediaBase64,
-      type: mediaType,
-      caption: message || '',
-    };
-
-    if (fileName) {
-      body.fileName = fileName;
-    }
-
-    if (mimetype) {
-      body.mimetype = mimetype;
-    }
-
-    const response = await fetch(`${uazapiUrl}/message/media`, {
+    const response = await fetch(`${uazapiUrl}/message/text`, {
       method: "POST",
       headers: {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "Authorization": `Bearer ${uazapiToken}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        phone: formattedPhone,
+        message: message,
+      }),
     });
 
     const responseText = await response.text();
@@ -110,19 +76,19 @@ serve(async (req: Request): Promise<Response> => {
     if (!response.ok) {
       console.error("Uazapi API error:", responseData);
       return new Response(
-        JSON.stringify({ error: "Failed to send WhatsApp media", details: responseData }),
+        JSON.stringify({ error: "Failed to send WhatsApp message", details: responseData }),
         { status: response.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log("WhatsApp media sent successfully:", responseData);
+    console.log("WhatsApp message sent successfully:", responseData);
 
     return new Response(
-      JSON.stringify({ success: true, message: "WhatsApp media sent successfully", data: responseData }),
+      JSON.stringify({ success: true, message: "WhatsApp message sent successfully", data: responseData }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
-    console.error("Error in send-whatsapp-media function:", error);
+    console.error("Error:", error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }

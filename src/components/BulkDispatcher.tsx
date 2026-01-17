@@ -34,7 +34,7 @@ import {
   getMediaTypeLabel, 
   fileToBase64,
   sendWhatsAppMedia 
-} from '@/lib/evolutionApi';
+} from '@/lib/uazapi';
 import {
   Zap,
   Send,

@@ -49,12 +49,12 @@ export async function sendWhatsAppMessage(
   message: string
 ): Promise<SendWhatsAppResult> {
   try {
-    const { data, error } = await supabase.functions.invoke('send-whatsapp-evolution', {
+    const { data, error } = await supabase.functions.invoke('uazapi-send-message', {
       body: { phone, message },
     });
 
     if (error) {
-      console.error('Error calling send-whatsapp-evolution:', error);
+      console.error('Error calling uazapi-send-message:', error);
       return { success: false, error: error.message };
     }
 
