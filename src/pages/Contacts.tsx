@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database, CloudOff, Cloud, RefreshCw } from "lucide-react";
+import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database, CloudOff, Cloud, RefreshCw, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,10 +29,77 @@ export default function Contacts() {
   const { contacts, isLoading, userId, isConfigured, addContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
   const [formOpen, setFormOpen] = useState(false);
   const [clearAllConfirm, setClearAllConfirm] = useState(false);
+  const [migrateConfirm, setMigrateConfirm] = useState(false);
+  const [localStorageCount, setLocalStorageCount] = useState(0);
+  const [isMigrating, setIsMigrating] = useState(false);
   const [contactCount, setContactCount] = useState(0);
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Check for localStorage contacts
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("contacts");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setLocalStorageCount(parsed.length);
+        }
+      }
+    } catch (e) {
+      console.error("Error reading localStorage contacts:", e);
+    }
+  }, []);
+
+  const handleMigrateFromLocalStorage = async () => {
+    if (!userId) {
+      toast.error("Você precisa estar logado");
+      return;
+    }
+
+    setIsMigrating(true);
+    try {
+      const stored = localStorage.getItem("contacts");
+      if (!stored) {
+        toast.error("Nenhum contato encontrado no localStorage");
+        return;
+      }
+
+      const localContacts = JSON.parse(stored);
+      if (!Array.isArray(localContacts) || localContacts.length === 0) {
+        toast.error("Nenhum contato válido encontrado");
+        return;
+      }
+
+      // Map localStorage contacts to the import format
+      const contactsToImport = localContacts.map((c: any) => ({
+        name: c.name || "Sem nome",
+        phone: c.phone || "",
+        email: c.email || undefined,
+        notes: c.notes || undefined,
+      })).filter((c: any) => c.phone);
+
+      if (contactsToImport.length === 0) {
+        toast.error("Nenhum contato com telefone válido");
+        return;
+      }
+
+      await importContacts(contactsToImport);
+      
+      // Clear localStorage after successful migration
+      localStorage.removeItem("contacts");
+      setLocalStorageCount(0);
+      
+      toast.success(`${contactsToImport.length} contato(s) migrado(s) com sucesso! localStorage limpo.`);
+      setMigrateConfirm(false);
+    } catch (error) {
+      console.error("Migration error:", error);
+      toast.error("Erro ao migrar contatos");
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   // Fetch count separately for performance
   useEffect(() => {
@@ -285,6 +352,18 @@ export default function Contacts() {
           </p>
           
           <div className="flex flex-wrap gap-3">
+            {/* Migrate from localStorage */}
+            {localStorageCount > 0 && (
+              <Button 
+                onClick={() => setMigrateConfirm(true)} 
+                variant="default"
+                className="gap-2 bg-amber-600 hover:bg-amber-700"
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+                Migrar {localStorageCount} do localStorage
+              </Button>
+            )}
+
             {/* Add Contact */}
             <Button onClick={() => setFormOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -402,6 +481,36 @@ export default function Contacts() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Limpar Lista
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Migrate Confirmation */}
+      <AlertDialog open={migrateConfirm} onOpenChange={setMigrateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Migrar contatos do localStorage?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem <strong>{localStorageCount}</strong> contato(s) salvos no localStorage do navegador. 
+              Deseja migrá-los para o Supabase? Após a migração, o localStorage será limpo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isMigrating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleMigrateFromLocalStorage}
+              disabled={isMigrating}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {isMigrating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Migrando...
+                </>
+              ) : (
+                "Migrar Contatos"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
