@@ -323,12 +323,91 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   
   // Delay and pause control
-  const [delaySeconds, setDelaySeconds] = useState(3);
-  const [pauseAfterCount, setPauseAfterCount] = useState(10);
+  const [delaySecondsInput, setDelaySecondsInput] = useState('3');
+  const [pauseAfterCountInput, setPauseAfterCountInput] = useState('10');
   const [enableAutoPause, setEnableAutoPause] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const pauseRef = useRef(false);
   const abortRef = useRef(false);
+  const sendStartTime = useRef<number>(0);
+  const pauseCount = useRef<number>(0);
+
+  // Computed values from inputs
+  const delaySeconds = parseInt(delaySecondsInput) || 1;
+  const pauseAfterCount = parseInt(pauseAfterCountInput) || 0;
+
+  // Sound effect functions
+  const playPauseSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      
+      // Create a "ding" sound for pause
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
+      oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+      
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    } catch (e) {
+      console.log('Audio not supported');
+    }
+  };
+
+  const playCompleteSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      
+      // Create a "success" melody
+      const now = audioContext.currentTime;
+      
+      // First note - C5
+      const osc1 = audioContext.createOscillator();
+      const gain1 = audioContext.createGain();
+      osc1.connect(gain1);
+      gain1.connect(audioContext.destination);
+      osc1.frequency.setValueAtTime(523, now);
+      gain1.gain.setValueAtTime(0.3, now);
+      gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc1.start(now);
+      osc1.stop(now + 0.15);
+      
+      // Second note - E5
+      const osc2 = audioContext.createOscillator();
+      const gain2 = audioContext.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioContext.destination);
+      osc2.frequency.setValueAtTime(659, now + 0.15);
+      gain2.gain.setValueAtTime(0.3, now + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      osc2.start(now + 0.15);
+      osc2.stop(now + 0.3);
+      
+      // Third note - G5
+      const osc3 = audioContext.createOscillator();
+      const gain3 = audioContext.createGain();
+      osc3.connect(gain3);
+      gain3.connect(audioContext.destination);
+      osc3.frequency.setValueAtTime(784, now + 0.3);
+      gain3.gain.setValueAtTime(0.3, now + 0.3);
+      gain3.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+      osc3.start(now + 0.3);
+      osc3.stop(now + 0.5);
+      
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+    } catch (e) {
+      console.log('Audio not supported');
+    }
+  };
 
   // Update ref when state changes
   useEffect(() => {
@@ -364,6 +443,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     if ((currentIndex + 1) % pauseAfterCount === 0 && currentIndex > 0) {
       setIsPaused(true);
       pauseRef.current = true;
+      pauseCount.current++;
+      playPauseSound();
       toast.info(`Pausa automática após ${pauseAfterCount} mensagens. Clique em "Continuar" para prosseguir.`);
       
       // Wait until unpaused or aborted
@@ -772,6 +853,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
     // Reset abort and pause flags
     abortRef.current = false;
     setIsPaused(false);
+    sendStartTime.current = Date.now();
+    pauseCount.current = 0;
 
     if (targetMode === 'numbers') {
       // Send to custom phone numbers
@@ -836,7 +919,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         }
       }
 
-      // Save to history
+      // Save to history with detailed info
+      const sendDuration = Math.round((Date.now() - sendStartTime.current) / 1000);
       if (!abortRef.current) {
         await supabase.from('bulk_dispatch_history').insert({
           user_id: user!.id,
@@ -847,13 +931,26 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           failed_count: failCount,
           message_content: customMessage,
           phone_group_id: selectedGroupId || null,
+          metadata: {
+            delay_seconds: delaySeconds,
+            pause_after_count: pauseAfterCount,
+            auto_pause_enabled: enableAutoPause,
+            total_pauses: pauseCount.current,
+            send_duration_seconds: sendDuration,
+            had_media: useMediaMode,
+            variations_used: useVariations,
+            variations_count: useVariations ? messageVariations.length : 0,
+          },
         });
 
+        // Play completion sound
+        playCompleteSound();
+
         if (useMediaMode) {
-          if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
+          if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) em ${sendDuration}s!`);
           if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
         } else {
-          toast.success(`WhatsApp aberto para ${successCount} número(s)!`);
+          toast.success(`WhatsApp aberto para ${successCount} número(s) em ${sendDuration}s!`);
         }
       }
       
@@ -999,7 +1096,8 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         }
       }
 
-      // Save to history
+      // Save to history with detailed info
+      const sendDuration = Math.round((Date.now() - sendStartTime.current) / 1000);
       if (!abortRef.current) {
         await supabase.from('bulk_dispatch_history').insert({
           user_id: user!.id,
@@ -1010,17 +1108,31 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           failed_count: failCount,
           message_content: customMessage,
           client_filter: clientFilter,
+          metadata: {
+            delay_seconds: delaySeconds,
+            pause_after_count: pauseAfterCount,
+            auto_pause_enabled: enableAutoPause,
+            total_pauses: pauseCount.current,
+            send_duration_seconds: sendDuration,
+            had_media: useMediaMode,
+            variations_used: useVariations,
+            variations_count: useVariations ? messageVariations.length : 0,
+            media_count: mediaAttachments.length,
+          },
         });
+
+        // Play completion sound
+        playCompleteSound();
 
         if (messageMode === 'whatsapp') {
           if (useMediaMode) {
-            if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) com sucesso!`);
+            if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) em ${sendDuration}s!`);
             if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
           } else {
-            toast.success(`WhatsApp aberto para ${successCount} cliente(s)!`);
+            toast.success(`WhatsApp aberto para ${successCount} cliente(s) em ${sendDuration}s!`);
           }
         } else {
-          if (successCount > 0) toast.success(`${successCount} email(s) enviado(s)!`);
+          if (successCount > 0) toast.success(`${successCount} email(s) enviado(s) em ${sendDuration}s!`);
           if (failCount > 0) toast.error(`${failCount} email(s) falhou(aram)`);
         }
       }
@@ -2022,11 +2134,17 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
               </Label>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={delaySeconds}
-                  onChange={(e) => setDelaySeconds(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
+                  type="text"
+                  inputMode="numeric"
+                  value={delaySecondsInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setDelaySecondsInput(val);
+                  }}
+                  onBlur={() => {
+                    const num = parseInt(delaySecondsInput) || 1;
+                    setDelaySecondsInput(String(Math.max(1, Math.min(60, num))));
+                  }}
                   disabled={isSending}
                   className="w-20 text-center"
                 />
@@ -2042,11 +2160,17 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
               </Label>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={pauseAfterCount}
-                  onChange={(e) => setPauseAfterCount(Math.max(0, parseInt(e.target.value) || 0))}
+                  type="text"
+                  inputMode="numeric"
+                  value={pauseAfterCountInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setPauseAfterCountInput(val);
+                  }}
+                  onBlur={() => {
+                    const num = parseInt(pauseAfterCountInput) || 0;
+                    setPauseAfterCountInput(String(Math.max(0, Math.min(100, num))));
+                  }}
                   disabled={isSending}
                   className="w-20 text-center"
                 />
