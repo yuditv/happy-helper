@@ -474,7 +474,7 @@ export default function Contacts() {
                 <Button 
                   variant="secondary" 
                   className="gap-2"
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/?target=contacts")}
                 >
                   <Send className="h-4 w-4" />
                   Usar no Disparo
