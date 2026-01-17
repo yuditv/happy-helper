@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database, CloudOff, Cloud, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useContacts, type Contact } from "@/hooks/useContacts";
+import { useContactsSupabase, type Contact } from "@/hooks/useContactsSupabase";
 import { ContactForm } from "@/components/ContactForm";
 import { exportContactsAsVCard } from "@/lib/exportVCard";
 import { toast } from "sonner";
@@ -26,12 +26,20 @@ import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
 export default function Contacts() {
-  const { contacts, isLoading, addContact, importContacts, clearAllContacts } = useContacts();
+  const { contacts, isLoading, userId, isConfigured, addContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
   const [formOpen, setFormOpen] = useState(false);
   const [clearAllConfirm, setClearAllConfirm] = useState(false);
+  const [contactCount, setContactCount] = useState(0);
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Fetch count separately for performance
+  useEffect(() => {
+    if (userId) {
+      getContactCount().then(setContactCount);
+    }
+  }, [userId, contacts.length, getContactCount]);
 
   const handleSubmit = (data: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
     addContact(data);
@@ -181,6 +189,43 @@ export default function Contacts() {
       excelInputRef.current.value = "";
     }
   };
+
+  if (!isConfigured) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <Card className="border-destructive/50">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <CloudOff className="h-12 w-12 text-destructive/50 mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-1">
+              Supabase não configurado
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-md mb-4">
+              Configure as variáveis de ambiente <code className="bg-muted px-1 rounded">VITE_CONTACTS_SUPABASE_URL</code> e{" "}
+              <code className="bg-muted px-1 rounded">VITE_CONTACTS_SUPABASE_KEY</code> no arquivo .env para conectar ao seu Supabase externo.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <Card className="border-amber-500/50">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Cloud className="h-12 w-12 text-amber-500/50 mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-1">
+              Login necessário
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-md">
+              Você precisa estar logado para acessar seus contatos salvos no Supabase.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
