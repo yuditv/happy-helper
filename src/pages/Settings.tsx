@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/NotificationSettings';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
-import { sendWhatsAppMessage } from '@/lib/evolutionApi';
+import { sendWhatsAppMessage } from '@/lib/uazapi';
 
 import { toast } from 'sonner';
 

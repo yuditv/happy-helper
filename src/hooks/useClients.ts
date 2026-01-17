@@ -4,7 +4,7 @@ import { Client, PlanType, ServiceType, RenewalRecord, getExpirationStatus, plan
 import { addMonths, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from './useAuth';
-import { sendWhatsAppMessage } from '@/lib/evolutionApi';
+import { sendWhatsAppMessage } from '@/lib/uazapi';
 
 interface DbClient {
   id: string;
