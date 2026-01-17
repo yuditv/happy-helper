@@ -16,7 +16,7 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
+    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evo.iadespertardigital.shop";
     const evolutionApiKey = Deno.env.get("EVOLUTION_API_KEY");
 
     console.log("EVOLUTION_API_URL exists:", !!evolutionApiUrl);
