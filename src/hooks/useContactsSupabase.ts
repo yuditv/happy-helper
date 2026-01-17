@@ -1,24 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
-// Create a separate client for the external Supabase (contacts database)
-const CONTACTS_SUPABASE_URL = import.meta.env.VITE_CONTACTS_SUPABASE_URL;
-const CONTACTS_SUPABASE_KEY = import.meta.env.VITE_CONTACTS_SUPABASE_KEY;
-
-// For edge function calls, we'll use the main supabase client
-import { supabase as mainSupabase } from "@/integrations/supabase/client";
-
-// Validate URL format
-const isValidUrl = (url: string | undefined): boolean => {
-  if (!url) return false;
-  try {
-    new URL(url);
-    return url.startsWith('http://') || url.startsWith('https://');
-  } catch {
-    return false;
-  }
-};
+// Note: The contacts table needs to be created in Supabase
+// This uses type assertions since the table may not be in the generated types yet
 
 export interface Contact {
   id: string;
@@ -53,44 +38,30 @@ function mapDbToContact(db: DbContact): Contact {
   };
 }
 
-// Check if external Supabase is configured with valid URLs
-const isExternalSupabaseConfigured = isValidUrl(CONTACTS_SUPABASE_URL) && Boolean(CONTACTS_SUPABASE_KEY);
-
-// Create client only if configured with valid URL
-const contactsSupabase = isExternalSupabaseConfigured
-  ? createClient(CONTACTS_SUPABASE_URL!, CONTACTS_SUPABASE_KEY!, {
-      auth: {
-        storage: localStorage,
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : null;
-
 export function useContactsSupabase() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  const [isConfigured, setIsConfigured] = useState(isExternalSupabaseConfigured);
+  const [isConfigured] = useState(true);
 
-  // Get current user from main Supabase
+  // Get current user
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await mainSupabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setUserId(user?.id || null);
     };
     getUser();
 
-    const { data: { subscription } } = mainSupabase.auth.onAuthStateChange((_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUserId(session?.user?.id || null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch contacts from external Supabase
+  // Fetch contacts
   const fetchContacts = useCallback(async () => {
-    if (!contactsSupabase || !userId) {
+    if (!userId) {
       setContacts([]);
       setIsLoading(false);
       return;
@@ -98,7 +69,8 @@ export function useContactsSupabase() {
 
     try {
       setIsLoading(true);
-      const { data, error } = await contactsSupabase
+      // Use type assertion since contacts table may not be in generated types
+      const { data, error } = await (supabase as any)
         .from("contacts")
         .select("*")
         .eq("user_id", userId)
@@ -116,18 +88,14 @@ export function useContactsSupabase() {
   }, [userId]);
 
   useEffect(() => {
-    if (isConfigured) {
-      fetchContacts();
-    } else {
-      setIsLoading(false);
-    }
-  }, [fetchContacts, isConfigured]);
+    fetchContacts();
+  }, [fetchContacts]);
 
-  // Get total count (for display without loading all data)
+  // Get total count
   const getContactCount = useCallback(async (): Promise<number> => {
-    if (!contactsSupabase || !userId) return 0;
+    if (!userId) return 0;
     
-    const { count, error } = await contactsSupabase
+    const { count, error } = await (supabase as any)
       .from("contacts")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId);
@@ -141,18 +109,13 @@ export function useContactsSupabase() {
   }, [userId, contacts.length]);
 
   const addContact = async (data: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
-    if (!contactsSupabase) {
-      toast.error("Supabase não está configurado");
-      return null;
-    }
-    
     if (!userId) {
       toast.error("Você precisa estar logado para adicionar contatos");
       return null;
     }
 
     try {
-      const { data: inserted, error } = await contactsSupabase
+      const { data: newData, error } = await (supabase as any)
         .from("contacts")
         .insert({
           user_id: userId,
@@ -165,8 +128,8 @@ export function useContactsSupabase() {
         .single();
 
       if (error) throw error;
-      
-      const newContact = mapDbToContact(inserted as DbContact);
+
+      const newContact = mapDbToContact(newData as unknown as DbContact);
       setContacts((prev) => [newContact, ...prev]);
       toast.success("Contato adicionado com sucesso!");
       return newContact;
@@ -178,7 +141,7 @@ export function useContactsSupabase() {
   };
 
   const updateContact = async (id: string, data: Partial<Omit<Contact, "id" | "createdAt" | "updatedAt">>) => {
-    if (!contactsSupabase || !userId) {
+    if (!userId) {
       toast.error("Você precisa estar logado");
       return;
     }
@@ -193,7 +156,7 @@ export function useContactsSupabase() {
       if (data.email !== undefined) updateData.email = data.email || null;
       if (data.notes !== undefined) updateData.notes = data.notes || null;
 
-      const { error } = await contactsSupabase
+      const { error } = await (supabase as any)
         .from("contacts")
         .update(updateData)
         .eq("id", id)
@@ -216,13 +179,13 @@ export function useContactsSupabase() {
   };
 
   const deleteContact = async (id: string) => {
-    if (!contactsSupabase || !userId) {
+    if (!userId) {
       toast.error("Você precisa estar logado");
       return;
     }
 
     try {
-      const { error } = await contactsSupabase
+      const { error } = await (supabase as any)
         .from("contacts")
         .delete()
         .eq("id", id)
@@ -252,11 +215,6 @@ export function useContactsSupabase() {
   const importContacts = async (
     importedContacts: Array<Omit<Contact, "id" | "createdAt" | "updatedAt">>
   ) => {
-    if (!contactsSupabase) {
-      toast.error("Supabase não está configurado");
-      return;
-    }
-    
     if (!userId) {
       toast.error("Você precisa estar logado para importar contatos");
       return;
@@ -271,24 +229,22 @@ export function useContactsSupabase() {
         notes: c.notes || null,
       }));
 
-      // Insert in batches of 500 to avoid payload limits
+      // Insert in batches of 500
       const batchSize = 500;
       let totalInserted = 0;
 
       for (let i = 0; i < contactsToInsert.length; i += batchSize) {
         const batch = contactsToInsert.slice(i, i + batchSize);
-        const { error } = await contactsSupabase.from("contacts").insert(batch);
+        const { error } = await (supabase as any).from("contacts").insert(batch);
 
         if (error) throw error;
         totalInserted += batch.length;
         
-        // Show progress for large imports
         if (contactsToInsert.length > batchSize) {
           toast.info(`Importando... ${totalInserted}/${contactsToInsert.length}`);
         }
       }
 
-      // Refresh the contacts list
       await fetchContacts();
       toast.success(`${totalInserted} contato(s) importado(s) com sucesso!`);
     } catch (error) {
@@ -298,13 +254,13 @@ export function useContactsSupabase() {
   };
 
   const clearAllContacts = async () => {
-    if (!contactsSupabase || !userId) {
+    if (!userId) {
       toast.error("Você precisa estar logado");
       return;
     }
 
     try {
-      const { error } = await contactsSupabase
+      const { error } = await (supabase as any)
         .from("contacts")
         .delete()
         .eq("user_id", userId);
@@ -319,12 +275,11 @@ export function useContactsSupabase() {
     }
   };
 
-  // Get all phone numbers for bulk dispatch
   const getAllPhoneNumbers = useCallback(async (): Promise<string[]> => {
-    if (!contactsSupabase || !userId) return [];
+    if (!userId) return [];
 
     try {
-      const { data, error } = await contactsSupabase
+      const { data, error } = await (supabase as any)
         .from("contacts")
         .select("phone")
         .eq("user_id", userId);
