@@ -6,26 +6,28 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff, Zap, Signal, Trash2, Settings, MoreVertical, Power, Eye, Copy, Check } from "lucide-react";
+import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff, Zap, Signal, Trash2, Settings, MoreVertical, Eye, Copy, Check, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useWhatsAppInstances, WhatsAppInstance } from "@/hooks/useWhatsAppInstances";
+import { QRCodeTimer } from "@/components/QRCodeTimer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "qrcode";
 
-interface InstanceData {
-  instanceName: string;
-  status: ConnectionStatus;
-  qrcode?: string;
-  base64?: string;
-  createdAt?: string;
-  lastConnected?: string;
-}
-
 export function WhatsAppConnection() {
-  const [instances, setInstances] = useState<InstanceData[]>([]);
-  const [selectedInstance, setSelectedInstance] = useState<InstanceData | null>(null);
+  const { 
+    instances, 
+    isLoading, 
+    createInstance: createDbInstance, 
+    updateInstanceStatus, 
+    deleteInstance: deleteDbInstance,
+    setInstanceQRCode 
+  } = useWhatsAppInstances();
+  
+  const [selectedInstance, setSelectedInstance] = useState<WhatsAppInstance | null>(null);
   const [instanceName, setInstanceName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isChecking, setIsChecking] = useState<string | null>(null);
@@ -33,32 +35,26 @@ export function WhatsAppConnection() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [copiedInstance, setCopiedInstance] = useState<string | null>(null);
+  const [qrTimerKey, setQrTimerKey] = useState(0);
 
+  // Update selected instance when instances change
   useEffect(() => {
-    loadInstances();
-  }, []);
+    if (selectedInstance) {
+      const updated = instances.find(i => i.instance_name === selectedInstance.instance_name);
+      if (updated) {
+        setSelectedInstance(updated);
+      }
+    }
+  }, [instances]);
 
-  const loadInstances = () => {
-    const saved = localStorage.getItem("whatsapp_instances");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setInstances(parsed.map((inst: InstanceData) => ({ ...inst, status: "disconnected" as ConnectionStatus })));
-      // Check status of all instances
-      parsed.forEach((inst: InstanceData) => {
-        checkInstanceStatus(inst.instanceName, false);
+  // Check status of all instances on mount
+  useEffect(() => {
+    if (!isLoading && instances.length > 0) {
+      instances.forEach(inst => {
+        checkInstanceStatus(inst.instance_name, false);
       });
     }
-  };
-
-  const saveInstances = (newInstances: InstanceData[]) => {
-    const toSave = newInstances.map(({ instanceName, createdAt, lastConnected }) => ({
-      instanceName,
-      createdAt,
-      lastConnected
-    }));
-    localStorage.setItem("whatsapp_instances", JSON.stringify(toSave));
-    setInstances(newInstances);
-  };
+  }, [isLoading]);
 
   const createInstance = async () => {
     if (!instanceName.trim()) {
@@ -66,15 +62,18 @@ export function WhatsAppConnection() {
       return;
     }
 
-    if (instances.some(inst => inst.instanceName === instanceName.trim())) {
-      toast.error("Já existe uma instância com esse nome");
-      return;
-    }
-
     setIsCreating(true);
     setError(null);
 
     try {
+      // First create in database
+      const dbInstance = await createDbInstance(instanceName.trim());
+      if (!dbInstance) {
+        setIsCreating(false);
+        return;
+      }
+
+      // Then create in Evolution API
       const { data, error } = await supabase.functions.invoke("create-whatsapp-instance", {
         body: { instanceName: instanceName.trim() },
       });
@@ -85,21 +84,19 @@ export function WhatsAppConnection() {
         throw new Error(data.error);
       }
 
-      const newInstance: InstanceData = {
-        instanceName: instanceName.trim(),
-        status: "qrcode",
-        base64: data?.data?.qrcode?.base64,
-        createdAt: new Date().toISOString(),
-      };
+      const base64 = data?.data?.qrcode?.base64;
+      if (base64) {
+        setInstanceQRCode(instanceName.trim(), base64);
+        await updateInstanceStatus(instanceName.trim(), "qrcode");
+      }
 
-      const updatedInstances = [...instances, newInstance];
-      saveInstances(updatedInstances);
-      setSelectedInstance(newInstance);
+      setSelectedInstance({ ...dbInstance, base64, status: "qrcode" });
       setInstanceName("");
       setShowCreateDialog(false);
+      setQrTimerKey(prev => prev + 1);
       toast.success("Instância criada com sucesso!");
 
-      if (!data?.data?.qrcode?.base64) {
+      if (!base64) {
         await getQRCode(instanceName.trim());
       }
     } catch (err: any) {
@@ -124,22 +121,11 @@ export function WhatsAppConnection() {
 
       const state = data?.data?.instance?.state || data?.data?.state;
       
-      const updateStatus = (status: ConnectionStatus) => {
-        setInstances(prev => prev.map(inst => 
-          inst.instanceName === name 
-            ? { ...inst, status, lastConnected: status === "connected" ? new Date().toISOString() : inst.lastConnected } 
-            : inst
-        ));
-        if (selectedInstance?.instanceName === name) {
-          setSelectedInstance(prev => prev ? { ...prev, status } : null);
-        }
-      };
-
       if (state === "open" || state === "connected") {
-        updateStatus("connected");
+        await updateInstanceStatus(name, "connected");
         if (showToast) toast.success(`${name} conectado!`);
       } else if (state === "close" || state === "disconnected") {
-        updateStatus("disconnected");
+        await updateInstanceStatus(name, "disconnected");
       } else {
         await getQRCode(name);
       }
@@ -163,34 +149,22 @@ export function WhatsAppConnection() {
 
       const base64 = data?.data?.base64 || data?.data?.qrcode?.base64;
       
-      setInstances(prev => prev.map(inst => 
-        inst.instanceName === name 
-          ? { ...inst, status: base64 ? "qrcode" : "disconnected", base64 } 
-          : inst
-      ));
-      
-      if (selectedInstance?.instanceName === name) {
-        setSelectedInstance(prev => prev ? { ...prev, status: base64 ? "qrcode" : "disconnected", base64 } : null);
-      }
+      setInstanceQRCode(name, base64);
+      await updateInstanceStatus(name, base64 ? "qrcode" : "disconnected");
+      setQrTimerKey(prev => prev + 1);
     } catch (err: any) {
       console.error("Error getting QR code:", err);
-      setInstances(prev => prev.map(inst => 
-        inst.instanceName === name 
-          ? { ...inst, status: "disconnected" } 
-          : inst
-      ));
+      await updateInstanceStatus(name, "disconnected");
     } finally {
       setIsLoadingQR(null);
     }
   };
 
-  const deleteInstance = (name: string) => {
-    const updatedInstances = instances.filter(inst => inst.instanceName !== name);
-    saveInstances(updatedInstances);
-    if (selectedInstance?.instanceName === name) {
+  const handleDeleteInstance = async (name: string) => {
+    const success = await deleteDbInstance(name);
+    if (success && selectedInstance?.instance_name === name) {
       setSelectedInstance(null);
     }
-    toast.info(`Instância ${name} removida`);
   };
 
   const copyInstanceName = (name: string) => {
@@ -200,7 +174,7 @@ export function WhatsAppConnection() {
     toast.success("Nome copiado!");
   };
 
-  const getStatusBadge = (status: ConnectionStatus) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "connected":
         return (
@@ -236,7 +210,7 @@ export function WhatsAppConnection() {
     }
   };
 
-  const getStatusColor = (status: ConnectionStatus) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "connected":
         return "from-emerald-500/20 to-green-500/10 border-emerald-500/30";
@@ -264,7 +238,7 @@ export function WhatsAppConnection() {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex items-center justify-between flex-wrap gap-4"
       >
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -277,11 +251,20 @@ export function WhatsAppConnection() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
               Conexão WhatsApp
             </h1>
-            <p className="text-muted-foreground mt-1 flex items-center gap-2">
+            <p className="text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
               <Signal className="h-4 w-4" />
-              Uazapi Integration • {instances.length} instância{instances.length !== 1 ? "s" : ""}
-              {connectedCount > 0 && (
-                <span className="text-emerald-400">• {connectedCount} online</span>
+              Uazapi Integration
+              <Badge variant="outline" className="ml-2 border-green-500/30 text-green-400">
+                <Database className="h-3 w-3 mr-1" />
+                Sincronizado
+              </Badge>
+              {!isLoading && (
+                <>
+                  <span>• {instances.length} instância{instances.length !== 1 ? "s" : ""}</span>
+                  {connectedCount > 0 && (
+                    <span className="text-emerald-400">• {connectedCount} online</span>
+                  )}
+                </>
               )}
             </p>
           </div>
@@ -362,8 +345,27 @@ export function WhatsAppConnection() {
         )}
       </AnimatePresence>
 
-      {/* Instances Grid */}
-      {instances.length === 0 ? (
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="border-0 bg-gradient-to-br from-card/50 to-card/20 backdrop-blur-xl">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-6 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : instances.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -395,7 +397,7 @@ export function WhatsAppConnection() {
           <AnimatePresence mode="popLayout">
             {instances.map((instance, index) => (
               <motion.div
-                key={instance.instanceName}
+                key={instance.id}
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -403,7 +405,7 @@ export function WhatsAppConnection() {
                 transition={{ delay: index * 0.05 }}
               >
                 <Card 
-                  className={`relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] border-0 bg-gradient-to-br ${getStatusColor(instance.status)} backdrop-blur-xl shadow-xl hover:shadow-2xl ${selectedInstance?.instanceName === instance.instanceName ? 'ring-2 ring-green-500/50' : ''}`}
+                  className={`relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] border-0 bg-gradient-to-br ${getStatusColor(instance.status)} backdrop-blur-xl shadow-xl hover:shadow-2xl ${selectedInstance?.instance_name === instance.instance_name ? 'ring-2 ring-green-500/50' : ''}`}
                   onClick={() => setSelectedInstance(instance)}
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
@@ -420,10 +422,10 @@ export function WhatsAppConnection() {
                         </div>
                         <div>
                           <CardTitle className="text-lg font-mono truncate max-w-[150px]">
-                            {instance.instanceName}
+                            {instance.instance_name}
                           </CardTitle>
                           <p className="text-xs text-muted-foreground/70">
-                            {instance.createdAt ? new Date(instance.createdAt).toLocaleDateString('pt-BR') : 'Recente'}
+                            {new Date(instance.created_at).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                       </div>
@@ -435,12 +437,12 @@ export function WhatsAppConnection() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-card/95 backdrop-blur-xl border-border/50">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); checkInstanceStatus(instance.instanceName); }}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); checkInstanceStatus(instance.instance_name); }}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Atualizar Status
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); copyInstanceName(instance.instanceName); }}>
-                            {copiedInstance === instance.instanceName ? (
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); copyInstanceName(instance.instance_name); }}>
+                            {copiedInstance === instance.instance_name ? (
                               <Check className="mr-2 h-4 w-4 text-green-400" />
                             ) : (
                               <Copy className="mr-2 h-4 w-4" />
@@ -453,7 +455,7 @@ export function WhatsAppConnection() {
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
-                            onClick={(e) => { e.stopPropagation(); deleteInstance(instance.instanceName); }}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteInstance(instance.instance_name); }}
                             className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -467,14 +469,14 @@ export function WhatsAppConnection() {
                   <CardContent className="relative pt-2">
                     <div className="flex items-center justify-between">
                       {getStatusBadge(instance.status)}
-                      {isChecking === instance.instanceName && (
+                      {isChecking === instance.instance_name && (
                         <Loader2 className="h-4 w-4 animate-spin text-green-400" />
                       )}
                     </div>
                     
-                    {instance.lastConnected && instance.status === 'connected' && (
+                    {instance.last_connected_at && instance.status === 'connected' && (
                       <p className="text-xs text-muted-foreground/60 mt-3">
-                        Última conexão: {new Date(instance.lastConnected).toLocaleString('pt-BR')}
+                        Última conexão: {new Date(instance.last_connected_at).toLocaleString('pt-BR')}
                       </p>
                     )}
                   </CardContent>
@@ -503,7 +505,7 @@ export function WhatsAppConnection() {
                     <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20">
                       <Smartphone className="h-5 w-5 text-green-400" />
                     </div>
-                    <span className="font-mono text-lg">{selectedInstance.instanceName}</span>
+                    <span className="font-mono text-lg">{selectedInstance.instance_name}</span>
                   </CardTitle>
                   {getStatusBadge(selectedInstance.status)}
                 </div>
@@ -534,11 +536,11 @@ export function WhatsAppConnection() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    onClick={() => checkInstanceStatus(selectedInstance.instanceName)}
-                    disabled={isChecking === selectedInstance.instanceName}
+                    onClick={() => checkInstanceStatus(selectedInstance.instance_name)}
+                    disabled={isChecking === selectedInstance.instance_name}
                     className="py-6 bg-background/50 border-border/50 hover:bg-green-500/10 hover:border-green-500/50 hover:text-green-400 transition-all duration-300"
                   >
-                    {isChecking === selectedInstance.instanceName ? (
+                    {isChecking === selectedInstance.instance_name ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <RefreshCw className="mr-2 h-4 w-4" />
@@ -547,7 +549,7 @@ export function WhatsAppConnection() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => deleteInstance(selectedInstance.instanceName)}
+                    onClick={() => handleDeleteInstance(selectedInstance.instance_name)}
                     className="py-6 bg-background/50 border-border/50 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-400 transition-all duration-300"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
@@ -579,11 +581,11 @@ export function WhatsAppConnection() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => getQRCode(selectedInstance.instanceName)}
-                    disabled={isLoadingQR === selectedInstance.instanceName || selectedInstance.status === "connected"}
+                    onClick={() => getQRCode(selectedInstance.instance_name)}
+                    disabled={isLoadingQR === selectedInstance.instance_name || selectedInstance.status === "connected"}
                     className="hover:bg-green-500/10 hover:text-green-400 transition-all"
                   >
-                    {isLoadingQR === selectedInstance.instanceName ? (
+                    {isLoadingQR === selectedInstance.instance_name ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <RefreshCw className="h-4 w-4" />
@@ -610,7 +612,7 @@ export function WhatsAppConnection() {
                       Sua instância está pronta
                     </p>
                   </motion.div>
-                ) : isLoadingQR === selectedInstance.instanceName ? (
+                ) : isLoadingQR === selectedInstance.instance_name ? (
                   <div className="flex flex-col items-center justify-center p-8">
                     <div className="relative">
                       <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
@@ -622,7 +624,7 @@ export function WhatsAppConnection() {
                   <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="flex justify-center"
+                    className="flex flex-col items-center gap-4"
                   >
                     <div className="relative group">
                       <div className="absolute -inset-2 bg-gradient-to-r from-green-500/30 via-emerald-500/30 to-teal-500/30 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
@@ -634,6 +636,17 @@ export function WhatsAppConnection() {
                         />
                       </div>
                     </div>
+                    
+                    {/* QR Code Timer */}
+                    <QRCodeTimer
+                      key={qrTimerKey}
+                      duration={60}
+                      onExpire={() => {
+                        setInstanceQRCode(selectedInstance.instance_name, undefined);
+                      }}
+                      onRefresh={() => getQRCode(selectedInstance.instance_name)}
+                      isRefreshing={isLoadingQR === selectedInstance.instance_name}
+                    />
                   </motion.div>
                 ) : (
                   <div className="flex flex-col items-center justify-center p-8">
@@ -645,7 +658,7 @@ export function WhatsAppConnection() {
                     </p>
                     <Button 
                       variant="outline" 
-                      onClick={() => getQRCode(selectedInstance.instanceName)}
+                      onClick={() => getQRCode(selectedInstance.instance_name)}
                       className="mt-4 hover:bg-green-500/10 hover:border-green-500/50 hover:text-green-400"
                     >
                       <RefreshCw className="mr-2 h-4 w-4" />
