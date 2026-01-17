@@ -26,3 +26,12 @@ verify_jwt = false
 
 [functions.check-whatsapp-numbers]
 verify_jwt = false
+
+[functions.create-whatsapp-instance]
+verify_jwt = false
+
+[functions.get-whatsapp-instance]
+verify_jwt = false
+
+[functions.get-whatsapp-qrcode]
+verify_jwt = false
