@@ -241,41 +241,14 @@ const handler = async (req: Request): Promise<Response> => {
       const userSettings = settings as NotificationSettings;
       console.log(`Processing user ${userSettings.user_id} with reminder days: ${userSettings.reminder_days}`);
 
-      // For each reminder day configured
-      for (const days of userSettings.reminder_days) {
-        const targetDate = new Date(now);
-        targetDate.setDate(targetDate.getDate() + days);
-        
-        const startOfDay = new Date(targetDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(targetDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        console.log(`Checking for clients of user ${userSettings.user_id} expiring in ${days} days`);
-
-        // Find clients expiring on target date for this user
-        const { data: clients, error: clientsError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('user_id', userSettings.user_id)
-          .gte('expires_at', startOfDay.toISOString())
-          .lte('expires_at', endOfDay.toISOString());
-
-        if (clientsError) {
-          console.error(`Error fetching clients for user ${userSettings.user_id}:`, clientsError);
-          continue;
-        }
-
-        console.log(`Found ${clients?.length || 0} clients expiring in ${days} days for user ${userSettings.user_id}`);
-
-        for (const client of clients || []) {
-          const clientData = client as Client;
+      // Helper function to process clients and send notifications
+      async function processClients(clients: Client[], daysRemaining: number) {
+        for (const clientData of clients) {
           const planName = planLabels[clientData.plan] || clientData.plan;
           const expiresAtDate = new Date(clientData.expires_at);
           const expiresAtFormatted = formatDate(expiresAtDate);
 
-          // Check if we already sent a notification today for this client and day
+          // Check if we already sent a notification today for this client
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const todayEnd = new Date();
@@ -297,14 +270,18 @@ const handler = async (req: Request): Promise<Response> => {
           // Send email if enabled
           if (userSettings.email_reminders_enabled && clientData.email) {
             try {
-              let subject = `📅 ${clientData.name}, seu plano ${planName} vence em ${days} dia(s)`;
-              if (days === 1) {
-                subject = `🔔 ${clientData.name}, seu plano ${planName} vence amanhã!`;
-              } else if (days === 0) {
+              let subject = "";
+              if (daysRemaining < 0) {
+                subject = `🚨 ${clientData.name}, seu plano ${planName} expirou há ${Math.abs(daysRemaining)} dia(s)!`;
+              } else if (daysRemaining === 0) {
                 subject = `⚠️ ${clientData.name}, seu plano ${planName} vence hoje!`;
+              } else if (daysRemaining === 1) {
+                subject = `🔔 ${clientData.name}, seu plano ${planName} vence amanhã!`;
+              } else {
+                subject = `📅 ${clientData.name}, seu plano ${planName} vence em ${daysRemaining} dia(s)`;
               }
 
-              const html = generateEmailHtml(clientData.name, planName, days, expiresAtFormatted);
+              const html = generateEmailHtml(clientData.name, planName, daysRemaining, expiresAtFormatted);
 
               const emailResponse = await resend.emails.send({
                 from: "Sistema de Clientes <onboarding@resend.dev>",
@@ -320,7 +297,9 @@ const handler = async (req: Request): Promise<Response> => {
               await supabase.from('notification_history').insert({
                 client_id: clientData.id,
                 message_type: 'email',
-                message_content: `Lembrete de vencimento - ${days} dias`,
+                message_content: daysRemaining < 0 
+                  ? `Lembrete de expiração - expirado há ${Math.abs(daysRemaining)} dias`
+                  : `Lembrete de vencimento - ${daysRemaining} dias`,
                 sent_at: new Date().toISOString(),
               });
             } catch (emailError) {
@@ -330,7 +309,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           // Send WhatsApp message via Uazapi if enabled
           if (userSettings.whatsapp_reminders_enabled && clientData.phone) {
-            const whatsappMessage = generateWhatsAppMessage(clientData.name, planName, days);
+            const whatsappMessage = generateWhatsAppMessage(clientData.name, planName, daysRemaining);
             
             console.log(`Sending WhatsApp to ${clientData.name} (${clientData.phone})...`);
             
@@ -344,7 +323,9 @@ const handler = async (req: Request): Promise<Response> => {
               await supabase.from('notification_history').insert({
                 client_id: clientData.id,
                 message_type: 'whatsapp',
-                message_content: `Lembrete de vencimento - ${days} dias (Uazapi)`,
+                message_content: daysRemaining < 0 
+                  ? `Lembrete de expiração - expirado há ${Math.abs(daysRemaining)} dias (Uazapi)`
+                  : `Lembrete de vencimento - ${daysRemaining} dias (Uazapi)`,
                 sent_at: new Date().toISOString(),
               });
             } else {
@@ -355,7 +336,7 @@ const handler = async (req: Request): Promise<Response> => {
               await supabase.from('notification_history').insert({
                 client_id: clientData.id,
                 message_type: 'whatsapp',
-                message_content: `Lembrete falhou - ${days} dias (${result.error})`,
+                message_content: `Lembrete falhou - ${daysRemaining} dias (${result.error})`,
                 sent_at: new Date().toISOString(),
               });
             }
@@ -364,11 +345,85 @@ const handler = async (req: Request): Promise<Response> => {
             await new Promise(resolve => setTimeout(resolve, 1500));
           }
         }
+      }
+
+      // 1. Process clients EXPIRING in configured days
+      for (const days of userSettings.reminder_days) {
+        const targetDate = new Date(now);
+        targetDate.setDate(targetDate.getDate() + days);
+        
+        const startOfDay = new Date(targetDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const endOfDay = new Date(targetDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        console.log(`Checking for clients of user ${userSettings.user_id} expiring in ${days} days`);
+
+        const { data: clients, error: clientsError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('user_id', userSettings.user_id)
+          .gte('expires_at', startOfDay.toISOString())
+          .lte('expires_at', endOfDay.toISOString());
+
+        if (clientsError) {
+          console.error(`Error fetching clients for user ${userSettings.user_id}:`, clientsError);
+          continue;
+        }
+
+        console.log(`Found ${clients?.length || 0} clients expiring in ${days} days for user ${userSettings.user_id}`);
+        
+        if (clients && clients.length > 0) {
+          await processClients(clients as Client[], days);
+        }
 
         results.push({
           user_id: userSettings.user_id,
           day: days,
           clientsFound: clients?.length || 0,
+          type: 'expiring'
+        });
+      }
+
+      // 2. Process EXPIRED clients (up to 30 days ago)
+      const expiredDays = [1, 3, 7, 14, 30]; // Days after expiration to send reminders
+      
+      for (const daysAgo of expiredDays) {
+        const targetDate = new Date(now);
+        targetDate.setDate(targetDate.getDate() - daysAgo);
+        
+        const startOfDay = new Date(targetDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const endOfDay = new Date(targetDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        console.log(`Checking for clients of user ${userSettings.user_id} expired ${daysAgo} days ago`);
+
+        const { data: expiredClients, error: expiredError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('user_id', userSettings.user_id)
+          .gte('expires_at', startOfDay.toISOString())
+          .lte('expires_at', endOfDay.toISOString());
+
+        if (expiredError) {
+          console.error(`Error fetching expired clients for user ${userSettings.user_id}:`, expiredError);
+          continue;
+        }
+
+        console.log(`Found ${expiredClients?.length || 0} clients expired ${daysAgo} days ago for user ${userSettings.user_id}`);
+        
+        if (expiredClients && expiredClients.length > 0) {
+          await processClients(expiredClients as Client[], -daysAgo);
+        }
+
+        results.push({
+          user_id: userSettings.user_id,
+          day: -daysAgo,
+          clientsFound: expiredClients?.length || 0,
+          type: 'expired'
         });
       }
     }
