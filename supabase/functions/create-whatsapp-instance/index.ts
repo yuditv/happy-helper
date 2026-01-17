@@ -1,3 +1,4 @@
+// Edge function to create WhatsApp instance via Evolution API
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
