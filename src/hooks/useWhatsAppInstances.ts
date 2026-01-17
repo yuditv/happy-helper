@@ -1,60 +1,67 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface WhatsAppInstance {
   id: string;
-  name: string;
+  user_id: string;
+  instance_id: string;
+  instance_name: string;
   token: string;
   status: 'disconnected' | 'connecting' | 'connected' | 'qr';
   phone?: string;
-  profilePicture?: string;
-  profileName?: string;
+  profile_name?: string;
+  profile_picture?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export function useWhatsAppInstances() {
+  const { user } = useAuth();
   const [instances, setInstances] = useState<WhatsAppInstance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Fetch instances from Supabase database
   const fetchInstances = useCallback(async () => {
+    if (!user?.id) return;
+    
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('uazapi-list-instances');
+      // Using any to bypass type checking since table might not be in types.ts yet
+      const { data, error } = await (supabase as any)
+        .from('whatsapp_instances')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Error fetching instances:', error);
-        toast.error('Erro ao carregar instâncias');
+        // Don't show error if table doesn't exist yet
+        if (!error.message?.includes('does not exist')) {
+          toast.error('Erro ao carregar instâncias');
+        }
         return;
       }
 
-      if (data?.instances) {
-        const formattedInstances: WhatsAppInstance[] = data.instances.map((inst: any) => ({
-          id: inst.id || inst.name,
-          name: inst.name,
-          token: inst.token,
-          status: inst.status === 'open' ? 'connected' : 
-                  inst.status === 'qrcode' ? 'qr' : 
-                  inst.status === 'connecting' ? 'connecting' : 'disconnected',
-          phone: inst.phone || inst.wid?.replace('@s.whatsapp.net', ''),
-          profilePicture: inst.profilePicture || inst.picture,
-          profileName: inst.profileName || inst.pushname,
-        }));
-        setInstances(formattedInstances);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Erro ao carregar instâncias');
+      setInstances((data as WhatsAppInstance[]) || []);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
+  // Create new instance
   const createInstance = useCallback(async (name: string) => {
+    if (!user?.id) {
+      toast.error('Usuário não autenticado');
+      return null;
+    }
+
     setIsCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('uazapi-init-instance', {
-        body: { name }
+        body: { name, user_id: user.id }
       });
 
       if (error) {
@@ -78,12 +85,13 @@ export function useWhatsAppInstances() {
     } finally {
       setIsCreating(false);
     }
-  }, [fetchInstances]);
+  }, [user?.id, fetchInstances]);
 
-  const deleteInstance = useCallback(async (token: string) => {
+  // Delete instance
+  const deleteInstance = useCallback(async (instance: WhatsAppInstance) => {
     try {
       const { data, error } = await supabase.functions.invoke('uazapi-delete-instance', {
-        body: { token }
+        body: { token: instance.token, instance_id: instance.id }
       });
 
       if (error) {
@@ -107,7 +115,8 @@ export function useWhatsAppInstances() {
     }
   }, [fetchInstances]);
 
-  const getQRCode = useCallback(async (token: string) => {
+  // Get QR Code
+  const getQRCode = useCallback(async (token: string): Promise<string | null> => {
     try {
       const { data, error } = await supabase.functions.invoke('uazapi-qrcode', {
         body: { token }
@@ -125,7 +134,8 @@ export function useWhatsAppInstances() {
     }
   }, []);
 
-  const getPairingCode = useCallback(async (token: string, phone: string) => {
+  // Get pairing code
+  const getPairingCode = useCallback(async (token: string, phone: string): Promise<string | null> => {
     try {
       const { data, error } = await supabase.functions.invoke('uazapi-pairing-code', {
         body: { token, phone }
@@ -150,10 +160,11 @@ export function useWhatsAppInstances() {
     }
   }, []);
 
-  const getStatus = useCallback(async (token: string) => {
+  // Get status and update in database
+  const getStatus = useCallback(async (instance: WhatsAppInstance) => {
     try {
       const { data, error } = await supabase.functions.invoke('uazapi-status', {
-        body: { token }
+        body: { token: instance.token, instance_id: instance.id }
       });
 
       if (error) {
@@ -161,17 +172,21 @@ export function useWhatsAppInstances() {
         return null;
       }
 
+      // Refresh instances to get updated data
+      await fetchInstances();
+
       return data;
     } catch (error) {
       console.error('Error:', error);
       return null;
     }
-  }, []);
+  }, [fetchInstances]);
 
-  const disconnectInstance = useCallback(async (token: string) => {
+  // Disconnect instance
+  const disconnectInstance = useCallback(async (instance: WhatsAppInstance) => {
     try {
       const { data, error } = await supabase.functions.invoke('uazapi-disconnect', {
-        body: { token }
+        body: { token: instance.token, instance_id: instance.id }
       });
 
       if (error) {
@@ -194,6 +209,13 @@ export function useWhatsAppInstances() {
       return false;
     }
   }, [fetchInstances]);
+
+  // Auto-fetch instances when user changes
+  useEffect(() => {
+    if (user?.id) {
+      fetchInstances();
+    }
+  }, [user?.id, fetchInstances]);
 
   return {
     instances,

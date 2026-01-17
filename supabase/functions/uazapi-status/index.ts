@@ -1,19 +1,25 @@
+// Uazapi Status - Edge Function
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const url = new URL(req.url);
-    const token = url.searchParams.get('token');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    // Accept token from POST body
+    const { token, instance_id } = await req.json();
 
     if (!token) {
       return new Response(
@@ -25,7 +31,7 @@ serve(async (req) => {
     console.log(`Getting status for token: ${token.substring(0, 10)}...`);
 
     // Get instance status using Uazapi API
-    const response = await fetch('https://yudipro.uazapi.com/instance/status', {
+    const response = await fetch(`${UAZAPI_BASE_URL}/instance/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -44,13 +50,55 @@ serve(async (req) => {
       );
     }
 
+    // Determine status
+    const isConnected = data.connected || data.status === 'open' || data.state === 'open';
+    const status = isConnected ? 'connected' : 
+                   (data.status === 'qrcode' || data.state === 'qrcode') ? 'qr' :
+                   (data.status === 'connecting' || data.state === 'connecting') ? 'connecting' : 
+                   'disconnected';
+
+    // Update status in database if instance_id is provided
+    if (instance_id && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      
+      const updateData: Record<string, unknown> = {
+        status: status,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Update phone and profile if connected
+      if (isConnected) {
+        if (data.phone || data.wid) {
+          updateData.phone = (data.phone || data.wid || '').replace('@s.whatsapp.net', '');
+        }
+        if (data.pushname || data.profile?.name) {
+          updateData.profile_name = data.pushname || data.profile?.name;
+        }
+        if (data.picture || data.profile?.picture) {
+          updateData.profile_picture = data.picture || data.profile?.picture;
+        }
+      }
+
+      const { error: dbError } = await supabase
+        .from('whatsapp_instances')
+        .update(updateData)
+        .eq('id', instance_id);
+
+      if (dbError) {
+        console.error('Error updating database:', dbError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        status: data.status || data.state || data,
-        connected: data.connected || data.status === 'open' || data.state === 'open',
-        profile: data.profile || null,
-        phone: data.phone || data.wid || null
+        status: status,
+        connected: isConnected,
+        phone: (data.phone || data.wid || '').replace('@s.whatsapp.net', ''),
+        profile: {
+          name: data.pushname || data.profile?.name,
+          picture: data.picture || data.profile?.picture,
+        }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
