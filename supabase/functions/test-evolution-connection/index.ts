@@ -22,7 +22,7 @@ serve(async (req: Request): Promise<Response> => {
       secrets: {
         EVOLUTION_API_URL: {
           exists: !!evolutionApiUrl,
-          value: evolutionApiUrl ? `${evolutionApiUrl.substring(0, 30)}...` : "NOT SET",
+          value: evolutionApiUrl || "NOT SET",
           length: evolutionApiUrl?.length || 0,
         },
         EVOLUTION_API_KEY: {
@@ -36,10 +36,10 @@ serve(async (req: Request): Promise<Response> => {
 
     if (evolutionApiUrl && evolutionApiKey) {
       console.log("Testing connection to Evolution API...");
-      console.log("URL:", evolutionApiUrl);
+      console.log("Base URL:", evolutionApiUrl);
       
       try {
-        // Test fetching all instances (simple GET request)
+        // Use the correct endpoint: /instance/fetchInstances
         const testUrl = `${evolutionApiUrl}/instance/fetchInstances`;
         console.log("Test URL:", testUrl);
 
@@ -66,6 +66,7 @@ serve(async (req: Request): Promise<Response> => {
           success: response.ok,
           status: response.status,
           statusText: response.statusText,
+          endpoint: testUrl,
           response: responseData,
         };
       } catch (fetchError: any) {
