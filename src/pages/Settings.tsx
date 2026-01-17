@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, DollarSign, Bell, Palette, Save, Moon, Sun, Monitor, Loader2, Shield } from 'lucide-react';
+import { ArrowLeft, DollarSign, Bell, Palette, Save, Moon, Sun, Monitor, Loader2, Shield, Send, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/NotificationSettings';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -239,9 +240,9 @@ export default function Settings() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label>Lembretes por WhatsApp (Evolution API)</Label>
+                          <Label>Lembretes por WhatsApp (Uazapi)</Label>
                           <p className="text-sm text-muted-foreground">
-                            Enviar mensagens automáticas via Evolution API
+                            Enviar mensagens automáticas via WhatsApp conectado
                           </p>
                         </div>
                         <Switch
@@ -326,11 +327,59 @@ export default function Settings() {
                       </div>
                     )}
 
-                    <div className="pt-4 border-t">
+                    <div className="pt-4 border-t space-y-4">
                       <p className="text-sm text-muted-foreground">
                         💡 <strong>Dica:</strong> Quando o envio automático está ativo, o sistema verifica diariamente 
-                        e envia lembretes por email para clientes com planos vencendo nos dias configurados.
+                        e envia lembretes por email e WhatsApp para clientes com planos vencendo nos dias configurados.
                       </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button 
+                          variant="outline"
+                          className="gap-2"
+                          onClick={async () => {
+                            toast.loading('Executando verificação de envio automático...');
+                            try {
+                              const { data, error } = await supabase.functions.invoke('auto-send-reminders');
+                              
+                              if (error) {
+                                toast.dismiss();
+                                toast.error(`Erro: ${error.message}`);
+                                return;
+                              }
+                              
+                              toast.dismiss();
+                              
+                              if (data.success) {
+                                const totalSent = (data.totalEmailsSent || 0) + (data.totalWhatsAppSent || 0);
+                                if (totalSent > 0) {
+                                  toast.success(
+                                    `Enviados: ${data.totalEmailsSent || 0} emails e ${data.totalWhatsAppSent || 0} mensagens WhatsApp`
+                                  );
+                                } else {
+                                  toast.info('Nenhum cliente encontrado para notificar hoje.');
+                                }
+                                
+                                if (data.totalWhatsAppFailed > 0) {
+                                  toast.warning(`${data.totalWhatsAppFailed} mensagens WhatsApp falharam.`);
+                                }
+                              } else {
+                                toast.error('Erro ao executar envio automático');
+                              }
+                            } catch (err: any) {
+                              toast.dismiss();
+                              toast.error(`Erro: ${err.message}`);
+                            }
+                          }}
+                        >
+                          <Send className="h-4 w-4" />
+                          Testar Envio Automático
+                        </Button>
+                        
+                        <p className="text-xs text-muted-foreground self-center">
+                          Executa o envio de lembretes manualmente para testar a configuração
+                        </p>
+                      </div>
                     </div>
                   </>
                 )}
