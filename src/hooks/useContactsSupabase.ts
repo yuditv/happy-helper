@@ -38,11 +38,22 @@ function mapDbToContact(db: DbContact): Contact {
   };
 }
 
+export interface ImportProgress {
+  current: number;
+  total: number;
+  isImporting: boolean;
+}
+
 export function useContactsSupabase() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [isConfigured] = useState(true);
+  const [importProgress, setImportProgress] = useState<ImportProgress>({
+    current: 0,
+    total: 0,
+    isImporting: false,
+  });
 
   // Get current user
   useEffect(() => {
@@ -232,9 +243,13 @@ export function useContactsSupabase() {
     const batchSize = 100;
     let totalInserted = 0;
     let failedBatches = 0;
-    const totalBatches = Math.ceil(contactsToInsert.length / batchSize);
 
-    toast.info(`Iniciando importação de ${contactsToInsert.length} contatos...`);
+    // Set initial progress
+    setImportProgress({
+      current: 0,
+      total: contactsToInsert.length,
+      isImporting: true,
+    });
 
     for (let i = 0; i < contactsToInsert.length; i += batchSize) {
       const batch = contactsToInsert.slice(i, i + batchSize);
@@ -246,15 +261,16 @@ export function useContactsSupabase() {
         if (error) {
           console.error(`Erro no batch ${batchNumber}:`, error);
           failedBatches++;
-          // Continue with next batch instead of stopping
         } else {
           totalInserted += batch.length;
         }
         
-        // Progress update every 10 batches or last batch
-        if (batchNumber % 10 === 0 || batchNumber === totalBatches) {
-          toast.info(`Progresso: ${totalInserted}/${contactsToInsert.length} contatos importados`);
-        }
+        // Update progress after each batch
+        setImportProgress({
+          current: totalInserted,
+          total: contactsToInsert.length,
+          isImporting: true,
+        });
 
         // Small delay to avoid rate limiting
         if (i + batchSize < contactsToInsert.length) {
@@ -265,6 +281,13 @@ export function useContactsSupabase() {
         failedBatches++;
       }
     }
+
+    // Reset progress
+    setImportProgress({
+      current: totalInserted,
+      total: contactsToInsert.length,
+      isImporting: false,
+    });
 
     await fetchContacts();
     
@@ -319,6 +342,7 @@ export function useContactsSupabase() {
     isLoading,
     userId,
     isConfigured,
+    importProgress,
     addContact,
     updateContact,
     deleteContact,
