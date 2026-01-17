@@ -26,7 +26,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { getDaysUntilExpiration } from '@/types/client';
-import { openWhatsApp } from '@/lib/whatsapp';
+// openWhatsApp is no longer needed - we use Uazapi API directly
 
 // Media types (placeholder - will be reimplemented with new WhatsApp integration)
 type MediaType = 'image' | 'video' | 'audio' | 'document';
@@ -53,18 +53,67 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+// Send WhatsApp text message via Uazapi API
+const sendWhatsAppText = async (
+  phone: string,
+  message: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-whatsapp-text', {
+      body: { phone, message },
+    });
+
+    if (error) {
+      console.error('Error sending WhatsApp text:', error);
+      return { success: false, error: error.message };
+    }
+
+    if (!data?.success) {
+      return { success: false, error: data?.error || 'Unknown error' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Exception sending WhatsApp text:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+};
+
+// Send WhatsApp media via Uazapi API
 const sendWhatsAppMedia = async (
   phone: string,
-  _base64: string,
-  _type: MediaType,
-  _filename: string,
-  _mimetype: string,
+  base64: string,
+  type: MediaType,
+  filename: string,
+  mimetype: string,
   caption?: string
 ): Promise<{ success: boolean; error?: string }> => {
-  // Placeholder - will be reimplemented with new WhatsApp integration
-  // For now, open WhatsApp web with text message
-  openWhatsApp(phone, caption || '');
-  return { success: true };
+  try {
+    const { data, error } = await supabase.functions.invoke('send-whatsapp-media', {
+      body: {
+        phone,
+        mediaBase64: base64,
+        mediaType: type,
+        fileName: filename,
+        mimetype,
+        message: caption,
+      },
+    });
+
+    if (error) {
+      console.error('Error sending WhatsApp media:', error);
+      return { success: false, error: error.message };
+    }
+
+    if (!data?.success) {
+      return { success: false, error: data?.error || 'Unknown error' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Exception sending WhatsApp media:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
 };
 import {
   Zap,
@@ -1018,8 +1067,14 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             failCount++;
           }
         } else {
-          openWhatsApp(number, messageToSend);
-          successCount++;
+          // Send text message via API
+          const result = await sendWhatsAppText(number, messageToSend);
+          if (result.success) {
+            successCount++;
+          } else {
+            console.error(`Failed to send to ${number}:`, result.error);
+            failCount++;
+          }
         }
         
         setProgress({ current: i + 1, total: numbersToSend.length, success: successCount, failed: failCount });
@@ -1091,7 +1146,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
           if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) em ${sendDuration}s!`);
           if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
         } else {
-          toast.success(`WhatsApp aberto para ${successCount} ${recipientLabel} em ${sendDuration}s!`);
+          toast.success(`${successCount} mensagem(ns) enviada(s) via API em ${sendDuration}s!`);
         }
       }
       
@@ -1186,8 +1241,14 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
               failCount++;
             }
           } else {
-            openWhatsApp(client.whatsapp, personalizedMessage);
-            successCount++;
+            // Send text message via API
+            const result = await sendWhatsAppText(client.whatsapp, personalizedMessage);
+            if (result.success) {
+              successCount++;
+            } else {
+              console.error(`Failed to send to ${client.whatsapp}:`, result.error);
+              failCount++;
+            }
           }
         } else {
           try {
@@ -1270,7 +1331,7 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
             if (successCount > 0) toast.success(`${successCount} mídia(s) enviada(s) em ${sendDuration}s!`);
             if (failCount > 0) toast.error(`${failCount} envio(s) falhou(aram)`);
           } else {
-            toast.success(`WhatsApp aberto para ${successCount} cliente(s) em ${sendDuration}s!`);
+            toast.success(`${successCount} mensagem(ns) enviada(s) via API em ${sendDuration}s!`);
           }
         } else {
           if (successCount > 0) toast.success(`${successCount} email(s) enviado(s) em ${sendDuration}s!`);
