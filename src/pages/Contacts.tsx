@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database, CloudOff, Cloud, RefreshCw, ArrowRightLeft } from "lucide-react";
+import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database, CloudOff, Cloud, RefreshCw, ArrowRightLeft, Pencil, Search, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,16 +26,27 @@ import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
 export default function Contacts() {
-  const { contacts, isLoading, userId, isConfigured, addContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
+  const { contacts, isLoading, userId, isConfigured, addContact, updateContact, deleteContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
   const [formOpen, setFormOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Contact | null>(null);
   const [clearAllConfirm, setClearAllConfirm] = useState(false);
   const [migrateConfirm, setMigrateConfirm] = useState(false);
   const [localStorageCount, setLocalStorageCount] = useState(0);
   const [isMigrating, setIsMigrating] = useState(false);
   const [contactCount, setContactCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Filter contacts based on search
+  const filteredContacts = contacts.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.phone.includes(searchQuery) ||
+      c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Check for localStorage contacts
   useEffect(() => {
@@ -109,7 +120,25 @@ export default function Contacts() {
   }, [userId, contacts.length, getContactCount]);
 
   const handleSubmit = (data: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
-    addContact(data);
+    if (editingContact) {
+      updateContact(editingContact.id, data);
+      setEditingContact(null);
+    } else {
+      addContact(data);
+    }
+    setFormOpen(false);
+  };
+
+  const handleEditContact = (contact: Contact) => {
+    setEditingContact(contact);
+    setFormOpen(true);
+  };
+
+  const handleDeleteContact = async () => {
+    if (deleteConfirm) {
+      await deleteContact(deleteConfirm.id);
+      setDeleteConfirm(null);
+    }
   };
 
   const handleExportJSON = () => {
@@ -437,6 +466,82 @@ export default function Contacts() {
         </CardContent>
       </Card>
 
+      {/* Contacts List */}
+      {contacts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="text-lg">Seus Contatos</CardTitle>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar contatos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-background"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {filteredContacts.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                  Nenhum contato encontrado para "{searchQuery}"
+                </p>
+              ) : (
+                filteredContacts.slice(0, 100).map((contact) => (
+                  <div
+                    key={contact.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{contact.name}</p>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {contact.phone}
+                        </span>
+                        {contact.email && (
+                          <span className="flex items-center gap-1 truncate">
+                            <Mail className="h-3 w-3" />
+                            {contact.email}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 ml-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditContact(contact)}
+                        className="h-8 w-8"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteConfirm(contact)}
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+              {filteredContacts.length > 100 && (
+                <p className="text-center text-sm text-muted-foreground py-2">
+                  Mostrando 100 de {filteredContacts.length} contatos. Use a busca para filtrar.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Empty State Info */}
       {contacts.length === 0 && (
         <Card>
@@ -456,10 +561,35 @@ export default function Contacts() {
       {/* Contact Form Dialog */}
       <ContactForm
         open={formOpen}
-        onOpenChange={setFormOpen}
-        contact={null}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditingContact(null);
+        }}
+        contact={editingContact}
         onSubmit={handleSubmit}
       />
+
+      {/* Delete Single Contact Confirmation */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir contato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleteConfirm?.name}</strong>? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteContact}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Clear All Confirmation */}
       <AlertDialog open={clearAllConfirm} onOpenChange={setClearAllConfirm}>
