@@ -1,18 +1,24 @@
+// Uazapi Disconnect - Edge Function
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { token } = await req.json();
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    const { token, instance_id } = await req.json();
 
     if (!token) {
       return new Response(
@@ -24,7 +30,7 @@ serve(async (req) => {
     console.log(`Disconnecting instance with token: ${token.substring(0, 10)}...`);
 
     // Disconnect instance using Uazapi API
-    const response = await fetch('https://yudipro.uazapi.com/instance/logout', {
+    const response = await fetch(`${UAZAPI_BASE_URL}/instance/logout`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,6 +47,26 @@ serve(async (req) => {
         JSON.stringify({ error: data.message || 'Erro ao desconectar instância' }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Update status in database
+    if (instance_id && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      
+      const { error: dbError } = await supabase
+        .from('whatsapp_instances')
+        .update({
+          status: 'disconnected',
+          phone: null,
+          profile_name: null,
+          profile_picture: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', instance_id);
+
+      if (dbError) {
+        console.error('Error updating database:', dbError);
+      }
     }
 
     return new Response(
