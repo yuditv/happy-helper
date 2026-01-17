@@ -1,5 +1,23 @@
 project_id = "tlanmmbgyyxuqvezudir"
 
+[functions.create-whatsapp-instance]
+verify_jwt = false
+
+[functions.get-whatsapp-instance]
+verify_jwt = false
+
+[functions.get-whatsapp-qrcode]
+verify_jwt = false
+
+[functions.send-whatsapp-evolution]
+verify_jwt = false
+
+[functions.send-whatsapp-media]
+verify_jwt = false
+
+[functions.check-whatsapp-numbers]
+verify_jwt = false
+
 [functions.send-expiration-reminder]
 verify_jwt = false
 
@@ -16,22 +34,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-referral-notification]
-verify_jwt = false
-
-[functions.send-whatsapp-evolution]
-verify_jwt = false
-
-[functions.send-whatsapp-media]
-verify_jwt = false
-
-[functions.check-whatsapp-numbers]
-verify_jwt = false
-
-[functions.create-whatsapp-instance]
-verify_jwt = false
-
-[functions.get-whatsapp-instance]
-verify_jwt = false
-
-[functions.get-whatsapp-qrcode]
 verify_jwt = false
