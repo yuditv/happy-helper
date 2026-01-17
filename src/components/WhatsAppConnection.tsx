@@ -212,9 +212,9 @@ export function WhatsAppConnection() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
               Conexão WhatsApp
             </h1>
-            <p className="text-muted-foreground mt-1 flex items-center gap-2">
+          <p className="text-muted-foreground mt-1 flex items-center gap-2">
               <Signal className="h-4 w-4" />
-              Evolution API Integration
+              Uazapi Integration
             </p>
           </div>
         </div>
