@@ -6,14 +6,21 @@ const corsHeaders = {
 };
 
 serve(async (req: Request): Promise<Response> => {
+  console.log("=== GET WHATSAPP QRCODE FUNCTION STARTED ===");
+  console.log("Request method:", req.method);
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
+    console.log("Handling CORS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
     const evolutionApiKey = Deno.env.get("EVOLUTION_API_KEY");
+
+    console.log("EVOLUTION_API_URL exists:", !!evolutionApiUrl);
+    console.log("EVOLUTION_API_KEY exists:", !!evolutionApiKey);
 
     if (!evolutionApiUrl || !evolutionApiKey) {
       console.error("Missing Evolution API configuration");
@@ -28,9 +35,27 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { instanceName } = await req.json();
+    const requestBody = await req.text();
+    console.log("Raw request body:", requestBody);
+
+    let instanceName: string;
+    try {
+      const parsed = JSON.parse(requestBody);
+      instanceName = parsed.instanceName;
+      console.log("Parsed instanceName:", instanceName);
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
     if (!instanceName) {
+      console.error("Instance name is missing");
       return new Response(
         JSON.stringify({ error: "Instance name is required" }),
         {
@@ -43,6 +68,7 @@ serve(async (req: Request): Promise<Response> => {
     console.log(`Getting QR Code for instance: ${instanceName}`);
 
     const apiUrl = `${evolutionApiUrl}/instance/connect/${instanceName}`;
+    console.log("Calling Evolution API URL:", apiUrl);
 
     const response = await fetch(apiUrl, {
       method: "GET",
@@ -52,7 +78,18 @@ serve(async (req: Request): Promise<Response> => {
       },
     });
 
-    const responseData = await response.json();
+    console.log("Evolution API response status:", response.status);
+
+    const responseText = await response.text();
+    console.log("Evolution API raw response:", responseText);
+
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      console.error("Failed to parse Evolution API response as JSON");
+      responseData = { rawResponse: responseText };
+    }
 
     if (!response.ok) {
       console.error("Evolution API error:", responseData);
@@ -82,8 +119,9 @@ serve(async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in get-whatsapp-qrcode function:", error);
+    console.error("Error stack:", error.stack);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, stack: error.stack }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
