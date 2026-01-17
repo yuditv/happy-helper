@@ -220,36 +220,58 @@ export function useContactsSupabase() {
       return;
     }
 
-    try {
-      const contactsToInsert = importedContacts.map((c) => ({
-        user_id: userId,
-        name: c.name,
-        phone: c.phone,
-        email: c.email || null,
-        notes: c.notes || null,
-      }));
+    const contactsToInsert = importedContacts.map((c) => ({
+      user_id: userId,
+      name: c.name,
+      phone: c.phone,
+      email: c.email || null,
+      notes: c.notes || null,
+    }));
 
-      // Insert in batches of 500
-      const batchSize = 500;
-      let totalInserted = 0;
+    // Insert in smaller batches to avoid timeouts and limits
+    const batchSize = 100;
+    let totalInserted = 0;
+    let failedBatches = 0;
+    const totalBatches = Math.ceil(contactsToInsert.length / batchSize);
 
-      for (let i = 0; i < contactsToInsert.length; i += batchSize) {
-        const batch = contactsToInsert.slice(i, i + batchSize);
+    toast.info(`Iniciando importação de ${contactsToInsert.length} contatos...`);
+
+    for (let i = 0; i < contactsToInsert.length; i += batchSize) {
+      const batch = contactsToInsert.slice(i, i + batchSize);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      
+      try {
         const { error } = await (supabase as any).from("contacts").insert(batch);
 
-        if (error) throw error;
-        totalInserted += batch.length;
-        
-        if (contactsToInsert.length > batchSize) {
-          toast.info(`Importando... ${totalInserted}/${contactsToInsert.length}`);
+        if (error) {
+          console.error(`Erro no batch ${batchNumber}:`, error);
+          failedBatches++;
+          // Continue with next batch instead of stopping
+        } else {
+          totalInserted += batch.length;
         }
-      }
+        
+        // Progress update every 10 batches or last batch
+        if (batchNumber % 10 === 0 || batchNumber === totalBatches) {
+          toast.info(`Progresso: ${totalInserted}/${contactsToInsert.length} contatos importados`);
+        }
 
-      await fetchContacts();
+        // Small delay to avoid rate limiting
+        if (i + batchSize < contactsToInsert.length) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      } catch (error) {
+        console.error(`Erro no batch ${batchNumber}:`, error);
+        failedBatches++;
+      }
+    }
+
+    await fetchContacts();
+    
+    if (failedBatches > 0) {
+      toast.warning(`Importação concluída: ${totalInserted} contatos salvos, ${failedBatches} batches falharam`);
+    } else {
       toast.success(`${totalInserted} contato(s) importado(s) com sucesso!`);
-    } catch (error) {
-      console.error("Error importing contacts:", error);
-      toast.error("Erro ao importar contatos");
     }
   };
 
