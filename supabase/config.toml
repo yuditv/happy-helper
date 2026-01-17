@@ -1,5 +1,8 @@
 project_id = "tlanmmbgyyxuqvezudir"
 
+[functions.send-whatsapp-text]
+verify_jwt = false
+
 [functions.send-whatsapp-media]
 verify_jwt = false
 
