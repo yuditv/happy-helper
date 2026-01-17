@@ -1,6 +1,6 @@
 // Uazapi Delete Instance - Edge Function
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,21 +11,12 @@ const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const UAZAPI_ADMIN_TOKEN = Deno.env.get('UAZAPI_ADMIN_TOKEN');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!UAZAPI_ADMIN_TOKEN) {
-      console.error('UAZAPI_ADMIN_TOKEN not configured');
-      return new Response(
-        JSON.stringify({ error: 'Token de administrador não configurado' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     const { token, instance_id } = await req.json();
 
@@ -38,7 +29,6 @@ serve(async (req) => {
 
     console.log(`Deleting instance with token: ${token.substring(0, 10)}...`);
 
-    // Delete instance using Uazapi API
     const response = await fetch(`${UAZAPI_BASE_URL}/instance/delete`, {
       method: 'DELETE',
       headers: {

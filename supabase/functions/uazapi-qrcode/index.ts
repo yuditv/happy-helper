@@ -1,5 +1,5 @@
 // Uazapi QR Code - Edge Function
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,11 +10,10 @@ const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Accept token from POST body
     const { token } = await req.json();
 
     if (!token) {
@@ -26,7 +25,6 @@ serve(async (req) => {
 
     console.log(`Getting QR Code for token: ${token.substring(0, 10)}...`);
 
-    // Get QR Code using Uazapi API
     const response = await fetch(`${UAZAPI_BASE_URL}/instance/qrcode`, {
       method: 'GET',
       headers: {

@@ -1,6 +1,6 @@
 // Uazapi Disconnect - Edge Function
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +11,7 @@ const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -29,7 +29,6 @@ serve(async (req) => {
 
     console.log(`Disconnecting instance with token: ${token.substring(0, 10)}...`);
 
-    // Disconnect instance using Uazapi API
     const response = await fetch(`${UAZAPI_BASE_URL}/instance/logout`, {
       method: 'POST',
       headers: {
