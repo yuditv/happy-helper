@@ -58,9 +58,6 @@ export function MainLayout() {
           onSectionChange={setActiveSection}
         />
         <SidebarInset className="flex flex-col">
-          <header className="flex h-12 items-center gap-2 border-b px-4">
-            <SidebarTrigger />
-          </header>
           <main className="flex-1 relative overflow-auto">
             {renderContent()}
           </main>

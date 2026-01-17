@@ -92,7 +92,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="none">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <img
