@@ -429,6 +429,49 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   
+  // WhatsApp connection status
+  const [connectionStatus, setConnectionStatus] = useState<{
+    connected: boolean;
+    phone?: string;
+    name?: string;
+    loading: boolean;
+    error?: string;
+  }>({ connected: false, loading: true });
+
+  // Check WhatsApp connection status
+  const checkConnectionStatus = useCallback(async () => {
+    setConnectionStatus(prev => ({ ...prev, loading: true, error: undefined }));
+    try {
+      const { data, error } = await supabase.functions.invoke('uazapi-status');
+      
+      if (error) {
+        setConnectionStatus({ connected: false, loading: false, error: error.message });
+        return;
+      }
+      
+      setConnectionStatus({
+        connected: data?.connected || false,
+        phone: data?.phone,
+        name: data?.name,
+        loading: false,
+        error: data?.error,
+      });
+    } catch (err) {
+      setConnectionStatus({
+        connected: false,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Erro desconhecido',
+      });
+    }
+  }, []);
+
+  // Check connection on mount and periodically
+  useEffect(() => {
+    checkConnectionStatus();
+    const interval = setInterval(checkConnectionStatus, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [checkConnectionStatus]);
+  
   // Delay and pause control
   const [delaySecondsInput, setDelaySecondsInput] = useState('3');
   const [pauseAfterCountInput, setPauseAfterCountInput] = useState('10');
@@ -1016,6 +1059,13 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
       return;
     }
 
+    // Check WhatsApp connection for immediate WhatsApp sends
+    if (messageMode === 'whatsapp' && sendMode === 'immediate' && !connectionStatus.connected) {
+      toast.error('WhatsApp não está conectado. Verifique a conexão antes de enviar.');
+      checkConnectionStatus();
+      return;
+    }
+
     // Reset abort and pause flags
     abortRef.current = false;
     setIsPaused(false);
@@ -1359,6 +1409,58 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* WhatsApp Connection Status */}
+        {messageMode === 'whatsapp' && (
+          <div 
+            className={cn(
+              "flex items-center justify-between p-3 rounded-lg border transition-colors",
+              connectionStatus.loading ? "bg-muted/50 border-muted" :
+              connectionStatus.connected ? "bg-green-500/10 border-green-500/30" : "bg-destructive/10 border-destructive/30"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              {connectionStatus.loading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : connectionStatus.connected ? (
+                <div className="relative">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                </div>
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              )}
+              <div className="flex flex-col">
+                <span className={cn(
+                  "text-sm font-medium",
+                  connectionStatus.connected ? "text-green-600 dark:text-green-400" : 
+                  connectionStatus.loading ? "text-muted-foreground" : "text-destructive"
+                )}>
+                  {connectionStatus.loading ? "Verificando conexão..." :
+                   connectionStatus.connected ? "WhatsApp Conectado" : "WhatsApp Desconectado"}
+                </span>
+                {connectionStatus.connected && connectionStatus.phone && (
+                  <span className="text-xs text-muted-foreground">
+                    {connectionStatus.name ? `${connectionStatus.name} • ` : ''}{connectionStatus.phone}
+                  </span>
+                )}
+                {!connectionStatus.loading && connectionStatus.error && (
+                  <span className="text-xs text-destructive">{connectionStatus.error}</span>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={checkConnectionStatus}
+              disabled={connectionStatus.loading}
+              className="gap-2"
+            >
+              <RefreshCw className={cn("h-4 w-4", connectionStatus.loading && "animate-spin")} />
+              <span className="hidden sm:inline">Atualizar</span>
+            </Button>
+          </div>
+        )}
+
         {/* Target Mode Selection */}
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Enviar para</Label>
