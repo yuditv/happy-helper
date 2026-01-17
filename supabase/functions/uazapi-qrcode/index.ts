@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
+const UAZAPI_BASE_URL = 'https://zynk2.uazapi.com';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

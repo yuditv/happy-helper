@@ -24,7 +24,7 @@ serve(async (req) => {
 
     console.log('Listing all instances...');
 
-    const response = await fetch('https://yudipro.uazapi.com/instance/list', {
+    const response = await fetch('https://zynk2.uazapi.com/instance/list', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
