@@ -83,6 +83,21 @@ export function useContacts() {
     );
   };
 
+  const importContacts = (importedContacts: Array<Omit<Contact, "id" | "createdAt" | "updatedAt"> & { id?: string; createdAt?: string; updatedAt?: string }>) => {
+    const now = new Date().toISOString();
+    const newContacts: Contact[] = importedContacts.map((c) => ({
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      notes: c.notes,
+      id: crypto.randomUUID(), // Always generate new IDs to avoid duplicates
+      createdAt: c.createdAt || now,
+      updatedAt: now,
+    }));
+    
+    saveContacts([...newContacts, ...contacts]);
+  };
+
   return {
     contacts,
     isLoading,
@@ -90,5 +105,6 @@ export function useContacts() {
     updateContact,
     deleteContact,
     searchContacts,
+    importContacts,
   };
 }

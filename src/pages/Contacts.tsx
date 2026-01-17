@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, User, Download } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, User, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,11 +19,12 @@ import { exportContactAsVCard, exportContactsAsVCard } from "@/lib/exportVCard";
 import { toast } from "sonner";
 
 export default function Contacts() {
-  const { contacts, isLoading, addContact, updateContact, deleteContact } = useContacts();
+  const { contacts, isLoading, addContact, updateContact, deleteContact, importContacts } = useContacts();
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Contact | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredContacts = useMemo(() => {
     if (!search.trim()) return contacts;
@@ -76,6 +77,64 @@ export default function Contacts() {
     toast.success(`Contato "${contact.name}" exportado como vCard`);
   };
 
+  const handleExportJSON = () => {
+    if (contacts.length === 0) {
+      toast.error("Nenhum contato para exportar");
+      return;
+    }
+    const dataStr = JSON.stringify(contacts, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `contatos-backup-${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`${contacts.length} contato(s) exportado(s) como JSON`);
+  };
+
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const imported = JSON.parse(content);
+        
+        if (!Array.isArray(imported)) {
+          toast.error("Arquivo inválido: esperado um array de contatos");
+          return;
+        }
+
+        // Validate each contact has required fields
+        const validContacts = imported.filter(
+          (c: any) => c.name && c.phone
+        );
+
+        if (validContacts.length === 0) {
+          toast.error("Nenhum contato válido encontrado no arquivo");
+          return;
+        }
+
+        importContacts(validContacts);
+        toast.success(`${validContacts.length} contato(s) importado(s) com sucesso!`);
+      } catch (error) {
+        console.error("Error parsing JSON:", error);
+        toast.error("Erro ao ler arquivo JSON");
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -94,12 +153,29 @@ export default function Contacts() {
             {contacts.length} {contacts.length === 1 ? "contato salvo" : "contatos salvos"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportJSON}
+            className="hidden"
+          />
+          <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="gap-2">
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline">Importar JSON</span>
+          </Button>
           {contacts.length > 0 && (
-            <Button onClick={handleExportAll} variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Exportar Todos</span>
-            </Button>
+            <>
+              <Button onClick={handleExportJSON} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Exportar JSON</span>
+              </Button>
+              <Button onClick={handleExportAll} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Exportar vCard</span>
+              </Button>
+            </>
           )}
           <Button onClick={handleNewContact} className="gap-2">
             <Plus className="h-4 w-4" />
