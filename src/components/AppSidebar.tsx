@@ -114,12 +114,12 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
                       onClick={() => handleClick(item)}
                       tooltip={item.title}
                       className={cn(
-                        "h-10 gap-3",
+                        "h-11 gap-3",
                         isActive && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span className="font-medium">{item.title}</span>
+                      <span className="font-medium text-[15px]">{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
