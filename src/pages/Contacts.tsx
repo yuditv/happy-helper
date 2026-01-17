@@ -26,11 +26,12 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 export default function Contacts() {
-  const { contacts, isLoading, addContact, updateContact, deleteContact, importContacts } = useContacts();
+  const { contacts, isLoading, addContact, updateContact, deleteContact, importContacts, clearAllContacts } = useContacts();
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Contact | null>(null);
+  const [clearAllConfirm, setClearAllConfirm] = useState(false);
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
 
@@ -286,6 +287,10 @@ export default function Contacts() {
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Exportar vCard</span>
               </Button>
+              <Button onClick={() => setClearAllConfirm(true)} variant="destructive" className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Remover Todos</span>
+              </Button>
             </>
           )}
           <Button onClick={handleNewContact} className="gap-2">
@@ -410,6 +415,31 @@ export default function Contacts() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear All Confirmation */}
+      <AlertDialog open={clearAllConfirm} onOpenChange={setClearAllConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover todos os contatos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover todos os {contacts.length} contato(s)? 
+              Esta ação não pode ser desfeita. Recomendamos exportar um backup antes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                clearAllContacts();
+                setClearAllConfirm(false);
+              }} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remover Todos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
