@@ -1,16 +1,11 @@
-// Edge function to get WhatsApp instance status via Evolution API
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface GetInstanceRequest {
-  instanceName: string;
-}
-
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -33,7 +28,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { instanceName }: GetInstanceRequest = await req.json();
+    const { instanceName } = await req.json();
 
     if (!instanceName) {
       return new Response(
@@ -47,7 +42,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Getting WhatsApp instance status: ${instanceName}`);
 
-    // Evolution API endpoint for getting instance connection state
     const apiUrl = `${evolutionApiUrl}/instance/connectionState/${instanceName}`;
 
     const response = await fetch(apiUrl, {
@@ -96,6 +90,4 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   }
-};
-
-serve(handler);
+});

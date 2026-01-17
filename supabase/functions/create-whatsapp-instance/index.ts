@@ -1,16 +1,11 @@
-// Edge function to create WhatsApp instance via Evolution API
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface CreateInstanceRequest {
-  instanceName: string;
-}
-
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -33,7 +28,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { instanceName }: CreateInstanceRequest = await req.json();
+    const { instanceName } = await req.json();
 
     if (!instanceName) {
       return new Response(
@@ -47,7 +42,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Creating WhatsApp instance: ${instanceName}`);
 
-    // Evolution API endpoint for creating instance
     const apiUrl = `${evolutionApiUrl}/instance/create`;
 
     const response = await fetch(apiUrl, {
@@ -102,6 +96,4 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   }
-};
-
-serve(handler);
+});
