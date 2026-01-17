@@ -713,6 +713,22 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
 
   const selectAllContacts = () => setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
   const deselectAllContacts = () => setSelectedContactIds(new Set());
+
+  // Batch selection - select next N contacts that aren't already selected
+  const selectNextBatch = (batchSize: number) => {
+    setSelectedContactIds(prev => {
+      const newSet = new Set(prev);
+      let added = 0;
+      for (const contact of filteredContacts) {
+        if (added >= batchSize) break;
+        if (!newSet.has(contact.id)) {
+          newSet.add(contact.id);
+          added++;
+        }
+      }
+      return newSet;
+    });
+  };
   
   const loadMoreContacts = () => {
     setContactsDisplayLimit(prev => prev + 50);
@@ -1466,18 +1482,55 @@ export function BulkDispatcher({ onComplete }: { onComplete?: () => void }) {
                 </div>
 
                 {/* Selection controls */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <Badge variant="outline">
                       {selectedContactIds.size} de {filteredContacts.length} selecionados
                     </Badge>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={selectAllContacts} className="h-7 px-2">
+                        Todos
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={deselectAllContacts} className="h-7 px-2">
+                        Limpar
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={selectAllContacts} className="h-7 px-2">
-                      Selecionar todos
+                  
+                  {/* Batch selection buttons */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground">Selecionar:</span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => selectNextBatch(10)} 
+                      className="h-7 px-2 text-xs"
+                    >
+                      +10
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={deselectAllContacts} className="h-7 px-2">
-                      Limpar
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => selectNextBatch(100)} 
+                      className="h-7 px-2 text-xs"
+                    >
+                      +100
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => selectNextBatch(500)} 
+                      className="h-7 px-2 text-xs"
+                    >
+                      +500
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => selectNextBatch(1000)} 
+                      className="h-7 px-2 text-xs"
+                    >
+                      +1000
                     </Button>
                   </div>
                 </div>
