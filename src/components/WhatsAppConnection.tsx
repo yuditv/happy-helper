@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff, Zap } from "lucide-react";
+import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Plus, Wifi, WifiOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -23,37 +23,8 @@ export function WhatsAppConnection() {
   const [isCreating, setIsCreating] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isLoadingQR, setIsLoadingQR] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<any>(null);
   const [instance, setInstance] = useState<InstanceData | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const testConnection = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-    setError(null);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("test-evolution-connection");
-
-      if (error) throw error;
-
-      console.log("Test result:", data);
-      setTestResult(data);
-      
-      if (data?.apiTest?.success) {
-        toast.success("Conexão com Evolution API funcionando!");
-      } else {
-        toast.error("Falha na conexão com Evolution API");
-      }
-    } catch (err: any) {
-      console.error("Error testing connection:", err);
-      setError(err.message || "Erro ao testar conexão");
-      toast.error("Erro ao testar conexão: " + err.message);
-    } finally {
-      setIsTesting(false);
-    }
-  };
 
   // Check saved instance on mount
   useEffect(() => {
@@ -235,42 +206,6 @@ export function WhatsAppConnection() {
           </p>
         </div>
       </div>
-
-      {/* Test Connection Button */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5" />
-            Testar Conexão com Evolution API
-          </CardTitle>
-          <CardDescription>
-            Verifica se os secrets estão configurados e a API está acessível
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button onClick={testConnection} disabled={isTesting}>
-            {isTesting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Testando...
-              </>
-            ) : (
-              <>
-                <Zap className="mr-2 h-4 w-4" />
-                Testar Conexão
-              </>
-            )}
-          </Button>
-          
-          {testResult && (
-            <div className="mt-4 p-4 rounded-lg bg-muted/50 overflow-auto max-h-96">
-              <pre className="text-xs whitespace-pre-wrap">
-                {JSON.stringify(testResult, null, 2)}
-              </pre>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {error && (
         <Alert variant="destructive">
