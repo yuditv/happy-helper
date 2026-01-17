@@ -1,4 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// Uazapi Pairing Code - Edge Function
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,9 +7,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -28,15 +28,14 @@ serve(async (req) => {
       );
     }
 
-    // Format phone number - remove non-digits and ensure country code
+    // Format phone number
     let formattedPhone = phone.replace(/\D/g, '');
     if (!formattedPhone.startsWith('55')) {
       formattedPhone = '55' + formattedPhone;
     }
 
-    console.log(`Getting pairing code for phone: ${formattedPhone}, token: ${token.substring(0, 10)}...`);
+    console.log(`Getting pairing code for phone: ${formattedPhone}`);
 
-    // Get pairing code using Uazapi API
     const response = await fetch('https://yudipro.uazapi.com/instance/pairingcode', {
       method: 'POST',
       headers: {

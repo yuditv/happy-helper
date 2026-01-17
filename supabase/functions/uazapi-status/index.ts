@@ -1,6 +1,6 @@
 // Uazapi Status - Edge Function
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,14 +11,13 @@ const UAZAPI_BASE_URL = 'https://yudipro.uazapi.com';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    // Accept token from POST body
     const { token, instance_id } = await req.json();
 
     if (!token) {
@@ -30,7 +29,6 @@ serve(async (req) => {
 
     console.log(`Getting status for token: ${token.substring(0, 10)}...`);
 
-    // Get instance status using Uazapi API
     const response = await fetch(`${UAZAPI_BASE_URL}/instance/status`, {
       method: 'GET',
       headers: {
@@ -66,7 +64,6 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
-      // Update phone and profile if connected
       if (isConnected) {
         if (data.phone || data.wid) {
           updateData.phone = (data.phone || data.wid || '').replace('@s.whatsapp.net', '');
