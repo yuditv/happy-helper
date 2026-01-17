@@ -1,4 +1,4 @@
-project_id = "eocrnjbdrrvuhhdwskvn"
+project_id = "tlanmmbgyyxuqvezudir"
 
 [functions.send-expiration-reminder]
 verify_jwt = false
@@ -35,4 +35,3 @@ verify_jwt = false
 
 [functions.get-whatsapp-qrcode]
 verify_jwt = false
-
