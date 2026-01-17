@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.uazapi-list-instances]
 verify_jwt = false
+
+[functions.uazapi-delete-instance]
+verify_jwt = false

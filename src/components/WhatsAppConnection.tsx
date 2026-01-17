@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Zap, Signal, Settings, Phone, Link2, Unlink } from "lucide-react";
+import { Smartphone, QrCode, CheckCircle2, XCircle, Loader2, RefreshCw, Wifi, WifiOff, Zap, Signal, Settings, Phone, Link2, Unlink, Server } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeTimer } from "@/components/QRCodeTimer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppDashboard } from "@/components/WhatsAppDashboard";
+import { InstanceAdmin } from "@/components/InstanceAdmin";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "qrcode";
 
@@ -245,12 +246,21 @@ export function WhatsAppConnection() {
               <Signal className="h-4 w-4 mr-2" />
               Dashboard
             </TabsTrigger>
+            <TabsTrigger value="admin" className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
+              <Server className="h-4 w-4 mr-2" />
+              Instâncias
+            </TabsTrigger>
           </TabsList>
         </div>
 
         {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="mt-0">
           <WhatsAppDashboard />
+        </TabsContent>
+
+        {/* Admin Tab */}
+        <TabsContent value="admin" className="mt-0">
+          <InstanceAdmin />
         </TabsContent>
 
         <TabsContent value="connection" className="space-y-6 mt-0">
