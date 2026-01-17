@@ -470,16 +470,6 @@ export default function Contacts() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Go to Bulk Dispatcher */}
-                <Button 
-                  variant="secondary" 
-                  className="gap-2"
-                  onClick={() => navigate("/?target=contacts")}
-                >
-                  <Send className="h-4 w-4" />
-                  Usar no Disparo
-                </Button>
-
                 {/* Clear All */}
                 <Button 
                   variant="destructive" 

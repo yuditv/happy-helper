@@ -80,7 +80,7 @@ const menuItems = [
 ];
 
 export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) {
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed";
 
   const handleClick = (item: typeof menuItems[0]) => {
@@ -91,8 +91,24 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
     }
   };
 
+  const handleMouseEnter = () => {
+    if (isCollapsed) {
+      setOpen(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    // Optional: close on mouse leave
+    // setOpen(false);
+  };
+
   return (
-    <Sidebar collapsible="none">
+    <Sidebar 
+      collapsible="icon"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="transition-all duration-300 ease-in-out"
+    >
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <img
@@ -101,7 +117,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
             className="h-8 w-8 rounded-lg object-contain"
           />
           {!isCollapsed && (
-            <span className="font-semibold text-foreground">Painel</span>
+            <span className="font-semibold text-foreground animate-fade-in">Painel</span>
           )}
         </div>
       </SidebarHeader>
@@ -119,12 +135,15 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
                       onClick={() => handleClick(item)}
                       tooltip={item.title}
                       className={cn(
-                        "h-11 gap-3",
+                        "h-11 gap-3 transition-all duration-200",
                         isActive && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                       )}
                     >
-                      <item.icon className="h-5 w-5" />
-                      <span className="font-medium text-[15px]">{item.title}</span>
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <span className={cn(
+                        "font-medium text-[15px] transition-opacity duration-200",
+                        isCollapsed ? "opacity-0 w-0" : "opacity-100"
+                      )}>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
