@@ -102,13 +102,15 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
             <Phone className="h-4 w-4" />
             <span>{client.whatsapp}</span>
           </a>
-          <a
-            href={`mailto:${client.email}`}
-            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Mail className="h-4 w-4" />
-            <span className="truncate">{client.email}</span>
-          </a>
+          {client.email && (
+            <a
+              href={`mailto:${client.email}`}
+              className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Mail className="h-4 w-4" />
+              <span className="truncate">{client.email}</span>
+            </a>
+          )}
           
           {/* Notes section */}
           {client.notes && (

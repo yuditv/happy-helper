@@ -96,16 +96,20 @@ export function ClientTable({
               )}
               <TableCell>
                 <div className="font-medium">{client.name}</div>
-                <div className="text-xs text-muted-foreground md:hidden flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  {client.email}
-                </div>
+                {client.email && (
+                  <div className="text-xs text-muted-foreground md:hidden flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {client.email}
+                  </div>
+                )}
               </TableCell>
               <TableCell className="hidden md:table-cell">
-                <div className="text-sm flex items-center gap-1">
-                  <Mail className="h-3 w-3 text-muted-foreground" />
-                  {client.email}
-                </div>
+                {client.email && (
+                  <div className="text-sm flex items-center gap-1">
+                    <Mail className="h-3 w-3 text-muted-foreground" />
+                    {client.email}
+                  </div>
+                )}
                 <div className="text-sm flex items-center gap-1 text-muted-foreground">
                   <Phone className="h-3 w-3" />
                   {client.whatsapp}
