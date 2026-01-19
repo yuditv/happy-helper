@@ -1,4 +1,5 @@
-// Auto Send Reminders - Uazapi Integration - v2
+// Auto Send Reminders - Uazapi Integration - v3
+// Uses UAZAPI_TOKEN and UAZAPI_URL directly from secrets
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
@@ -23,6 +24,7 @@ interface NotificationSettings {
   whatsapp_reminders_enabled: boolean;
   auto_send_enabled: boolean;
   reminder_days: number[];
+  expired_reminder_days?: number[];
 }
 
 interface Client {
@@ -34,6 +36,11 @@ interface Client {
   plan: string;
   expires_at: string;
   price: number;
+}
+
+interface RequestBody {
+  settings?: NotificationSettings;
+  test_mode?: boolean;
 }
 
 function generateEmailHtml(clientName: string, planName: string, daysRemaining: number, expiresAt: string): string {
@@ -146,43 +153,33 @@ function formatPhoneForWhatsApp(phone: string): string {
   return numbersOnly;
 }
 
-// Send WhatsApp message via Uazapi
+// Send WhatsApp message via Uazapi using direct secrets
 async function sendWhatsAppUazapi(
   phone: string, 
-  message: string, 
-  userId: string,
-  supabase: any
+  message: string
 ): Promise<{ success: boolean; error?: string }> {
-  const uazapiAdminToken = Deno.env.get("UAZAPI_ADMIN_TOKEN");
+  const uazapiToken = Deno.env.get("UAZAPI_TOKEN");
+  const uazapiUrl = Deno.env.get("UAZAPI_URL");
 
-  if (!uazapiAdminToken) {
-    console.log("Uazapi not configured, skipping WhatsApp send");
-    return { success: false, error: "Uazapi not configured" };
-  }
-
-  // Get user's WhatsApp instance
-  const { data: instance, error: instanceError } = await supabase
-    .from('whatsapp_instances')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'connected')
-    .limit(1)
-    .single();
-
-  if (instanceError || !instance) {
-    console.log(`No connected WhatsApp instance for user ${userId}`);
-    return { success: false, error: "No connected WhatsApp instance" };
+  if (!uazapiToken || !uazapiUrl) {
+    console.log("Uazapi not configured (missing UAZAPI_TOKEN or UAZAPI_URL)");
+    return { success: false, error: "Uazapi not configured - missing UAZAPI_TOKEN or UAZAPI_URL" };
   }
 
   const formattedPhone = formatPhoneForWhatsApp(phone);
-  const apiUrl = `https://uazapi.com.br/api/v1/${instance.instance_id}/messages/text`;
+  
+  // Clean URL and build endpoint
+  const baseUrl = uazapiUrl.replace(/\/$/, '');
+  const apiUrl = `${baseUrl}/message/text`;
+
+  console.log(`Sending WhatsApp to ${formattedPhone} via ${apiUrl}`);
 
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${instance.token}`,
+        "Authorization": `Bearer ${uazapiToken}`,
       },
       body: JSON.stringify({
         phone: formattedPhone,
@@ -218,214 +215,278 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get all users with auto_send_enabled
-    const { data: settingsList, error: settingsError } = await supabase
-      .from('notification_settings')
-      .select('*')
-      .eq('auto_send_enabled', true);
-
-    if (settingsError) {
-      console.error('Error fetching notification settings:', settingsError);
-      throw settingsError;
+    // Parse request body - settings can come from request or we use defaults
+    let requestBody: RequestBody = {};
+    try {
+      const text = await req.text();
+      if (text) {
+        requestBody = JSON.parse(text);
+      }
+    } catch {
+      // Empty body is OK
     }
 
-    console.log(`Found ${settingsList?.length || 0} users with auto-send enabled`);
+    // Get user ID from auth header if available
+    let userId: string | null = null;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabase.auth.getUser(token);
+        userId = user?.id || null;
+      } catch {
+        // Ignore auth errors for cron jobs
+      }
+    }
+
+    // Settings can come from request body or we'll process for a specific user
+    const settings = requestBody.settings;
+    const testMode = requestBody.test_mode || false;
+
+    if (testMode) {
+      console.log("Running in test mode");
+    }
+
+    // If settings provided in body, process for that user
+    // Otherwise, if we have a userId, query their clients
+    // For cron jobs without auth, we would need settings in body
+
+    if (!settings && !userId) {
+      console.log("No settings provided and no authenticated user. For cron jobs, pass settings in request body.");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "No settings provided. Pass settings in request body or authenticate." 
+        }), 
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    const userSettings: NotificationSettings = settings || {
+      user_id: userId!,
+      email_reminders_enabled: false,
+      whatsapp_reminders_enabled: true,
+      auto_send_enabled: true,
+      reminder_days: [7, 3, 1],
+      expired_reminder_days: [1, 3, 7],
+    };
+
+    const targetUserId = userSettings.user_id || userId;
+    
+    if (!targetUserId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No user ID available" }), 
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    console.log(`Processing reminders for user ${targetUserId}`);
+    console.log(`Settings: email=${userSettings.email_reminders_enabled}, whatsapp=${userSettings.whatsapp_reminders_enabled}`);
+    console.log(`Reminder days: ${userSettings.reminder_days.join(', ')}`);
 
     const now = new Date();
     let totalEmailsSent = 0;
     let totalWhatsAppSent = 0;
     let totalWhatsAppFailed = 0;
     const results: any[] = [];
+    const processedClients: string[] = [];
 
-    for (const settings of settingsList || []) {
-      const userSettings = settings as NotificationSettings;
-      console.log(`Processing user ${userSettings.user_id} with reminder days: ${userSettings.reminder_days}`);
+    // Helper function to process clients and send notifications
+    async function processClients(clients: Client[], daysRemaining: number) {
+      for (const clientData of clients) {
+        // Skip if already processed this run
+        if (processedClients.includes(clientData.id)) {
+          console.log(`Skipping ${clientData.name} - already processed this run`);
+          continue;
+        }
 
-      // Helper function to process clients and send notifications
-      async function processClients(clients: Client[], daysRemaining: number) {
-        for (const clientData of clients) {
-          const planName = planLabels[clientData.plan] || clientData.plan;
-          const expiresAtDate = new Date(clientData.expires_at);
-          const expiresAtFormatted = formatDate(expiresAtDate);
+        const planName = planLabels[clientData.plan] || clientData.plan;
+        const expiresAtDate = new Date(clientData.expires_at);
+        const expiresAtFormatted = formatDate(expiresAtDate);
 
-          // Check if we already sent a notification today for this client
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const todayEnd = new Date();
-          todayEnd.setHours(23, 59, 59, 999);
+        // Check if we already sent a notification today for this client
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
 
-          const { data: existingNotification } = await supabase
-            .from('notification_history')
-            .select('id')
-            .eq('client_id', clientData.id)
-            .gte('sent_at', today.toISOString())
-            .lte('sent_at', todayEnd.toISOString())
-            .limit(1);
+        const { data: existingNotification } = await supabase
+          .from('notification_history')
+          .select('id')
+          .eq('client_id', clientData.id)
+          .gte('sent_at', today.toISOString())
+          .lte('sent_at', todayEnd.toISOString())
+          .limit(1);
 
-          if (existingNotification && existingNotification.length > 0) {
-            console.log(`Skipping client ${clientData.name} - already notified today`);
-            continue;
-          }
+        if (existingNotification && existingNotification.length > 0 && !testMode) {
+          console.log(`Skipping client ${clientData.name} - already notified today`);
+          continue;
+        }
 
-          // Send email if enabled
-          if (userSettings.email_reminders_enabled && clientData.email) {
-            try {
-              let subject = "";
-              if (daysRemaining < 0) {
-                subject = `🚨 ${clientData.name}, seu plano ${planName} expirou há ${Math.abs(daysRemaining)} dia(s)!`;
-              } else if (daysRemaining === 0) {
-                subject = `⚠️ ${clientData.name}, seu plano ${planName} vence hoje!`;
-              } else if (daysRemaining === 1) {
-                subject = `🔔 ${clientData.name}, seu plano ${planName} vence amanhã!`;
-              } else {
-                subject = `📅 ${clientData.name}, seu plano ${planName} vence em ${daysRemaining} dia(s)`;
-              }
+        processedClients.push(clientData.id);
 
-              const html = generateEmailHtml(clientData.name, planName, daysRemaining, expiresAtFormatted);
-
-              const emailResponse = await resend.emails.send({
-                from: "Sistema de Clientes <onboarding@resend.dev>",
-                to: [clientData.email],
-                subject,
-                html,
-              });
-
-              console.log(`Email sent to ${clientData.email}:`, emailResponse);
-              totalEmailsSent++;
-
-              // Log to notification history
-              await supabase.from('notification_history').insert({
-                client_id: clientData.id,
-                message_type: 'email',
-                message_content: daysRemaining < 0 
-                  ? `Lembrete de expiração - expirado há ${Math.abs(daysRemaining)} dias`
-                  : `Lembrete de vencimento - ${daysRemaining} dias`,
-                sent_at: new Date().toISOString(),
-              });
-            } catch (emailError) {
-              console.error(`Error sending email to ${clientData.email}:`, emailError);
-            }
-          }
-
-          // Send WhatsApp message via Uazapi if enabled
-          if (userSettings.whatsapp_reminders_enabled && clientData.phone) {
-            const whatsappMessage = generateWhatsAppMessage(clientData.name, planName, daysRemaining);
-            
-            console.log(`Sending WhatsApp to ${clientData.name} (${clientData.phone})...`);
-            
-            const result = await sendWhatsAppUazapi(clientData.phone, whatsappMessage, userSettings.user_id, supabase);
-            
-            if (result.success) {
-              totalWhatsAppSent++;
-              console.log(`WhatsApp sent successfully to ${clientData.name}`);
-              
-              // Log to notification history
-              await supabase.from('notification_history').insert({
-                client_id: clientData.id,
-                message_type: 'whatsapp',
-                message_content: daysRemaining < 0 
-                  ? `Lembrete de expiração - expirado há ${Math.abs(daysRemaining)} dias (Uazapi)`
-                  : `Lembrete de vencimento - ${daysRemaining} dias (Uazapi)`,
-                sent_at: new Date().toISOString(),
-              });
+        // Send email if enabled
+        if (userSettings.email_reminders_enabled && clientData.email) {
+          try {
+            let subject = "";
+            if (daysRemaining < 0) {
+              subject = `🚨 ${clientData.name}, seu plano ${planName} expirou há ${Math.abs(daysRemaining)} dia(s)!`;
+            } else if (daysRemaining === 0) {
+              subject = `⚠️ ${clientData.name}, seu plano ${planName} vence hoje!`;
+            } else if (daysRemaining === 1) {
+              subject = `🔔 ${clientData.name}, seu plano ${planName} vence amanhã!`;
             } else {
-              totalWhatsAppFailed++;
-              console.error(`Failed to send WhatsApp to ${clientData.name}: ${result.error}`);
-              
-              // Log failed attempt
-              await supabase.from('notification_history').insert({
-                client_id: clientData.id,
-                message_type: 'whatsapp',
-                message_content: `Lembrete falhou - ${daysRemaining} dias (${result.error})`,
-                sent_at: new Date().toISOString(),
-              });
+              subject = `📅 ${clientData.name}, seu plano ${planName} vence em ${daysRemaining} dia(s)`;
             }
 
-            // Small delay between messages to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const html = generateEmailHtml(clientData.name, planName, daysRemaining, expiresAtFormatted);
+
+            const emailResponse = await resend.emails.send({
+              from: "Sistema de Clientes <onboarding@resend.dev>",
+              to: [clientData.email],
+              subject,
+              html,
+            });
+
+            console.log(`Email sent to ${clientData.email}:`, emailResponse);
+            totalEmailsSent++;
+
+            // Log to notification history
+            await supabase.from('notification_history').insert({
+              client_id: clientData.id,
+              message_type: 'email',
+              message_content: daysRemaining < 0 
+                ? `Lembrete de expiração - expirado há ${Math.abs(daysRemaining)} dias`
+                : `Lembrete de vencimento - ${daysRemaining} dias`,
+              sent_at: new Date().toISOString(),
+            });
+          } catch (emailError) {
+            console.error(`Error sending email to ${clientData.email}:`, emailError);
           }
         }
-      }
 
-      // 1. Process clients EXPIRING in configured days
-      for (const days of userSettings.reminder_days) {
-        const targetDate = new Date(now);
-        targetDate.setDate(targetDate.getDate() + days);
-        
-        const startOfDay = new Date(targetDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(targetDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Send WhatsApp message via Uazapi if enabled
+        if (userSettings.whatsapp_reminders_enabled && clientData.phone) {
+          const whatsappMessage = generateWhatsAppMessage(clientData.name, planName, daysRemaining);
+          
+          console.log(`Sending WhatsApp to ${clientData.name} (${clientData.phone})...`);
+          
+          const result = await sendWhatsAppUazapi(clientData.phone, whatsappMessage);
+          
+          if (result.success) {
+            totalWhatsAppSent++;
+            console.log(`WhatsApp sent successfully to ${clientData.name}`);
+            
+            // Log to notification history
+            await supabase.from('notification_history').insert({
+              client_id: clientData.id,
+              message_type: 'whatsapp',
+              message_content: daysRemaining < 0 
+                ? `Lembrete de expiração - expirado há ${Math.abs(daysRemaining)} dias (Uazapi)`
+                : `Lembrete de vencimento - ${daysRemaining} dias (Uazapi)`,
+              sent_at: new Date().toISOString(),
+            });
+          } else {
+            totalWhatsAppFailed++;
+            console.error(`Failed to send WhatsApp to ${clientData.name}: ${result.error}`);
+            
+            // Log failed attempt
+            await supabase.from('notification_history').insert({
+              client_id: clientData.id,
+              message_type: 'whatsapp',
+              message_content: `Lembrete falhou - ${daysRemaining} dias (${result.error})`,
+              sent_at: new Date().toISOString(),
+            });
+          }
 
-        console.log(`Checking for clients of user ${userSettings.user_id} expiring in ${days} days`);
-
-        const { data: clients, error: clientsError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('user_id', userSettings.user_id)
-          .gte('expires_at', startOfDay.toISOString())
-          .lte('expires_at', endOfDay.toISOString());
-
-        if (clientsError) {
-          console.error(`Error fetching clients for user ${userSettings.user_id}:`, clientsError);
-          continue;
+          // Small delay between messages to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 1500));
         }
-
-        console.log(`Found ${clients?.length || 0} clients expiring in ${days} days for user ${userSettings.user_id}`);
-        
-        if (clients && clients.length > 0) {
-          await processClients(clients as Client[], days);
-        }
-
-        results.push({
-          user_id: userSettings.user_id,
-          day: days,
-          clientsFound: clients?.length || 0,
-          type: 'expiring'
-        });
       }
+    }
 
-      // 2. Process EXPIRED clients (up to 30 days ago)
-      const expiredDays = [1, 3, 7, 14, 30]; // Days after expiration to send reminders
+    // 1. Process clients EXPIRING in configured days
+    for (const days of userSettings.reminder_days) {
+      const targetDate = new Date(now);
+      targetDate.setDate(targetDate.getDate() + days);
       
-      for (const daysAgo of expiredDays) {
-        const targetDate = new Date(now);
-        targetDate.setDate(targetDate.getDate() - daysAgo);
-        
-        const startOfDay = new Date(targetDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(targetDate);
-        endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
 
-        console.log(`Checking for clients of user ${userSettings.user_id} expired ${daysAgo} days ago`);
+      console.log(`Checking for clients expiring in ${days} days (${startOfDay.toISOString()} - ${endOfDay.toISOString()})`);
 
-        const { data: expiredClients, error: expiredError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('user_id', userSettings.user_id)
-          .gte('expires_at', startOfDay.toISOString())
-          .lte('expires_at', endOfDay.toISOString());
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .gte('expires_at', startOfDay.toISOString())
+        .lte('expires_at', endOfDay.toISOString());
 
-        if (expiredError) {
-          console.error(`Error fetching expired clients for user ${userSettings.user_id}:`, expiredError);
-          continue;
-        }
-
-        console.log(`Found ${expiredClients?.length || 0} clients expired ${daysAgo} days ago for user ${userSettings.user_id}`);
-        
-        if (expiredClients && expiredClients.length > 0) {
-          await processClients(expiredClients as Client[], -daysAgo);
-        }
-
-        results.push({
-          user_id: userSettings.user_id,
-          day: -daysAgo,
-          clientsFound: expiredClients?.length || 0,
-          type: 'expired'
-        });
+      if (clientsError) {
+        console.error(`Error fetching clients:`, clientsError);
+        continue;
       }
+
+      console.log(`Found ${clients?.length || 0} clients expiring in ${days} days`);
+      
+      if (clients && clients.length > 0) {
+        await processClients(clients as Client[], days);
+      }
+
+      results.push({
+        day: days,
+        clientsFound: clients?.length || 0,
+        type: 'expiring'
+      });
+    }
+
+    // 2. Process EXPIRED clients
+    const expiredDays = userSettings.expired_reminder_days || [1, 3, 7, 14, 30];
+    
+    for (const daysAgo of expiredDays) {
+      const targetDate = new Date(now);
+      targetDate.setDate(targetDate.getDate() - daysAgo);
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      console.log(`Checking for clients expired ${daysAgo} days ago`);
+
+      const { data: expiredClients, error: expiredError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .gte('expires_at', startOfDay.toISOString())
+        .lte('expires_at', endOfDay.toISOString());
+
+      if (expiredError) {
+        console.error(`Error fetching expired clients:`, expiredError);
+        continue;
+      }
+
+      console.log(`Found ${expiredClients?.length || 0} clients expired ${daysAgo} days ago`);
+      
+      if (expiredClients && expiredClients.length > 0) {
+        await processClients(expiredClients as Client[], -daysAgo);
+      }
+
+      results.push({
+        day: -daysAgo,
+        clientsFound: expiredClients?.length || 0,
+        type: 'expired'
+      });
     }
 
     console.log(`Auto-send complete. Emails: ${totalEmailsSent}, WhatsApp sent: ${totalWhatsAppSent}, WhatsApp failed: ${totalWhatsAppFailed}`);
@@ -436,6 +497,7 @@ const handler = async (req: Request): Promise<Response> => {
         totalEmailsSent,
         totalWhatsAppSent,
         totalWhatsAppFailed,
+        processedClients: processedClients.length,
         results,
         timestamp: new Date().toISOString()
       }), 

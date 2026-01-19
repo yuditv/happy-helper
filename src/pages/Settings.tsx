@@ -338,34 +338,29 @@ export default function Settings() {
                           variant="outline"
                           className="gap-2"
                           onClick={async () => {
-                            // Primeiro verificar se há instância WhatsApp conectada
+                            // Verificar status da conexão Uazapi
                             if (notificationPrefs.whatsappReminders) {
                               toast.loading('Verificando conexão WhatsApp...');
                               
                               try {
-                                const { data: instanceData, error: instanceError } = await supabase.functions.invoke('uazapi-list-instances');
+                                const { data: statusData, error: statusError } = await supabase.functions.invoke('uazapi-status');
                                 
                                 toast.dismiss();
                                 
-                                if (instanceError) {
-                                  toast.error('Erro ao verificar instâncias WhatsApp');
+                                if (statusError) {
+                                  toast.error('Erro ao verificar status do WhatsApp');
                                   return;
                                 }
                                 
-                                const instances = instanceData?.instances || [];
-                                const connectedInstance = instances.find((inst: any) => 
-                                  inst.status === 'open' || inst.status === 'connected'
-                                );
-                                
-                                if (!connectedInstance) {
+                                if (!statusData?.connected) {
                                   toast.error(
-                                    'Nenhuma instância WhatsApp conectada! Vá em "Conexão WhatsApp" para conectar.', 
+                                    'WhatsApp não está conectado! Verifique sua instância Uazapi.', 
                                     { duration: 5000 }
                                   );
                                   return;
                                 }
                                 
-                                toast.success(`WhatsApp conectado: ${connectedInstance.name || connectedInstance.phone}`, { duration: 2000 });
+                                toast.success('WhatsApp conectado!', { duration: 2000 });
                               } catch (err) {
                                 toast.dismiss();
                                 toast.error('Erro ao verificar WhatsApp');
@@ -373,9 +368,21 @@ export default function Settings() {
                               }
                             }
                             
-                            toast.loading('Executando verificação de envio automático...');
+                            toast.loading('Executando envio de lembretes...');
                             try {
-                              const { data, error } = await supabase.functions.invoke('auto-send-reminders');
+                              // Passa as configurações diretamente para a Edge Function
+                              const { data, error } = await supabase.functions.invoke('auto-send-reminders', {
+                                body: {
+                                  settings: {
+                                    email_reminders_enabled: notificationPrefs.emailReminders,
+                                    whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
+                                    auto_send_enabled: true,
+                                    reminder_days: notificationPrefs.reminderDays,
+                                    expired_reminder_days: [1, 3, 7],
+                                  },
+                                  test_mode: false,
+                                }
+                              });
                               
                               if (error) {
                                 toast.dismiss();
@@ -408,12 +415,22 @@ export default function Settings() {
                           }}
                         >
                           <Send className="h-4 w-4" />
-                          Testar Envio Automático
+                          Testar Envio Agora
                         </Button>
-                        
-                        <p className="text-xs text-muted-foreground self-center">
-                          Executa o envio de lembretes manualmente para testar a configuração
+                      </div>
+                      
+                      {/* Info sobre agendamento */}
+                      <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
+                        <p className="text-sm font-medium flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4 text-primary" />
+                          Como funciona o envio automático?
                         </p>
+                        <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
+                          <li>O sistema envia mensagens para clientes com planos vencendo nos dias configurados</li>
+                          <li>Também envia lembretes para clientes com planos já expirados (1, 3 e 7 dias após)</li>
+                          <li>Usa seus secrets <code className="bg-background px-1 rounded">UAZAPI_TOKEN</code> e <code className="bg-background px-1 rounded">UAZAPI_URL</code> para enviar via WhatsApp</li>
+                          <li>Clique em "Testar Envio Agora" para executar manualmente</li>
+                        </ul>
                       </div>
                     </div>
                   </>
