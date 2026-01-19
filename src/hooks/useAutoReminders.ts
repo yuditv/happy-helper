@@ -155,18 +155,32 @@ export function useAutoReminders() {
           console.log(`Sending to ${client.name}...`);
 
           try {
+            console.log(`Calling send-whatsapp-text for ${client.name}, phone: ${client.whatsapp}`);
+            
             const { data, error: sendError } = await supabase.functions.invoke('send-whatsapp-text', {
               body: { phone: client.whatsapp, message }
             });
 
-            if (sendError || !data?.success) {
+            console.log('Edge function response:', JSON.stringify({ data, error: sendError }));
+
+            if (sendError) {
+              console.error('Edge function error:', sendError);
               whatsappFailed++;
               allResults.push({ 
                 client: client.name, 
                 status: 'failed', 
-                error: sendError?.message || data?.error || 'Erro desconhecido' 
+                error: sendError.message || 'Erro na função' 
+              });
+            } else if (!data?.success) {
+              console.error('API returned failure:', data);
+              whatsappFailed++;
+              allResults.push({ 
+                client: client.name, 
+                status: 'failed', 
+                error: data?.error || data?.details?.message || 'Falha no envio' 
               });
             } else {
+              console.log('Message sent successfully to', client.name);
               whatsappSent++;
               allResults.push({ client: client.name, status: 'sent' });
 
@@ -181,6 +195,7 @@ export function useAutoReminders() {
               });
             }
           } catch (err: unknown) {
+            console.error('Exception calling edge function:', err);
             whatsappFailed++;
             const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
             allResults.push({ client: client.name, status: 'failed', error: errorMessage });
@@ -251,18 +266,32 @@ export function useAutoReminders() {
           console.log(`Sending expired reminder to ${client.name}...`);
 
           try {
+            console.log(`Calling send-whatsapp-text for expired client ${client.name}, phone: ${client.whatsapp}`);
+            
             const { data, error: sendError } = await supabase.functions.invoke('send-whatsapp-text', {
               body: { phone: client.whatsapp, message }
             });
 
-            if (sendError || !data?.success) {
+            console.log('Edge function response (expired):', JSON.stringify({ data, error: sendError }));
+
+            if (sendError) {
+              console.error('Edge function error:', sendError);
               whatsappFailed++;
               allResults.push({ 
                 client: client.name, 
                 status: 'failed', 
-                error: sendError?.message || data?.error || 'Erro desconhecido' 
+                error: sendError.message || 'Erro na função' 
+              });
+            } else if (!data?.success) {
+              console.error('API returned failure:', data);
+              whatsappFailed++;
+              allResults.push({ 
+                client: client.name, 
+                status: 'failed', 
+                error: data?.error || data?.details?.message || 'Falha no envio' 
               });
             } else {
+              console.log('Expired reminder sent successfully to', client.name);
               whatsappSent++;
               allResults.push({ client: client.name, status: 'sent' });
 
@@ -276,6 +305,7 @@ export function useAutoReminders() {
               });
             }
           } catch (err: unknown) {
+            console.error('Exception calling edge function:', err);
             whatsappFailed++;
             const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
             allResults.push({ client: client.name, status: 'failed', error: errorMessage });
