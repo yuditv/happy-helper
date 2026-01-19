@@ -1,12 +1,12 @@
 project_id = "tlanmmbgyyxuqvezudir"
 
-[functions.uazapi-status]
-verify_jwt = false
-
 [functions.send-whatsapp-text]
 verify_jwt = false
 
 [functions.send-whatsapp-media]
+verify_jwt = false
+
+[functions.uazapi-status]
 verify_jwt = false
 
 [functions.send-expiration-reminder]
