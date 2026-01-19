@@ -66,7 +66,6 @@ import {
 import { format, subMonths, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency, planLabels, getExpirationStatus, getDaysUntilExpiration } from "@/types/client";
-import { openWhatsApp } from "@/lib/whatsapp";
 import type { PlanType } from "@/types/client";
 
 interface ResellerStats {
@@ -711,7 +710,7 @@ export default function ResellerArea() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => openWhatsApp(client.whatsapp, `Olá ${client.name}!`)}
+                                  onClick={() => window.open(`https://wa.me/${client.whatsapp.replace(/\D/g, '')}`, '_blank')}
                                 >
                                   <MessageCircle className="h-4 w-4" />
                                 </Button>

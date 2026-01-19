@@ -1,52 +1,21 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, DollarSign, Bell, Palette, Save, Moon, Sun, Monitor, Loader2, Shield, Send, MessageSquare } from 'lucide-react';
+import { ArrowLeft, DollarSign, Palette, Save, Moon, Sun, Monitor, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/NotificationSettings';
-import { useNotificationSettings } from '@/hooks/useNotificationSettings';
-import { useAutoReminders } from '@/hooks/useAutoReminders';
 import { toast } from 'sonner';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { settings, isLoading, saveSettings } = usePlanSettings();
-  const { 
-    settings: notificationSettings, 
-    isLoading: isLoadingNotifications, 
-    isSaving: isSavingNotifications,
-    updateSetting: updateNotificationSetting,
-    saveSettings: saveNotificationSettings 
-  } = useNotificationSettings();
-  const { sendReminders, isProcessing: isSendingReminders } = useAutoReminders();
   
   const [editedSettings, setEditedSettings] = useState<PlanSetting[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
-  
-  // Local state for notification preferences (synced with hook)
-  const [notificationPrefs, setNotificationPrefs] = useState({
-    emailReminders: true,
-    whatsappReminders: false,
-    reminderDays: [7, 3, 1] as number[],
-    autoSendReminders: false,
-  });
-  const [hasNotificationChanges, setHasNotificationChanges] = useState(false);
-  // Sync notification settings from hook
-  useEffect(() => {
-    if (notificationSettings) {
-      setNotificationPrefs({
-        emailReminders: notificationSettings.email_reminders_enabled,
-        whatsappReminders: notificationSettings.whatsapp_reminders_enabled,
-        reminderDays: notificationSettings.reminder_days,
-        autoSendReminders: notificationSettings.auto_send_enabled,
-      });
-    }
-  }, [notificationSettings]);
 
   // Theme preference
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
@@ -119,14 +88,10 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="plans" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="plans" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Planos</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Notificações</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
@@ -198,296 +163,6 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            {/* Push Notifications */}
-            <NotificationSettingsComponent />
-
-            {/* Email & WhatsApp Notifications */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  Lembretes Automáticos
-                </CardTitle>
-                <CardDescription>
-                  Configure os lembretes automáticos por email e WhatsApp para seus clientes.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {isLoadingNotifications ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Lembretes por Email</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Enviar emails automáticos para clientes com planos próximos do vencimento
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notificationPrefs.emailReminders}
-                        onCheckedChange={(checked) => {
-                          setNotificationPrefs(prev => ({ ...prev, emailReminders: checked }));
-                          setHasNotificationChanges(true);
-                        }}
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Lembretes por WhatsApp (Uazapi)</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Enviar mensagens automáticas via WhatsApp conectado
-                          </p>
-                        </div>
-                        <Switch
-                          checked={notificationPrefs.whatsappReminders}
-                          onCheckedChange={(checked) => {
-                            setNotificationPrefs(prev => ({ ...prev, whatsappReminders: checked }));
-                            setHasNotificationChanges(true);
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label>Dias antes do vencimento para enviar lembrete</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {[1, 3, 5, 7, 14, 30].map((day) => (
-                          <Button
-                            key={day}
-                            variant={notificationPrefs.reminderDays.includes(day) ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => {
-                              setNotificationPrefs(prev => ({
-                                ...prev,
-                                reminderDays: prev.reminderDays.includes(day)
-                                  ? prev.reminderDays.filter(d => d !== day)
-                                  : [...prev.reminderDays, day].sort((a, b) => b - a)
-                              }));
-                              setHasNotificationChanges(true);
-                            }}
-                          >
-                            {day} {day === 1 ? 'dia' : 'dias'}
-                          </Button>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Selecionados: {notificationPrefs.reminderDays.length > 0 
-                          ? notificationPrefs.reminderDays.join(', ') + ' dias antes'
-                          : 'Nenhum'}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
-                      <div className="space-y-0.5">
-                        <Label className="text-primary font-semibold">🚀 Envio Automático</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Enviar lembretes automaticamente todos os dias às 09:00
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notificationPrefs.autoSendReminders}
-                        onCheckedChange={(checked) => {
-                          setNotificationPrefs(prev => ({ ...prev, autoSendReminders: checked }));
-                          setHasNotificationChanges(true);
-                        }}
-                      />
-                    </div>
-
-                    {hasNotificationChanges && (
-                      <div className="flex justify-end pt-4">
-                        <Button 
-                          onClick={async () => {
-                            const success = await saveNotificationSettings({
-                              email_reminders_enabled: notificationPrefs.emailReminders,
-                              whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
-                              auto_send_enabled: notificationPrefs.autoSendReminders,
-                              reminder_days: notificationPrefs.reminderDays,
-                            });
-                            if (success) {
-                              setHasNotificationChanges(false);
-                            }
-                          }}
-                          disabled={isSavingNotifications}
-                          className="gap-2"
-                        >
-                          {isSavingNotifications ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Save className="h-4 w-4" />
-                          )}
-                          Salvar Configurações
-                        </Button>
-                      </div>
-                    )}
-
-                    <div className="pt-4 border-t space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        💡 <strong>Dica:</strong> Quando o envio automático está ativo, o sistema verifica diariamente 
-                        e envia lembretes por email e WhatsApp para clientes com planos vencendo nos dias configurados.
-                      </p>
-                      
-                      {/* Teste direto de envio */}
-                      <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 space-y-3">
-                        <h4 className="font-medium flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4" />
-                          Teste Direto de WhatsApp
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          Envia uma mensagem de teste diretamente para verificar se a API está funcionando.
-                        </p>
-                        <Button 
-                          variant="default"
-                          className="gap-2"
-                          disabled={isSendingReminders}
-                          onClick={async () => {
-                            toast.loading('Enviando mensagem de teste...');
-                            
-                            try {
-                              const { data, error } = await import('@/integrations/supabase/client').then(m => 
-                                m.supabase.functions.invoke('send-whatsapp-text', {
-                                  body: { 
-                                    phone: '5591980910280', 
-                                    message: '🧪 Teste de envio do sistema!\n\nSe você recebeu esta mensagem, a integração está funcionando corretamente.' 
-                                  }
-                                })
-                              );
-                              
-                              toast.dismiss();
-                              console.log('Resposta do teste:', { data, error });
-                              
-                              if (error) {
-                                toast.error(`Erro: ${error.message}`);
-                              } else if (data?.success) {
-                                toast.success('Mensagem de teste enviada com sucesso!');
-                              } else {
-                                toast.error(`Falha: ${data?.error || 'Erro desconhecido'}`);
-                              }
-                            } catch (err) {
-                              toast.dismiss();
-                              console.error('Erro no teste:', err);
-                              toast.error('Erro ao chamar função');
-                            }
-                          }}
-                        >
-                          {isSendingReminders ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Send className="h-4 w-4" />
-                          )}
-                          Enviar Teste para Lucas (91) 98091-0280
-                        </Button>
-                      </div>
-                      
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <Button 
-                          variant="outline"
-                          className="gap-2"
-                          disabled={isSendingReminders}
-                          onClick={async () => {
-                            toast.loading('Executando envio de lembretes...');
-                            
-                            const result = await sendReminders({
-                              whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
-                              reminder_days: notificationPrefs.reminderDays,
-                              expired_reminder_days: [0, 1, 3, 7],
-                            });
-                            
-                            toast.dismiss();
-                            
-                            if (result.success) {
-                              if (result.whatsappSent > 0) {
-                                toast.success(`${result.whatsappSent} mensagens WhatsApp enviadas!`);
-                              } else if (result.results.length === 0) {
-                                toast.info('Nenhum cliente encontrado para notificar hoje.');
-                              } else {
-                                const skipped = result.results.filter(r => r.status === 'skipped').length;
-                                toast.info(`${skipped} clientes pulados (já notificados ou sem telefone).`);
-                              }
-                              
-                              if (result.whatsappFailed > 0) {
-                                toast.warning(`${result.whatsappFailed} mensagens falharam.`);
-                              }
-                            } else {
-                              toast.error('Erro ao executar envio automático');
-                            }
-                          }}
-                        >
-                          {isSendingReminders ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Send className="h-4 w-4" />
-                          )}
-                          Testar Envio Agora
-                        </Button>
-                        
-                        <Button 
-                          variant="secondary"
-                          className="gap-2"
-                          disabled={isSendingReminders}
-                          onClick={async () => {
-                            toast.loading('Forçando envio (ignora já notificados)...');
-                            
-                            const result = await sendReminders({
-                              whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
-                              reminder_days: notificationPrefs.reminderDays,
-                              expired_reminder_days: [0, 1, 3, 7],
-                              force_send: true,
-                            });
-                            
-                            toast.dismiss();
-                            
-                            if (result.success) {
-                              if (result.whatsappSent > 0) {
-                                toast.success(`${result.whatsappSent} mensagens WhatsApp enviadas!`);
-                              } else if (result.results.length === 0) {
-                                toast.info('Nenhum cliente encontrado.');
-                              }
-                              
-                              if (result.whatsappFailed > 0) {
-                                toast.warning(`${result.whatsappFailed} mensagens falharam.`);
-                              }
-                            } else {
-                              toast.error('Erro ao executar envio');
-                            }
-                          }}
-                        >
-                          {isSendingReminders ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Send className="h-4 w-4" />
-                          )}
-                          Forçar Reenvio
-                        </Button>
-                      </div>
-                      
-                      {/* Info sobre agendamento */}
-                      <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
-                        <p className="text-sm font-medium flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4 text-primary" />
-                          Como funciona o envio automático?
-                        </p>
-                        <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
-                          <li>O sistema envia mensagens para clientes com planos vencendo nos dias configurados</li>
-                          <li>Também envia lembretes para clientes com planos já expirados (1, 3 e 7 dias após)</li>
-                          <li>Usa seus secrets <code className="bg-background px-1 rounded">UAZAPI_TOKEN</code> e <code className="bg-background px-1 rounded">UAZAPI_URL</code> para enviar via WhatsApp</li>
-                          <li>Clique em "Testar Envio Agora" para executar manualmente</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           {/* Appearance Tab */}
           <TabsContent value="appearance" className="space-y-6">
             <Card>
@@ -497,70 +172,44 @@ export default function Settings() {
                   Aparência
                 </CardTitle>
                 <CardDescription>
-                  Personalize a aparência do sistema.
+                  Personalize o visual do sistema.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
                   <Label>Tema</Label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <Button
                       variant={theme === 'light' ? 'default' : 'outline'}
-                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      size="sm"
                       onClick={() => handleThemeChange('light')}
+                      className="gap-2"
                     >
-                      <Sun className="h-6 w-6" />
-                      <span>Claro</span>
+                      <Sun className="h-4 w-4" />
+                      Claro
                     </Button>
                     <Button
                       variant={theme === 'dark' ? 'default' : 'outline'}
-                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      size="sm"
                       onClick={() => handleThemeChange('dark')}
+                      className="gap-2"
                     >
-                      <Moon className="h-6 w-6" />
-                      <span>Escuro</span>
+                      <Moon className="h-4 w-4" />
+                      Escuro
                     </Button>
                     <Button
                       variant={theme === 'system' ? 'default' : 'outline'}
-                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      size="sm"
                       onClick={() => handleThemeChange('system')}
+                      className="gap-2"
                     >
-                      <Monitor className="h-6 w-6" />
-                      <span>Sistema</span>
+                      <Monitor className="h-4 w-4" />
+                      Sistema
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  Segurança e Privacidade
-                </CardTitle>
-                <CardDescription>
-                  Informações sobre segurança da sua conta.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-green-600 dark:text-green-400">Conta Protegida</p>
-                    <p className="text-sm text-muted-foreground">
-                      Seus dados estão seguros com criptografia de ponta a ponta.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>• Autenticação segura via email</p>
-                  <p>• Dados armazenados com criptografia</p>
-                  <p>• Políticas de segurança em nível de linha (RLS)</p>
-                  <p>• Acesso restrito apenas aos seus dados</p>
+                  <p className="text-xs text-muted-foreground">
+                    Escolha entre tema claro, escuro ou automático baseado no sistema.
+                  </p>
                 </div>
               </CardContent>
             </Card>

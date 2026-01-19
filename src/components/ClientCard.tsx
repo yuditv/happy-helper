@@ -4,13 +4,10 @@ import { PlanBadge } from './PlanBadge';
 import { ExpirationBadge } from './ExpirationBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, MessageCircle, Send, Bell, StickyNote } from 'lucide-react';
+import { Phone, Mail, Pencil, Trash2, Calendar, RefreshCw, History, ArrowRightLeft, Bell, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { generateExpirationMessage, openWhatsApp } from '@/lib/whatsapp';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 interface ClientCardProps {
   client: Client;
@@ -28,111 +25,7 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
   const status = getExpirationStatus(client.expiresAt);
   const needsAttention = status === 'expiring' || status === 'expired';
   const hasHistory = client.renewalHistory && client.renewalHistory.length > 0;
-  const daysRemaining = getDaysUntilExpiration(client.expiresAt);
   const planName = getPlanName ? getPlanName(client.plan) : planLabels[client.plan];
-  const [whatsappTemplate, setWhatsappTemplate] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchTemplate = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const templateType = daysRemaining < 0 ? 'whatsapp_expiration' : 'whatsapp_reminder';
-      const { data } = await supabase
-        .from('message_templates')
-        .select('content')
-        .eq('user_id', user.id)
-        .eq('template_type', templateType)
-        .single();
-
-      if (data) {
-        setWhatsappTemplate(data.content);
-      }
-    };
-
-    fetchTemplate();
-  }, [daysRemaining]);
-
-  const handleSendWhatsApp = async () => {
-    const message = generateExpirationMessage({
-      client,
-      planName,
-      daysRemaining,
-      template: whatsappTemplate || undefined,
-      planPrice: client.price || planPrices[client.plan],
-    });
-    openWhatsApp(client.whatsapp, message);
-    
-    // Record WhatsApp notification (best effort, don't block on failure)
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('notification_history').insert({
-          client_id: client.id,
-          user_id: user.id,
-          notification_type: 'whatsapp',
-          subject: `Lembrete WhatsApp - ${daysRemaining < 0 ? 'Plano expirado' : daysRemaining === 0 ? 'Vence hoje' : `Vence em ${daysRemaining} dias`}`,
-          status: 'sent',
-          days_until_expiration: daysRemaining,
-        });
-      }
-    } catch (error) {
-      console.error('Error recording WhatsApp notification:', error);
-    }
-  };
-
-  const handleSendEmail = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Fetch email template
-      const templateType = daysRemaining < 0 ? 'email_expiration' : 'email_reminder';
-      const { data: templateData } = await supabase
-        .from('message_templates')
-        .select('subject, content')
-        .eq('user_id', user.id)
-        .eq('template_type', templateType)
-        .single();
-      
-      const { data, error } = await supabase.functions.invoke('send-expiration-reminder', {
-        body: {
-          clientId: client.id,
-          clientName: client.name,
-          clientEmail: client.email,
-          planName,
-          daysRemaining,
-          expiresAt: format(client.expiresAt, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
-          planPrice: client.price || planPrices[client.plan],
-          customSubject: templateData?.subject,
-          customContent: templateData?.content,
-        },
-      });
-
-      if (error) throw error;
-
-      // Record email notification
-      const subject = daysRemaining < 0 
-        ? `⚠️ ${client.name}, seu plano ${planName} venceu!`
-        : daysRemaining === 0
-        ? `🔔 ${client.name}, seu plano ${planName} vence hoje!`
-        : `📅 ${client.name}, seu plano ${planName} vence em ${daysRemaining} dia(s)`;
-
-      await supabase.from('notification_history').insert({
-        client_id: client.id,
-        user_id: user.id,
-        notification_type: 'email',
-        subject,
-        status: 'sent',
-        days_until_expiration: daysRemaining,
-      });
-
-      toast.success(`Email de lembrete enviado para ${client.email}`);
-    } catch (error: any) {
-      console.error('Error sending email:', error);
-      toast.error('Erro ao enviar email. Tente novamente.');
-    }
-  };
 
   return (
     <Card className={cn(
@@ -279,28 +172,6 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
               Renovar
             </Button>
           </div>
-          {needsAttention && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-1.5 text-green-600 border-green-600/30 hover:bg-green-600/10"
-                onClick={handleSendWhatsApp}
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                WhatsApp
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-1.5 text-blue-600 border-blue-600/30 hover:bg-blue-600/10"
-                onClick={handleSendEmail}
-              >
-                <Send className="h-3.5 w-3.5" />
-                Email
-              </Button>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

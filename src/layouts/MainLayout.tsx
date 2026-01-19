@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, memo } from "react";
+import { useState, lazy, Suspense } from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar, AppSection } from "@/components/AppSidebar";
 import { ExternalFrame } from "@/components/ExternalFrame";
@@ -6,13 +6,11 @@ import { AnimatedBackground } from "@/components/AnimatedBackground";
 
 // Lazy load heavy components
 const Index = lazy(() => import("@/pages/Index"));
-const ScheduledMessages = lazy(() => import("@/pages/ScheduledMessages"));
 const ResellerArea = lazy(() => import("@/pages/ResellerArea"));
 const Mentorias = lazy(() => import("@/pages/Mentorias"));
 const Paineis = lazy(() => import("@/pages/Paineis"));
 const Creditos = lazy(() => import("@/pages/Creditos"));
 const Contacts = lazy(() => import("@/pages/Contacts"));
-const WhatsAppNumberFilter = lazy(() => import("@/components/WhatsAppNumberFilter").then(m => ({ default: m.WhatsAppNumberFilter })));
 
 const ContentLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
@@ -29,10 +27,6 @@ export function MainLayout() {
         return <Index />;
       case "contatos":
         return <Contacts />;
-      case "disparo":
-        return <ScheduledMessages />;
-      case "filtrar":
-        return <WhatsAppNumberFilter />;
       case "revenda":
         return <ResellerArea />;
       case "vpn":
