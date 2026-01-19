@@ -334,6 +334,58 @@ export default function Settings() {
                         e envia lembretes por email e WhatsApp para clientes com planos vencendo nos dias configurados.
                       </p>
                       
+                      {/* Teste direto de envio */}
+                      <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 space-y-3">
+                        <h4 className="font-medium flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          Teste Direto de WhatsApp
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          Envia uma mensagem de teste diretamente para verificar se a API está funcionando.
+                        </p>
+                        <Button 
+                          variant="default"
+                          className="gap-2"
+                          disabled={isSendingReminders}
+                          onClick={async () => {
+                            toast.loading('Enviando mensagem de teste...');
+                            
+                            try {
+                              const { data, error } = await import('@/integrations/supabase/client').then(m => 
+                                m.supabase.functions.invoke('send-whatsapp-text', {
+                                  body: { 
+                                    phone: '5591980910280', 
+                                    message: '🧪 Teste de envio do sistema!\n\nSe você recebeu esta mensagem, a integração está funcionando corretamente.' 
+                                  }
+                                })
+                              );
+                              
+                              toast.dismiss();
+                              console.log('Resposta do teste:', { data, error });
+                              
+                              if (error) {
+                                toast.error(`Erro: ${error.message}`);
+                              } else if (data?.success) {
+                                toast.success('Mensagem de teste enviada com sucesso!');
+                              } else {
+                                toast.error(`Falha: ${data?.error || 'Erro desconhecido'}`);
+                              }
+                            } catch (err) {
+                              toast.dismiss();
+                              console.error('Erro no teste:', err);
+                              toast.error('Erro ao chamar função');
+                            }
+                          }}
+                        >
+                          {isSendingReminders ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          Enviar Teste para Lucas (91) 98091-0280
+                        </Button>
+                      </div>
+                      
                       <div className="flex flex-col sm:flex-row gap-3">
                         <Button 
                           variant="outline"
@@ -345,7 +397,7 @@ export default function Settings() {
                             const result = await sendReminders({
                               whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
                               reminder_days: notificationPrefs.reminderDays,
-                              expired_reminder_days: [0, 1, 3, 7], // Inclui expirado hoje (0)
+                              expired_reminder_days: [0, 1, 3, 7],
                             });
                             
                             toast.dismiss();
@@ -387,7 +439,7 @@ export default function Settings() {
                               whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
                               reminder_days: notificationPrefs.reminderDays,
                               expired_reminder_days: [0, 1, 3, 7],
-                              force_send: true, // Ignora verificação de já notificado
+                              force_send: true,
                             });
                             
                             toast.dismiss();
