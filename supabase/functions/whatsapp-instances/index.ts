@@ -6,67 +6,106 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// UAZAPI Service - Isolated service for WhatsApp API
+// UAZAPI Service - Based on official API spec
 class UazapiService {
   private baseUrl: string;
-  private token: string;
+  private adminToken: string;
 
   constructor() {
     this.baseUrl = Deno.env.get("UAZAPI_URL") || "https://zynk2.uazapi.com";
-    this.token = Deno.env.get("UAZAPI_TOKEN") || "";
+    this.adminToken = Deno.env.get("UAZAPI_TOKEN") || "";
+    console.log("UAZAPI configured:", { baseUrl: this.baseUrl, hasToken: !!this.adminToken });
   }
 
-  private async request(endpoint: string, method: string = "GET", body?: any) {
-    console.log(`UAZAPI Request: ${method} ${this.baseUrl}${endpoint}`);
+  // Admin request - uses admintoken header
+  private async adminRequest(endpoint: string, method: string = "GET", body?: any) {
+    const url = `${this.baseUrl}${endpoint}`;
+    console.log(`UAZAPI Admin Request: ${method} ${url}`);
     
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(url, {
       method,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.token}`,
+        "admintoken": this.adminToken,
       },
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const data = await response.json();
-    console.log(`UAZAPI Response:`, JSON.stringify(data));
+    const text = await response.text();
+    console.log(`UAZAPI Response (${response.status}):`, text.substring(0, 500));
+    
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
     
     if (!response.ok) {
-      throw new Error(data.message || `UAZAPI Error: ${response.status}`);
+      throw new Error(data.error || data.message || `UAZAPI Error: ${response.status}`);
     }
 
     return data;
   }
 
-  async createInstance(instanceKey: string) {
-    return this.request("/instance/create", "POST", { 
-      instanceKey,
-      token: this.token 
+  // Instance request - uses token header (instance token)
+  private async instanceRequest(instanceToken: string, endpoint: string, method: string = "GET", body?: any) {
+    const url = `${this.baseUrl}${endpoint}`;
+    console.log(`UAZAPI Instance Request: ${method} ${url}`);
+    
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "token": instanceToken,
+      },
+      body: body ? JSON.stringify(body) : undefined,
     });
+
+    const text = await response.text();
+    console.log(`UAZAPI Response (${response.status}):`, text.substring(0, 500));
+    
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+    
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `UAZAPI Error: ${response.status}`);
+    }
+
+    return data;
   }
 
-  async getQRCode(instanceKey: string) {
-    return this.request(`/instance/qrcode/${instanceKey}`);
+  // Create instance using admin token - POST /instance/init
+  async createInstance(name: string) {
+    return this.adminRequest("/instance/init", "POST", { name });
   }
 
-  async getStatus(instanceKey: string) {
-    return this.request(`/instance/status/${instanceKey}`);
+  // Connect instance and get QR code - POST /instance/connect
+  async connect(instanceToken: string, phone?: string) {
+    const body = phone ? { phone } : {};
+    return this.instanceRequest(instanceToken, "/instance/connect", "POST", body);
   }
 
-  async sendText(instanceKey: string, phone: string, message: string) {
-    return this.request("/sendText", "POST", {
-      instanceKey,
-      phone: this.formatPhone(phone),
-      message,
+  // Get instance status - GET /instance/status
+  async getStatus(instanceToken: string) {
+    return this.instanceRequest(instanceToken, "/instance/status", "GET");
+  }
+
+  // Disconnect instance - POST /instance/disconnect
+  async disconnect(instanceToken: string) {
+    return this.instanceRequest(instanceToken, "/instance/disconnect", "POST");
+  }
+
+  // Send text message - POST /message/sendText
+  async sendText(instanceToken: string, phone: string, message: string) {
+    return this.instanceRequest(instanceToken, "/message/sendText", "POST", {
+      number: this.formatPhone(phone),
+      text: message,
     });
-  }
-
-  async disconnect(instanceKey: string) {
-    return this.request(`/instance/disconnect/${instanceKey}`, "POST");
-  }
-
-  async delete(instanceKey: string) {
-    return this.request(`/instance/delete/${instanceKey}`, "DELETE");
   }
 
   private formatPhone(phone: string): string {
@@ -89,8 +128,6 @@ serve(async (req: Request): Promise<Response> => {
 
   try {
     const url = new URL(req.url);
-    // Parse the path correctly - the function name is in the path
-    // URL format: /whatsapp-instances/action/id
     const pathParts = url.pathname.split("/").filter(Boolean);
     console.log("Path parts:", pathParts);
     
@@ -130,12 +167,12 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("User authenticated:", user.id);
 
-    let body = {};
+    let body: any = {};
     if (req.method !== "GET") {
       try {
         body = await req.json();
         console.log("Request body:", body);
-      } catch (e) {
+      } catch {
         console.log("No body or invalid JSON");
       }
     }
@@ -143,15 +180,19 @@ serve(async (req: Request): Promise<Response> => {
     switch (action) {
       case "create": {
         console.log("Creating instance...");
-        // Create instance in UAZAPI
-        const instanceKey = `inst_${user.id.slice(0, 8)}_${Date.now()}`;
+        const instanceName = body.name || `instance_${Date.now()}`;
+        
+        let uazapiResult: any = null;
+        let instanceToken = null;
         
         try {
-          const uazapiResult = await uazapi.createInstance(instanceKey);
+          // Create instance in UAZAPI - returns token
+          uazapiResult = await uazapi.createInstance(instanceName);
+          instanceToken = uazapiResult.token;
           console.log("UAZAPI create result:", uazapiResult);
         } catch (error: any) {
-          console.error("UAZAPI create error (continuing anyway):", error.message);
-          // Continue anyway - we'll create the DB record
+          console.error("UAZAPI create error:", error.message);
+          // Don't fail - we'll save without UAZAPI token
         }
 
         // Save to database
@@ -159,11 +200,12 @@ serve(async (req: Request): Promise<Response> => {
           .from("whatsapp_instances")
           .insert({
             user_id: user.id,
-            name: (body as any).name || "Nova Instância",
-            instance_key: instanceKey,
-            daily_limit: (body as any).daily_limit || 200,
-            business_hours_start: (body as any).business_hours_start || "08:00:00",
-            business_hours_end: (body as any).business_hours_end || "18:00:00",
+            name: body.name || "Nova Instância",
+            instance_key: instanceToken || `local_${Date.now()}`,
+            daily_limit: body.daily_limit || 200,
+            business_hours_start: body.business_hours_start || "08:00:00",
+            business_hours_end: body.business_hours_end || "18:00:00",
+            status: "disconnected",
           })
           .select()
           .single();
@@ -175,7 +217,7 @@ serve(async (req: Request): Promise<Response> => {
 
         console.log("Instance created:", instance);
         return new Response(
-          JSON.stringify({ success: true, instance }),
+          JSON.stringify({ success: true, instance, uazapi: uazapiResult }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -200,16 +242,22 @@ serve(async (req: Request): Promise<Response> => {
         }
 
         try {
-          const qrData = await uazapi.getQRCode(instance.instance_key);
+          // Call /instance/connect to get QR code
+          const connectResult = await uazapi.connect(instance.instance_key);
           
-          // Update instance with QR code
-          await supabase
-            .from("whatsapp_instances")
-            .update({ qr_code: qrData.qrcode || qrData.base64 })
-            .eq("id", instanceId);
+          // The QR code is in the instance object returned
+          const qrcode = connectResult.instance?.qrcode || connectResult.qrcode;
+          
+          if (qrcode) {
+            // Update instance with QR code
+            await supabase
+              .from("whatsapp_instances")
+              .update({ qr_code: qrcode, status: "connecting" })
+              .eq("id", instanceId);
+          }
 
           return new Response(
-            JSON.stringify({ success: true, qrcode: qrData.qrcode || qrData.base64 }),
+            JSON.stringify({ success: true, qrcode, data: connectResult }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         } catch (error: any) {
@@ -240,14 +288,18 @@ serve(async (req: Request): Promise<Response> => {
 
         try {
           const statusData = await uazapi.getStatus(instance.instance_key);
-          const isConnected = statusData.connected || statusData.state === "connected";
+          
+          // Parse status from response
+          const isConnected = statusData.status?.connected || 
+                             statusData.instance?.status === "connected";
+          const phone = statusData.status?.jid?.user || null;
           
           // Update instance status
           await supabase
             .from("whatsapp_instances")
             .update({ 
               status: isConnected ? "connected" : "disconnected",
-              phone_connected: statusData.phone || null,
+              phone_connected: phone,
             })
             .eq("id", instanceId);
 
@@ -255,7 +307,8 @@ serve(async (req: Request): Promise<Response> => {
             JSON.stringify({ 
               success: true, 
               status: isConnected ? "connected" : "disconnected",
-              phone: statusData.phone || null,
+              phone,
+              data: statusData,
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
@@ -320,12 +373,14 @@ serve(async (req: Request): Promise<Response> => {
           );
         }
 
+        // Try to disconnect first
         try {
-          await uazapi.delete(instance.instance_key);
+          await uazapi.disconnect(instance.instance_key);
         } catch (error) {
-          console.error("UAZAPI delete error:", error);
+          console.error("UAZAPI disconnect error:", error);
         }
 
+        // Delete from database
         await supabase
           .from("whatsapp_instances")
           .delete()
