@@ -22,6 +22,7 @@ interface ClientTableProps {
   onViewHistory: (client: Client) => void;
   onChangePlan: (client: Client) => void;
   onViewNotifications: (client: Client) => void;
+  onSendEmail: (client: Client) => void;
   getPlanName: (plan: string) => string;
   selectedClients?: Set<string>;
   onToggleSelection?: (clientId: string) => void;
@@ -35,6 +36,7 @@ export function ClientTable({
   onViewHistory,
   onChangePlan,
   onViewNotifications,
+  onSendEmail,
   getPlanName,
   selectedClients,
   onToggleSelection,
@@ -154,6 +156,12 @@ export function ClientTable({
                       <Bell className="h-4 w-4 mr-2 text-muted-foreground" />
                       Notificações
                     </DropdownMenuItem>
+                    {client.email && (
+                      <DropdownMenuItem onClick={() => onSendEmail(client)}>
+                        <Mail className="h-4 w-4 mr-2 text-primary" />
+                        Enviar Email
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator className="bg-border/50" />
                     <DropdownMenuItem onClick={() => onDelete(client.id)} className="text-destructive focus:text-destructive">
                       <Trash2 className="h-4 w-4 mr-2" />
