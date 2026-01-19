@@ -24,7 +24,6 @@ import { ExpiringClientsAlert } from '@/components/ExpiringClientsAlert';
 import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
 import { ChangePlanDialog } from '@/components/ChangePlanDialog';
 import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialog';
-import { BulkMessageDialog } from '@/components/BulkMessageDialog';
 import { ImportClientsDialog } from '@/components/ImportClientsDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { TagManager } from '@/components/TagManager';
@@ -40,8 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, MessageCircle, Send, Clock, BarChart3, Gift, Trophy, Smartphone, Package, Upload } from 'lucide-react';
-import { openWhatsApp } from '@/lib/whatsapp';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Gift, Trophy, Smartphone, Package, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -81,10 +79,6 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [bulkMessageDialogOpen, setBulkMessageDialogOpen] = useState(false);
-  const [bulkMessageMode, setBulkMessageMode] = useState<'whatsapp' | 'email'>('whatsapp');
-  const [bulkMessageProgress, setBulkMessageProgress] = useState<{ current: number; total: number; success: number; failed: number } | undefined>();
-  const [isSendingBulk, setIsSendingBulk] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const clientsPerPage = viewMode === 'grid' ? 12 : 20;
 
@@ -198,177 +192,6 @@ const Index = () => {
     setBulkDeleteDialogOpen(false);
   };
 
-  const getDefaultBulkMessage = useCallback((mode: 'whatsapp' | 'email') => {
-    if (mode === 'whatsapp') {
-      return `Olá {nome}! 👋
-
-Seu plano *{plano}* vence em *{dias} dia(s)* ({vencimento}).
-
-Aproveite para renovar com antecedência e garantir a continuidade dos serviços!
-
-Qualquer dúvida, estamos à disposição. 😊`;
-    }
-    return '';
-  }, []);
-
-  const openBulkMessageDialog = (mode: 'whatsapp' | 'email') => {
-    setBulkMessageMode(mode);
-    setBulkMessageProgress(undefined);
-    setIsSendingBulk(false);
-    setBulkMessageDialogOpen(true);
-  };
-
-  const handleBulkMessageSend = async (customMessage: string) => {
-    const selectedClientsList = clients.filter(c => selectedClients.has(c.id));
-    const total = selectedClientsList.length;
-    
-    setIsSendingBulk(true);
-    setBulkMessageProgress({ current: 0, total, success: 0, failed: 0 });
-
-    let successCount = 0;
-    let failCount = 0;
-
-    for (let i = 0; i < selectedClientsList.length; i++) {
-      const client = selectedClientsList[i];
-      const planName = getPlanName(client.plan);
-      const daysRemaining = getDaysUntilExpiration(client.expiresAt);
-      const expiresAtFormatted = format(client.expiresAt, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-
-      if (bulkMessageMode === 'whatsapp') {
-        // Replace placeholders in custom message
-        const personalizedMessage = customMessage
-          .replace(/{nome}/g, client.name)
-          .replace(/{plano}/g, planName)
-          .replace(/{dias}/g, String(Math.abs(daysRemaining)))
-          .replace(/{vencimento}/g, expiresAtFormatted);
-
-        // Delay opening to avoid browser blocking
-        await new Promise(resolve => setTimeout(resolve, 500));
-        openWhatsApp(client.whatsapp, personalizedMessage);
-        successCount++;
-        setBulkMessageProgress({ current: i + 1, total, success: successCount, failed: failCount });
-      } else {
-        // Email mode
-        try {
-          const { error } = await supabase.functions.invoke('send-expiration-reminder', {
-            body: {
-              clientId: client.id,
-              clientName: client.name,
-              clientEmail: client.email,
-              planName,
-              daysRemaining,
-              expiresAt: expiresAtFormatted,
-            },
-          });
-
-          if (error) {
-            failCount++;
-            console.error(`Failed to send email to ${client.email}:`, error);
-          } else {
-            successCount++;
-            
-            // Record notification
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              const subject = daysRemaining < 0 
-                ? `⚠️ ${client.name}, seu plano ${planName} venceu!`
-                : daysRemaining === 0
-                ? `🔔 ${client.name}, seu plano ${planName} vence hoje!`
-                : `📅 ${client.name}, seu plano ${planName} vence em ${daysRemaining} dia(s)`;
-
-              await supabase.from('notification_history').insert({
-                client_id: client.id,
-                user_id: user.id,
-                notification_type: 'email',
-                subject,
-                status: 'sent',
-                days_until_expiration: daysRemaining,
-              });
-            }
-          }
-        } catch (error) {
-          failCount++;
-          console.error(`Error sending email to ${client.email}:`, error);
-        }
-        
-        setBulkMessageProgress({ current: i + 1, total, success: successCount, failed: failCount });
-      }
-    }
-
-    setIsSendingBulk(false);
-    
-    if (bulkMessageMode === 'whatsapp') {
-      toast.success(`WhatsApp aberto para ${successCount} cliente(s)!`);
-    } else {
-      if (successCount > 0) {
-        toast.success(`${successCount} email(s) enviado(s) com sucesso!`);
-      }
-      if (failCount > 0) {
-        toast.error(`${failCount} email(s) falhou(aram)`);
-      }
-    }
-    
-    clearSelection();
-  };
-
-  const handleScheduleBulkMessage = async (customMessage: string, options: { scheduledAt: Date; recurrenceType: 'none' | 'daily' | 'weekly' | 'monthly'; recurrenceEndDate?: Date }) => {
-    const selectedClientsList = clients.filter(c => selectedClients.has(c.id));
-    const total = selectedClientsList.length;
-    
-    setIsSendingBulk(true);
-    setBulkMessageProgress({ current: 0, total, success: 0, failed: 0 });
-
-    let successCount = 0;
-    let failCount = 0;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error('Usuário não autenticado');
-      setIsSendingBulk(false);
-      return;
-    }
-
-    for (let i = 0; i < selectedClientsList.length; i++) {
-      const client = selectedClientsList[i];
-      
-      try {
-        const { error } = await supabase.from('scheduled_messages').insert({
-          user_id: user.id,
-          client_id: client.id,
-          message_type: bulkMessageMode,
-          custom_message: customMessage,
-          scheduled_at: options.scheduledAt.toISOString(),
-          status: 'pending',
-          recurrence_type: options.recurrenceType,
-          recurrence_end_date: options.recurrenceEndDate?.toISOString() || null,
-        });
-
-        if (error) {
-          failCount++;
-          console.error(`Failed to schedule message for ${client.name}:`, error);
-        } else {
-          successCount++;
-        }
-      } catch (error) {
-        failCount++;
-        console.error(`Error scheduling message for ${client.name}:`, error);
-      }
-      
-      setBulkMessageProgress({ current: i + 1, total, success: successCount, failed: failCount });
-    }
-
-    setIsSendingBulk(false);
-    
-    const recurrenceLabel = options.recurrenceType !== 'none' ? ' (recorrente)' : '';
-    if (successCount > 0) {
-      toast.success(`${successCount} mensagem(ns) agendada(s)${recurrenceLabel} para ${format(options.scheduledAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}!`);
-    }
-    if (failCount > 0) {
-      toast.error(`${failCount} agendamento(s) falhou(aram)`);
-    }
-    
-    clearSelection();
-  };
 
   const handleAddClient = async (data: Omit<Client, 'id' | 'renewalHistory'>) => {
     const result = await addClient(data);
@@ -726,22 +549,12 @@ Qualquer dúvida, estamos à disposição. 😊`;
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 border-green-500/50 text-green-500 hover:bg-green-500/10"
-                onClick={() => openBulkMessageDialog('whatsapp')}
+                className="gap-1.5 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10"
+                onClick={handleBulkRenew}
               >
-                <MessageCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">WhatsApp</span>
+                <RefreshCwIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Renovar</span>
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
-                onClick={() => openBulkMessageDialog('email')}
-              >
-                <Send className="h-4 w-4" />
-                <span className="hidden sm:inline">Email</span>
-              </Button>
-              <div className="h-6 w-px bg-border/50 hidden sm:block" />
               <Button
                 variant="outline"
                 size="sm"
@@ -978,18 +791,6 @@ Qualquer dúvida, estamos à disposição. 😊`;
         onOpenChange={setBulkDeleteDialogOpen}
         onConfirm={handleBulkDelete}
         clientName={`${selectedClients.size} cliente(s)`}
-      />
-      {/* Bulk Message Dialog */}
-      <BulkMessageDialog
-        open={bulkMessageDialogOpen}
-        onOpenChange={setBulkMessageDialogOpen}
-        selectedCount={selectedClients.size}
-        mode={bulkMessageMode}
-        defaultMessage={getDefaultBulkMessage(bulkMessageMode)}
-        onSend={handleBulkMessageSend}
-        onSchedule={handleScheduleBulkMessage}
-        progress={bulkMessageProgress}
-        isSending={isSendingBulk}
       />
       {/* Import Clients Dialog */}
       <ImportClientsDialog

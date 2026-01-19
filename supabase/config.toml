@@ -1,27 +1,6 @@
 project_id = "tlanmmbgyyxuqvezudir"
 
-[functions.send-whatsapp-text]
-verify_jwt = false
-
-[functions.send-whatsapp-media]
-verify_jwt = false
-
-[functions.uazapi-status]
-verify_jwt = false
-
-[functions.send-expiration-reminder]
-verify_jwt = false
-
-[functions.daily-expiration-check]
-verify_jwt = false
-
-[functions.process-scheduled-messages]
-verify_jwt = false
-
 [functions.send-payment-notification]
-verify_jwt = false
-
-[functions.auto-send-reminders]
 verify_jwt = false
 
 [functions.send-referral-notification]

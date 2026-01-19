@@ -13,13 +13,11 @@ const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Profile = lazy(() => import("./pages/Profile"));
-const ScheduledMessages = lazy(() => import("./pages/ScheduledMessages"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const Install = lazy(() => import("./pages/Install"));
 const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
 const ResellerArea = lazy(() => import("./pages/ResellerArea"));
-const DispatchHistory = lazy(() => import("./pages/DispatchHistory"));
 const Contacts = lazy(() => import("./pages/Contacts"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -101,11 +99,6 @@ const AppRoutes = () => (
           <Profile />
         </ProtectedRoute>
       } />
-      <Route path="/scheduled" element={
-        <ProtectedRoute>
-          <ScheduledMessages />
-        </ProtectedRoute>
-      } />
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Dashboard />
@@ -124,11 +117,6 @@ const AppRoutes = () => (
       <Route path="/reseller" element={
         <ProtectedRoute>
           <ResellerArea />
-        </ProtectedRoute>
-      } />
-      <Route path="/dispatch-history" element={
-        <ProtectedRoute>
-          <DispatchHistory />
         </ProtectedRoute>
       } />
       <Route path="/contacts" element={
