@@ -26,16 +26,22 @@ export function useWhatsAppInstances() {
   const fetchInstances = useCallback(async () => {
     if (!user) return;
     try {
+      // Use raw fetch since table may not be in types yet
       const { data, error } = await supabase
-        .from('whatsapp_instances')
+        .from('whatsapp_instances' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setInstances((data as WhatsAppInstance[]) || []);
+      if (error) {
+        console.error('Error fetching instances:', error);
+        setInstances([]);
+        return;
+      }
+      setInstances((data as unknown as WhatsAppInstance[]) || []);
     } catch (error: any) {
       console.error('Error fetching instances:', error);
+      setInstances([]);
     } finally {
       setIsLoading(false);
     }

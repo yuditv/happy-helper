@@ -262,8 +262,10 @@ const handler = async (req: Request): Promise<Response> => {
           message: "Campanha iniciada",
         });
 
-        // Start background processing
-        EdgeRuntime.waitUntil(processCampaign(supabase, campaign, instance));
+        // Start background processing (fire and forget)
+        processCampaign(supabase, campaign, instance).catch(err => {
+          console.error("Background campaign error:", err);
+        });
 
         return new Response(
           JSON.stringify({ success: true, message: "Campanha iniciada" }),
@@ -318,7 +320,10 @@ const handler = async (req: Request): Promise<Response> => {
           message: "Campanha retomada",
         });
 
-        EdgeRuntime.waitUntil(processCampaign(supabase, campaign, campaign.instance));
+        // Start background processing (fire and forget)
+        processCampaign(supabase, campaign, campaign.instance).catch(err => {
+          console.error("Background campaign error:", err);
+        });
 
         return new Response(
           JSON.stringify({ success: true }),
