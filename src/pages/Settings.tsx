@@ -345,7 +345,7 @@ export default function Settings() {
                             const result = await sendReminders({
                               whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
                               reminder_days: notificationPrefs.reminderDays,
-                              expired_reminder_days: [1, 3, 7],
+                              expired_reminder_days: [0, 1, 3, 7], // Inclui expirado hoje (0)
                             });
                             
                             toast.dismiss();
@@ -374,6 +374,45 @@ export default function Settings() {
                             <Send className="h-4 w-4" />
                           )}
                           Testar Envio Agora
+                        </Button>
+                        
+                        <Button 
+                          variant="secondary"
+                          className="gap-2"
+                          disabled={isSendingReminders}
+                          onClick={async () => {
+                            toast.loading('Forçando envio (ignora já notificados)...');
+                            
+                            const result = await sendReminders({
+                              whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
+                              reminder_days: notificationPrefs.reminderDays,
+                              expired_reminder_days: [0, 1, 3, 7],
+                              force_send: true, // Ignora verificação de já notificado
+                            });
+                            
+                            toast.dismiss();
+                            
+                            if (result.success) {
+                              if (result.whatsappSent > 0) {
+                                toast.success(`${result.whatsappSent} mensagens WhatsApp enviadas!`);
+                              } else if (result.results.length === 0) {
+                                toast.info('Nenhum cliente encontrado.');
+                              }
+                              
+                              if (result.whatsappFailed > 0) {
+                                toast.warning(`${result.whatsappFailed} mensagens falharam.`);
+                              }
+                            } else {
+                              toast.error('Erro ao executar envio');
+                            }
+                          }}
+                        >
+                          {isSendingReminders ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          Forçar Reenvio
                         </Button>
                       </div>
                       

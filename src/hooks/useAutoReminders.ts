@@ -53,6 +53,7 @@ interface ReminderSettings {
   whatsapp_reminders_enabled: boolean;
   reminder_days: number[];
   expired_reminder_days: number[];
+  force_send?: boolean; // Ignora verificação de já notificado
 }
 
 interface SendResult {
@@ -127,21 +128,23 @@ export function useAutoReminders() {
             continue;
           }
 
-          // Check if already notified today
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          // Check if already notified today (unless force_send is true)
+          if (!settings.force_send) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-          const { data: existingNotification } = await supabase
-            .from('notification_history')
-            .select('id')
-            .eq('client_id', client.id)
-            .gte('created_at', today.toISOString())
-            .limit(1);
+            const { data: existingNotification } = await supabase
+              .from('notification_history')
+              .select('id')
+              .eq('client_id', client.id)
+              .gte('created_at', today.toISOString())
+              .limit(1);
 
-          if (existingNotification && existingNotification.length > 0) {
-            console.log(`Skipping ${client.name} - already notified today`);
-            allResults.push({ client: client.name, status: 'skipped', error: 'Já notificado hoje' });
-            continue;
+            if (existingNotification && existingNotification.length > 0) {
+              console.log(`Skipping ${client.name} - already notified today`);
+              allResults.push({ client: client.name, status: 'skipped', error: 'Já notificado hoje' });
+              continue;
+            }
           }
 
           processedClientIds.add(client.id);
@@ -222,19 +225,22 @@ export function useAutoReminders() {
             continue;
           }
 
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          // Check if already notified today (unless force_send is true)
+          if (!settings.force_send) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-          const { data: existingNotification } = await supabase
-            .from('notification_history')
-            .select('id')
-            .eq('client_id', client.id)
-            .gte('created_at', today.toISOString())
-            .limit(1);
+            const { data: existingNotification } = await supabase
+              .from('notification_history')
+              .select('id')
+              .eq('client_id', client.id)
+              .gte('created_at', today.toISOString())
+              .limit(1);
 
-          if (existingNotification && existingNotification.length > 0) {
-            allResults.push({ client: client.name, status: 'skipped', error: 'Já notificado hoje' });
-            continue;
+            if (existingNotification && existingNotification.length > 0) {
+              allResults.push({ client: client.name, status: 'skipped', error: 'Já notificado hoje' });
+              continue;
+            }
           }
 
           processedClientIds.add(client.id);
