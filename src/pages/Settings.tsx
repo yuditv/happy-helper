@@ -338,33 +338,19 @@ export default function Settings() {
                           variant="outline"
                           className="gap-2"
                           onClick={async () => {
-                            // Verificar status da conexão Uazapi
+                            // Verificar status da conexão Uazapi (opcional - não bloqueia o envio)
                             if (notificationPrefs.whatsappReminders) {
-                              toast.loading('Verificando conexão WhatsApp...');
-                              
                               try {
                                 const { data: statusData, error: statusError } = await supabase.functions.invoke('uazapi-status');
                                 
-                                toast.dismiss();
-                                
-                                if (statusError) {
-                                  toast.error('Erro ao verificar status do WhatsApp');
-                                  return;
+                                if (!statusError && statusData?.connected) {
+                                  toast.success('WhatsApp conectado!', { duration: 2000 });
+                                } else if (statusData?.error) {
+                                  toast.warning(`Status WhatsApp: ${statusData.error}. Tentando enviar mesmo assim...`, { duration: 3000 });
                                 }
-                                
-                                if (!statusData?.connected) {
-                                  toast.error(
-                                    'WhatsApp não está conectado! Verifique sua instância Uazapi.', 
-                                    { duration: 5000 }
-                                  );
-                                  return;
-                                }
-                                
-                                toast.success('WhatsApp conectado!', { duration: 2000 });
                               } catch (err) {
-                                toast.dismiss();
-                                toast.error('Erro ao verificar WhatsApp');
-                                return;
+                                // Não bloqueia - apenas avisa
+                                toast.warning('Não foi possível verificar status do WhatsApp. Tentando enviar...', { duration: 3000 });
                               }
                             }
                             
