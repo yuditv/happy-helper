@@ -25,6 +25,7 @@ import { RenewalHistoryDialog } from '@/components/RenewalHistoryDialog';
 import { ChangePlanDialog } from '@/components/ChangePlanDialog';
 import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialog';
 import { ImportClientsDialog } from '@/components/ImportClientsDialog';
+import { SendEmailDialog } from '@/components/SendEmailDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { TagManager } from '@/components/TagManager';
 import { TagFilter } from '@/components/TagFilter';
@@ -80,6 +81,8 @@ const Index = () => {
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailClient, setEmailClient] = useState<Client | null>(null);
   const clientsPerPage = viewMode === 'grid' ? 12 : 20;
 
   const filteredAndSortedClients = useMemo(() => {
@@ -260,6 +263,11 @@ const Index = () => {
   const handleViewNotifications = (client: Client) => {
     setNotificationClient(client);
     setNotificationDialogOpen(true);
+  };
+
+  const handleSendEmail = (client: Client) => {
+    setEmailClient(client);
+    setEmailDialogOpen(true);
   };
 
   const handleConfirmChangePlan = async (clientId: string, newPlan: PlanType, newExpiresAt: Date) => {
@@ -655,6 +663,7 @@ const Index = () => {
                       onViewHistory={handleViewHistory}
                       onChangePlan={handleOpenChangePlan}
                       onViewNotifications={handleViewNotifications}
+                      onSendEmail={handleSendEmail}
                       getPlanName={getPlanName}
                     />
                   </div>
@@ -669,6 +678,7 @@ const Index = () => {
                 onViewHistory={handleViewHistory}
                 onChangePlan={handleOpenChangePlan}
                 onViewNotifications={handleViewNotifications}
+                onSendEmail={handleSendEmail}
                 getPlanName={getPlanName}
                 selectedClients={selectedClients}
                 onToggleSelection={toggleClientSelection}
@@ -797,6 +807,11 @@ const Index = () => {
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
         onImport={importClients}
+      />
+      <SendEmailDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        client={emailClient}
       />
       </div>
     </>

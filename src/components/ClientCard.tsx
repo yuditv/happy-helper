@@ -17,10 +17,11 @@ interface ClientCardProps {
   onViewHistory: (client: Client) => void;
   onChangePlan: (client: Client) => void;
   onViewNotifications: (client: Client) => void;
+  onSendEmail: (client: Client) => void;
   getPlanName?: (plan: string) => string;
 }
 
-export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, onChangePlan, onViewNotifications, getPlanName }: ClientCardProps) {
+export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, onChangePlan, onViewNotifications, onSendEmail, getPlanName }: ClientCardProps) {
   const whatsappLink = `https://wa.me/${client.whatsapp.replace(/\D/g, '')}`;
   const status = getExpirationStatus(client.expiresAt);
   const needsAttention = status === 'expiring' || status === 'expired';
@@ -51,6 +52,17 @@ export function ClientCard({ client, onEdit, onDelete, onRenew, onViewHistory, o
             </div>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {client.email && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                onClick={() => onSendEmail(client)}
+                title="Enviar email"
+              >
+                <Mail className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
