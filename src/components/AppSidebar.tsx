@@ -1,4 +1,4 @@
-import { Users, Shield, Tv, Coins, GraduationCap, LayoutDashboard, Package, Contact } from "lucide-react";
+import { Users, Shield, Tv, Coins, GraduationCap, LayoutDashboard, Package, Contact, Send } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +13,7 @@ import {
 import logoFuturistic from "@/assets/logo-futuristic.png";
 import { cn } from "@/lib/utils";
 
-export type AppSection = "clients" | "contatos" | "revenda" | "vpn" | "iptv" | "creditos" | "mentorias" | "paineis";
+export type AppSection = "clients" | "contatos" | "disparo" | "revenda" | "vpn" | "iptv" | "creditos" | "mentorias" | "paineis";
 
 interface AppSidebarProps {
   activeSection: AppSection;
@@ -30,6 +30,11 @@ const menuItems = [
     id: "contatos" as AppSection,
     title: "Contatos",
     icon: Contact,
+  },
+  {
+    id: "disparo" as AppSection,
+    title: "Disparo em Massa",
+    icon: Send,
   },
   {
     id: "revenda" as AppSection,
