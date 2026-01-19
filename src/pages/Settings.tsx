@@ -10,8 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
 import { NotificationSettings as NotificationSettingsComponent } from '@/components/NotificationSettings';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { useAutoReminders } from '@/hooks/useAutoReminders';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -23,6 +23,7 @@ export default function Settings() {
     updateSetting: updateNotificationSetting,
     saveSettings: saveNotificationSettings 
   } = useNotificationSettings();
+  const { sendReminders, isProcessing: isSendingReminders } = useAutoReminders();
   
   const [editedSettings, setEditedSettings] = useState<PlanSetting[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
@@ -337,70 +338,41 @@ export default function Settings() {
                         <Button 
                           variant="outline"
                           className="gap-2"
+                          disabled={isSendingReminders}
                           onClick={async () => {
-                            // Verificar status da conexão Uazapi (opcional - não bloqueia o envio)
-                            if (notificationPrefs.whatsappReminders) {
-                              try {
-                                const { data: statusData, error: statusError } = await supabase.functions.invoke('uazapi-status');
-                                
-                                if (!statusError && statusData?.connected) {
-                                  toast.success('WhatsApp conectado!', { duration: 2000 });
-                                } else if (statusData?.error) {
-                                  toast.warning(`Status WhatsApp: ${statusData.error}. Tentando enviar mesmo assim...`, { duration: 3000 });
-                                }
-                              } catch (err) {
-                                // Não bloqueia - apenas avisa
-                                toast.warning('Não foi possível verificar status do WhatsApp. Tentando enviar...', { duration: 3000 });
-                              }
-                            }
-                            
                             toast.loading('Executando envio de lembretes...');
-                            try {
-                              // Passa as configurações diretamente para a Edge Function
-                              const { data, error } = await supabase.functions.invoke('auto-send-reminders', {
-                                body: {
-                                  settings: {
-                                    email_reminders_enabled: notificationPrefs.emailReminders,
-                                    whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
-                                    auto_send_enabled: true,
-                                    reminder_days: notificationPrefs.reminderDays,
-                                    expired_reminder_days: [1, 3, 7],
-                                  },
-                                  test_mode: false,
-                                }
-                              });
-                              
-                              if (error) {
-                                toast.dismiss();
-                                toast.error(`Erro: ${error.message}`);
-                                return;
-                              }
-                              
-                              toast.dismiss();
-                              
-                              if (data.success) {
-                                const totalSent = (data.totalEmailsSent || 0) + (data.totalWhatsAppSent || 0);
-                                if (totalSent > 0) {
-                                  toast.success(
-                                    `Enviados: ${data.totalEmailsSent || 0} emails e ${data.totalWhatsAppSent || 0} mensagens WhatsApp`
-                                  );
-                                } else {
-                                  toast.info('Nenhum cliente encontrado para notificar hoje.');
-                                }
-                                
-                                if (data.totalWhatsAppFailed > 0) {
-                                  toast.warning(`${data.totalWhatsAppFailed} mensagens WhatsApp falharam.`);
-                                }
+                            
+                            const result = await sendReminders({
+                              whatsapp_reminders_enabled: notificationPrefs.whatsappReminders,
+                              reminder_days: notificationPrefs.reminderDays,
+                              expired_reminder_days: [1, 3, 7],
+                            });
+                            
+                            toast.dismiss();
+                            
+                            if (result.success) {
+                              if (result.whatsappSent > 0) {
+                                toast.success(`${result.whatsappSent} mensagens WhatsApp enviadas!`);
+                              } else if (result.results.length === 0) {
+                                toast.info('Nenhum cliente encontrado para notificar hoje.');
                               } else {
-                                toast.error('Erro ao executar envio automático');
+                                const skipped = result.results.filter(r => r.status === 'skipped').length;
+                                toast.info(`${skipped} clientes pulados (já notificados ou sem telefone).`);
                               }
-                            } catch (err: any) {
-                              toast.dismiss();
-                              toast.error(`Erro: ${err.message}`);
+                              
+                              if (result.whatsappFailed > 0) {
+                                toast.warning(`${result.whatsappFailed} mensagens falharam.`);
+                              }
+                            } else {
+                              toast.error('Erro ao executar envio automático');
                             }
                           }}
                         >
-                          <Send className="h-4 w-4" />
+                          {isSendingReminders ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
                           Testar Envio Agora
                         </Button>
                       </div>
