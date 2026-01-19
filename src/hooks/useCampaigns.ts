@@ -38,16 +38,22 @@ export function useCampaigns() {
   const fetchCampaigns = useCallback(async () => {
     if (!user) return;
     try {
+      // Use raw fetch since table may not be in types yet
       const { data, error } = await supabase
-        .from('campaigns')
+        .from('campaigns' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setCampaigns((data as Campaign[]) || []);
+      if (error) {
+        console.error('Error fetching campaigns:', error);
+        setCampaigns([]);
+        return;
+      }
+      setCampaigns((data as unknown as Campaign[]) || []);
     } catch (error: any) {
       console.error('Error fetching campaigns:', error);
+      setCampaigns([]);
     } finally {
       setIsLoading(false);
     }
