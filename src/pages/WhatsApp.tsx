@@ -52,6 +52,7 @@ import {
   Wifi,
   WifiOff,
   AlertCircle,
+  CircleDot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,6 +67,7 @@ import { CreateInstanceDialog } from '@/components/CreateInstanceDialog';
 import { CreateCampaignDialog } from '@/components/CreateCampaignDialog';
 import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
+import { WhatsAppStatus } from '@/components/WhatsAppStatus';
 
 interface DispatchResult {
   clientId: string;
@@ -502,10 +504,14 @@ export default function WhatsApp() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+        <TabsList className="grid grid-cols-7 w-full max-w-4xl">
           <TabsTrigger value="dispatch" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Disparo</span>
+          </TabsTrigger>
+          <TabsTrigger value="status" className="gap-2">
+            <CircleDot className="h-4 w-4" />
+            <span className="hidden sm:inline">Status</span>
           </TabsTrigger>
           <TabsTrigger value="instances" className="gap-2">
             <Smartphone className="h-4 w-4" />
@@ -941,6 +947,11 @@ export default function WhatsApp() {
         {/* History Tab */}
         <TabsContent value="history">
           <DispatchHistoryPanel />
+        </TabsContent>
+
+        {/* Status Tab */}
+        <TabsContent value="status">
+          <WhatsAppStatus instances={instances} />
         </TabsContent>
       </Tabs>
 
