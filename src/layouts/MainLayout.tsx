@@ -11,8 +11,7 @@ const Mentorias = lazy(() => import("@/pages/Mentorias"));
 const Paineis = lazy(() => import("@/pages/Paineis"));
 const Creditos = lazy(() => import("@/pages/Creditos"));
 const Contacts = lazy(() => import("@/pages/Contacts"));
-const BulkDispatch = lazy(() => import("@/pages/BulkDispatch"));
-const Campaigns = lazy(() => import("@/pages/Campaigns"));
+const WhatsApp = lazy(() => import("@/pages/WhatsApp"));
 
 const ContentLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
@@ -29,10 +28,8 @@ export function MainLayout() {
         return <Index />;
       case "contatos":
         return <Contacts />;
-      case "disparo":
-        return <BulkDispatch />;
-      case "campanhas":
-        return <Campaigns />;
+      case "whatsapp":
+        return <WhatsApp />;
       case "revenda":
         return <ResellerArea />;
       case "vpn":

@@ -13,7 +13,7 @@ import {
 import logoFuturistic from "@/assets/logo-futuristic.png";
 import { cn } from "@/lib/utils";
 
-export type AppSection = "clients" | "contatos" | "disparo" | "campanhas" | "revenda" | "vpn" | "iptv" | "creditos" | "mentorias" | "paineis";
+export type AppSection = "clients" | "contatos" | "whatsapp" | "revenda" | "vpn" | "iptv" | "creditos" | "mentorias" | "paineis";
 
 interface AppSidebarProps {
   activeSection: AppSection;
@@ -32,14 +32,9 @@ const menuItems = [
     icon: Contact,
   },
   {
-    id: "disparo" as AppSection,
-    title: "Disparo em Massa",
+    id: "whatsapp" as AppSection,
+    title: "WhatsApp",
     icon: Send,
-  },
-  {
-    id: "campanhas" as AppSection,
-    title: "Campanhas",
-    icon: Megaphone,
   },
   {
     id: "revenda" as AppSection,
