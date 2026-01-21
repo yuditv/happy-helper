@@ -41,7 +41,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
+import { useWarmingSessions, WarmingSession } from "@/hooks/useWarmingSessions";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WarmingTemplate {
   id: string;
@@ -53,38 +55,91 @@ type WarmingPhase = 'initialization' | 'warming' | 'completed';
 type ConversationSpeed = 'slow' | 'normal' | 'fast';
 
 export function WhatsAppWarming() {
+  const { user } = useAuth();
   const { instances, isLoading } = useWhatsAppInstances();
   const connectedInstances = instances.filter(i => i.status === 'connected');
   
-  // Warming state
-  const [warmingStatus, setWarmingStatus] = useState<WarmingStatus>('idle');
+  // Use warming sessions hook
+  const {
+    currentSession,
+    logs: sessionLogs,
+    saveSession,
+    startWarming: startWarmingSession,
+    pauseWarming: pauseWarmingSession,
+    stopWarming: stopWarmingSession,
+    getStatus
+  } = useWarmingSessions();
+  
+  // Local warming state (synced with session)
+  const [warmingStatus, setWarmingStatus] = useState<WarmingStatus>(
+    currentSession?.status === 'running' ? 'running' : 
+    currentSession?.status === 'paused' ? 'paused' : 'idle'
+  );
   const [warmingPhase, setWarmingPhase] = useState<WarmingPhase>('initialization');
-  const [overallProgress, setOverallProgress] = useState(0);
-  const [messagesSent, setMessagesSent] = useState(0);
-  const [messagesReceived, setMessagesReceived] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(currentSession?.progress || 0);
+  const [messagesSent, setMessagesSent] = useState(currentSession?.messages_sent || 0);
+  const [messagesReceived, setMessagesReceived] = useState(currentSession?.messages_received || 0);
+  const [sessionId, setSessionId] = useState<string | null>(currentSession?.id || null);
   
   // Instance selection
-  const [selectedInstances, setSelectedInstances] = useState<Set<string>>(new Set());
-  const [balancingMode, setBalancingMode] = useState<string>('auto');
+  const [selectedInstances, setSelectedInstances] = useState<Set<string>>(
+    new Set(currentSession?.selected_instances || [])
+  );
+  const [balancingMode, setBalancingMode] = useState<string>(currentSession?.balancing_mode || 'auto');
   
   // Configuration
-  const [dailyLimit, setDailyLimit] = useState(50);
-  const [templates, setTemplates] = useState<WarmingTemplate[]>([
-    { id: '1', content: 'Oi, tudo bem?' },
-    { id: '2', content: 'Como você está?' },
-    { id: '3', content: 'Bom dia!' },
-    { id: '4', content: 'Boa tarde!' },
-  ]);
+  const [dailyLimit, setDailyLimit] = useState(currentSession?.daily_limit || 50);
+  const [templates, setTemplates] = useState<WarmingTemplate[]>(
+    currentSession?.templates?.map((t, i) => ({ id: String(i), content: t })) || [
+      { id: '1', content: 'Oi, tudo bem?' },
+      { id: '2', content: 'Como você está?' },
+      { id: '3', content: 'Bom dia!' },
+      { id: '4', content: 'Boa tarde!' },
+    ]
+  );
   const [newTemplate, setNewTemplate] = useState('');
   const [batchTemplates, setBatchTemplates] = useState('');
-  const [conversationSpeed, setConversationSpeed] = useState<ConversationSpeed>('normal');
-  const [useAI, setUseAI] = useState(false);
+  const [conversationSpeed, setConversationSpeed] = useState<ConversationSpeed>(
+    (currentSession?.conversation_speed as ConversationSpeed) || 'normal'
+  );
+  const [useAI, setUseAI] = useState(currentSession?.use_ai || false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiGeneratedMessages, setAiGeneratedMessages] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Debug panel
   const [showDebug, setShowDebug] = useState(false);
   const [logs, setLogs] = useState<string[]>(['Sistema iniciado']);
+
+  // Sync with current session
+  useEffect(() => {
+    if (currentSession) {
+      setWarmingStatus(
+        currentSession.status === 'running' ? 'running' : 
+        currentSession.status === 'paused' ? 'paused' : 'idle'
+      );
+      setOverallProgress(currentSession.progress);
+      setMessagesSent(currentSession.messages_sent);
+      setMessagesReceived(currentSession.messages_received);
+      setSessionId(currentSession.id);
+      
+      if (currentSession.status === 'running') {
+        setWarmingPhase('warming');
+      } else if (currentSession.status === 'completed') {
+        setWarmingPhase('completed');
+      }
+    }
+  }, [currentSession]);
+
+  // Add session logs to local logs
+  useEffect(() => {
+    if (sessionLogs.length > 0) {
+      const newLogs = sessionLogs.map(log => 
+        `[${new Date(log.created_at).toLocaleTimeString()}] ${log.ai_generated ? '🤖' : '📝'} ${log.message.substring(0, 30)}... - ${log.status}`
+      );
+      setLogs(prev => [...prev.slice(-20), ...newLogs.slice(0, 10)]);
+    }
+  }, [sessionLogs]);
 
   // Generate AI messages
   const generateAIMessages = useCallback(async () => {
@@ -202,8 +257,39 @@ export function WhatsAppWarming() {
     toast.success("Templates removidos");
   };
 
+  // Save session configuration
+  const saveSessionConfig = async () => {
+    if (!user) {
+      toast.error("Faça login para salvar");
+      return null;
+    }
+    
+    setIsSaving(true);
+    try {
+      const sessionData = {
+        name: 'Sessão de Aquecimento',
+        selected_instances: Array.from(selectedInstances),
+        balancing_mode: balancingMode as 'auto' | 'round-robin' | 'random',
+        conversation_speed: conversationSpeed,
+        daily_limit: dailyLimit,
+        use_ai: useAI,
+        templates: templates.map(t => t.content),
+      };
+      
+      const saved = await saveSession(sessionData);
+      if (saved) {
+        setSessionId(saved.id);
+        toast.success("Configuração salva!");
+        return saved;
+      }
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Start warming
-  const startWarming = () => {
+  const startWarming = async () => {
     if (selectedInstances.size < 2) {
       toast.error("Selecione pelo menos 2 instâncias");
       return;
@@ -214,69 +300,57 @@ export function WhatsAppWarming() {
       return;
     }
     
-    setWarmingStatus('running');
-    setWarmingPhase('warming');
-    setLogs(prev => [...prev, `Aquecimento iniciado com ${selectedInstances.size} instâncias`]);
-    toast.success("Aquecimento iniciado!");
+    setLogs(prev => [...prev, 'Salvando configuração...']);
     
-    // Simulate warming progress
-    simulateWarming();
+    // Save or update session first
+    let session = sessionId ? currentSession : await saveSessionConfig();
+    
+    if (!session) {
+      toast.error("Erro ao criar sessão");
+      return;
+    }
+    
+    setLogs(prev => [...prev, `Iniciando aquecimento com ${selectedInstances.size} instâncias...`]);
+    
+    // Start the real warming via Edge Function
+    const result = await startWarmingSession(session.id);
+    
+    if (result) {
+      setWarmingStatus('running');
+      setWarmingPhase('warming');
+      setLogs(prev => [...prev, 'Aquecimento iniciado via Uazapi!']);
+    }
   };
 
   // Pause warming
-  const pauseWarming = () => {
+  const pauseWarming = async () => {
+    if (sessionId) {
+      await pauseWarmingSession(sessionId);
+    }
     setWarmingStatus('paused');
     setLogs(prev => [...prev, 'Aquecimento pausado']);
-    toast.info("Aquecimento pausado");
   };
 
   // Resume warming
-  const resumeWarming = () => {
+  const resumeWarming = async () => {
+    if (sessionId) {
+      await startWarmingSession(sessionId);
+    }
     setWarmingStatus('running');
     setLogs(prev => [...prev, 'Aquecimento retomado']);
-    toast.success("Aquecimento retomado!");
   };
 
   // Stop warming
-  const stopWarming = () => {
+  const stopWarming = async () => {
+    if (sessionId) {
+      await stopWarmingSession(sessionId);
+    }
     setWarmingStatus('idle');
     setWarmingPhase('initialization');
     setOverallProgress(0);
     setMessagesSent(0);
     setMessagesReceived(0);
     setLogs(prev => [...prev, 'Aquecimento finalizado']);
-    toast.info("Aquecimento finalizado");
-  };
-
-  // Simulate warming (demo)
-  const simulateWarming = () => {
-    let progress = 0;
-    let sent = 0;
-    let received = 0;
-    
-    const interval = setInterval(() => {
-      if (progress >= 100) {
-        clearInterval(interval);
-        setWarmingStatus('idle');
-        setWarmingPhase('completed');
-        setLogs(prev => [...prev, 'Ciclo de aquecimento completo']);
-        toast.success("Ciclo de aquecimento completo!");
-        return;
-      }
-      
-      progress += Math.random() * 2;
-      sent += Math.floor(Math.random() * 3);
-      received += Math.floor(Math.random() * 2);
-      
-      setOverallProgress(Math.min(progress, 100));
-      setMessagesSent(sent);
-      setMessagesReceived(received);
-      
-      if (Math.random() > 0.7) {
-        const instanceNames = Array.from(selectedInstances).slice(0, 2);
-        setLogs(prev => [...prev, `Mensagem trocada entre instâncias`]);
-      }
-    }, 2000);
   };
 
   const getSpeedDescription = (speed: ConversationSpeed) => {
@@ -771,15 +845,37 @@ Boa noite!`}
                 </Alert>
               )}
 
+              {/* Save Config Button */}
+              {warmingStatus === 'idle' && (
+                <Button 
+                  variant="outline"
+                  className="w-full gap-2 mb-2" 
+                  onClick={saveSessionConfig}
+                  disabled={isSaving || !user}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="h-4 w-4" />
+                      Salvar Configuração
+                    </>
+                  )}
+                </Button>
+              )}
+
               {warmingStatus === 'idle' ? (
                 <Button 
                   className="w-full gap-2" 
                   size="lg"
-                  disabled={!canStartWarming}
+                  disabled={!canStartWarming || !user}
                   onClick={startWarming}
                 >
                   <Play className="h-5 w-5" />
-                  Iniciar Aquecimento
+                  Iniciar Aquecimento Real
                 </Button>
               ) : warmingStatus === 'running' ? (
                 <div className="flex gap-2">
@@ -824,9 +920,21 @@ Boa noite!`}
                 </div>
               )}
 
+              {!user && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Faça login para salvar configurações e iniciar o aquecimento real.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="text-sm text-muted-foreground space-y-1">
                 <p><strong>Dica:</strong> O aquecimento funciona melhor com 3-5 instâncias conectadas.</p>
                 <p><strong>Recomendação:</strong> Execute o aquecimento por pelo menos 24 horas para melhores resultados.</p>
+                {useAI && (
+                  <p className="text-primary"><strong>🤖 IA Ativa:</strong> Mensagens serão geradas automaticamente durante o aquecimento.</p>
+                )}
               </div>
             </CardContent>
           </Card>
