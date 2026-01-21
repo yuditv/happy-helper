@@ -53,34 +53,42 @@ export function useWhatsAppInstances() {
 
   const createInstance = async (name: string, dailyLimit?: number) => {
     try {
-      const { data, error } = await supabase.functions.invoke('whatsapp-instances/create', {
-        body: { name, daily_limit: dailyLimit },
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'create', name, daily_limit: dailyLimit },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success('Instância criada!');
       await fetchInstances();
       return data.instance;
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Create instance error:', error);
+      toast.error(error.message || 'Erro ao criar instância');
       return null;
     }
   };
 
   const getQRCode = async (instanceId: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke(`whatsapp-instances/qrcode/${instanceId}`);
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'qrcode', instanceId },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       await fetchInstances();
       return data.qrcode;
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('QR code error:', error);
+      toast.error(error.message || 'Erro ao obter QR Code');
       return null;
     }
   };
 
   const checkStatus = async (instanceId: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke(`whatsapp-instances/status/${instanceId}`);
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'status', instanceId },
+      });
       if (error) throw error;
       await fetchInstances();
       return data;
@@ -92,15 +100,17 @@ export function useWhatsAppInstances() {
 
   const deleteInstance = async (instanceId: string) => {
     try {
-      const { error } = await supabase.functions.invoke(`whatsapp-instances/delete/${instanceId}`, {
-        method: 'DELETE',
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'delete', instanceId },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success('Instância excluída!');
       await fetchInstances();
       return true;
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Delete instance error:', error);
+      toast.error(error.message || 'Erro ao excluir instância');
       return false;
     }
   };

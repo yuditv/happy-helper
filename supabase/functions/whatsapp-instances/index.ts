@@ -33,14 +33,14 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Missing Supabase configuration");
     }
 
-    // Parse URL path
+    // Parse URL path (for backwards compatibility)
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
-    const action = pathParts[1] || "list";
-    const entityId = pathParts[2];
+    let action = pathParts[1] || "";
+    let entityId = pathParts[2] || "";
 
-    console.log("Action:", action);
-    console.log("Entity ID:", entityId);
+    console.log("Path action:", action);
+    console.log("Path entity ID:", entityId);
 
     // Get auth header
     const authHeader = req.headers.get("Authorization");
@@ -74,10 +74,21 @@ serve(async (req: Request): Promise<Response> => {
       try {
         body = await req.json();
         console.log("Request body:", JSON.stringify(body));
+        
+        // Get action and entityId from body if provided (preferred method)
+        if (body.action) {
+          action = body.action as string;
+        }
+        if (body.instanceId) {
+          entityId = body.instanceId as string;
+        }
       } catch {
         console.log("No body or invalid JSON");
       }
     }
+
+    console.log("Final action:", action);
+    console.log("Final entity ID:", entityId);
 
     // Handle actions
     if (action === "create") {
