@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.warming-worker]
 verify_jwt = false
+
+[functions.warming-scheduler]
+verify_jwt = false
