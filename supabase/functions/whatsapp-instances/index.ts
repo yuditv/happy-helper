@@ -1,4 +1,4 @@
-// WhatsApp Instances Edge Function v4 - Simplified
+// WhatsApp Instances Edge Function v5 - Fixed CORS
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
@@ -9,13 +9,18 @@ const corsHeaders = {
 };
 
 serve(async (req: Request): Promise<Response> => {
-  console.log("=== WhatsApp Instances Function ===");
-  console.log("Method:", req.method);
-  console.log("URL:", req.url);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] === WhatsApp Instances Function v5 ===`);
+  console.log(`[${timestamp}] Method:`, req.method);
+  console.log(`[${timestamp}] URL:`, req.url);
 
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    console.log(`[${timestamp}] Handling CORS preflight`);
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   try {
