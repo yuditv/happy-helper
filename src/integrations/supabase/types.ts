@@ -14,157 +14,378 @@ export type Database = {
   }
   public: {
     Tables: {
-      bulk_dispatch_history: {
+      campaign_contacts: {
         Row: {
-          client_filter: string | null
-          created_at: string
-          dispatch_type: string
-          failed_count: number
+          campaign_id: string
+          created_at: string | null
+          error_message: string | null
           id: string
-          message_content: string | null
-          phone_group_id: string | null
-          success_count: number
-          target_type: string
-          total_recipients: number
-          user_id: string
+          name: string | null
+          phone: string
+          sent_at: string | null
+          status: string
+          variables: Json | null
         }
         Insert: {
-          client_filter?: string | null
-          created_at?: string
-          dispatch_type?: string
-          failed_count?: number
+          campaign_id: string
+          created_at?: string | null
+          error_message?: string | null
           id?: string
-          message_content?: string | null
-          phone_group_id?: string | null
-          success_count?: number
-          target_type?: string
-          total_recipients?: number
-          user_id: string
+          name?: string | null
+          phone: string
+          sent_at?: string | null
+          status?: string
+          variables?: Json | null
         }
         Update: {
-          client_filter?: string | null
-          created_at?: string
-          dispatch_type?: string
-          failed_count?: number
+          campaign_id?: string
+          created_at?: string | null
+          error_message?: string | null
           id?: string
-          message_content?: string | null
-          phone_group_id?: string | null
-          success_count?: number
-          target_type?: string
-          total_recipients?: number
-          user_id?: string
+          name?: string | null
+          phone?: string
+          sent_at?: string | null
+          status?: string
+          variables?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "bulk_dispatch_history_phone_group_id_fkey"
-            columns: ["phone_group_id"]
+            foreignKeyName: "campaign_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
             isOneToOne: false
-            referencedRelation: "phone_groups"
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
       }
+      campaign_logs: {
+        Row: {
+          campaign_id: string
+          contact_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          message: string | null
+          metadata: Json | null
+        }
+        Insert: {
+          campaign_id: string
+          contact_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          failed_count: number | null
+          id: string
+          instance_id: string
+          max_delay_seconds: number | null
+          message_template: string
+          min_delay_seconds: number | null
+          name: string
+          pause_after_messages: number | null
+          pause_duration_seconds: number | null
+          progress: number | null
+          scheduled_at: string | null
+          sent_count: number | null
+          started_at: string | null
+          status: string
+          total_contacts: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          failed_count?: number | null
+          id?: string
+          instance_id: string
+          max_delay_seconds?: number | null
+          message_template: string
+          min_delay_seconds?: number | null
+          name: string
+          pause_after_messages?: number | null
+          pause_duration_seconds?: number | null
+          progress?: number | null
+          scheduled_at?: string | null
+          sent_count?: number | null
+          started_at?: string | null
+          status?: string
+          total_contacts?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          failed_count?: number | null
+          id?: string
+          instance_id?: string
+          max_delay_seconds?: number | null
+          message_template?: string
+          min_delay_seconds?: number | null
+          name?: string
+          pause_after_messages?: number | null
+          pause_duration_seconds?: number | null
+          progress?: number | null
+          scheduled_at?: string | null
+          sent_count?: number | null
+          started_at?: string | null
+          status?: string
+          total_contacts?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_tag_assignments: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_tag_assignments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "client_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_tags: {
+        Row: {
+          color: string
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
-          created_at: string
+          app_name: string | null
+          created_at: string | null
+          device: string | null
           email: string
           expires_at: string
           id: string
           name: string
+          notes: string | null
           plan: string
           price: number | null
           service: string | null
-          updated_at: string
+          service_password: string | null
+          service_username: string | null
+          updated_at: string | null
           user_id: string
           whatsapp: string
         }
         Insert: {
-          created_at?: string
+          app_name?: string | null
+          created_at?: string | null
+          device?: string | null
           email: string
           expires_at: string
           id?: string
           name: string
+          notes?: string | null
           plan: string
           price?: number | null
           service?: string | null
-          updated_at?: string
+          service_password?: string | null
+          service_username?: string | null
+          updated_at?: string | null
           user_id: string
           whatsapp: string
         }
         Update: {
-          created_at?: string
+          app_name?: string | null
+          created_at?: string | null
+          device?: string | null
           email?: string
           expires_at?: string
           id?: string
           name?: string
+          notes?: string | null
           plan?: string
           price?: number | null
           service?: string | null
-          updated_at?: string
+          service_password?: string | null
+          service_username?: string | null
+          updated_at?: string | null
           user_id?: string
           whatsapp?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
       message_templates: {
         Row: {
           content: string
-          created_at: string
+          created_at: string | null
           id: string
           subject: string | null
           template_type: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           content: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           subject?: string | null
           template_type: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           content?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           subject?: string | null
           template_type?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
       notification_history: {
         Row: {
-          client_id: string
-          created_at: string
+          client_id: string | null
+          created_at: string | null
           days_until_expiration: number | null
           id: string
           notification_type: string
-          status: string
-          subject: string
+          status: string | null
+          subject: string | null
           user_id: string
         }
         Insert: {
-          client_id: string
-          created_at?: string
+          client_id?: string | null
+          created_at?: string | null
           days_until_expiration?: number | null
           id?: string
-          notification_type?: string
-          status?: string
-          subject: string
+          notification_type: string
+          status?: string | null
+          subject?: string | null
           user_id: string
         }
         Update: {
-          client_id?: string
-          created_at?: string
+          client_id?: string | null
+          created_at?: string | null
           days_until_expiration?: number | null
           id?: string
           notification_type?: string
-          status?: string
-          subject?: string
+          status?: string | null
+          subject?: string | null
           user_id?: string
         }
         Relationships: [
@@ -177,59 +398,65 @@ export type Database = {
           },
         ]
       }
-      phone_groups: {
+      notification_settings: {
         Row: {
-          created_at: string
+          auto_send_enabled: boolean | null
+          created_at: string | null
+          email_reminders_enabled: boolean | null
           id: string
-          name: string
-          phone_numbers: string[]
-          updated_at: string
+          reminder_days: number[] | null
+          updated_at: string | null
           user_id: string
+          whatsapp_reminders_enabled: boolean | null
         }
         Insert: {
-          created_at?: string
+          auto_send_enabled?: boolean | null
+          created_at?: string | null
+          email_reminders_enabled?: boolean | null
           id?: string
-          name: string
-          phone_numbers?: string[]
-          updated_at?: string
+          reminder_days?: number[] | null
+          updated_at?: string | null
           user_id: string
+          whatsapp_reminders_enabled?: boolean | null
         }
         Update: {
-          created_at?: string
+          auto_send_enabled?: boolean | null
+          created_at?: string | null
+          email_reminders_enabled?: boolean | null
           id?: string
-          name?: string
-          phone_numbers?: string[]
-          updated_at?: string
+          reminder_days?: number[] | null
+          updated_at?: string | null
           user_id?: string
+          whatsapp_reminders_enabled?: boolean | null
         }
         Relationships: []
       }
       plan_settings: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           plan_key: string
           plan_name: string
           plan_price: number
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           plan_key: string
           plan_name: string
           plan_price: number
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           plan_key?: string
           plan_name?: string
           plan_price?: number
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -237,28 +464,28 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          created_at: string
+          created_at: string | null
           display_name: string | null
           id: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
           whatsapp: string | null
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           display_name?: string | null
           id?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
           whatsapp?: string | null
         }
         Update: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           display_name?: string | null
           id?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
           whatsapp?: string | null
         }
@@ -267,19 +494,19 @@ export type Database = {
       referral_codes: {
         Row: {
           code: string
-          created_at: string
+          created_at: string | null
           id: string
           user_id: string
         }
         Insert: {
           code: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           user_id: string
         }
         Update: {
           code?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           user_id?: string
         }
@@ -288,43 +515,43 @@ export type Database = {
       referrals: {
         Row: {
           completed_at: string | null
-          created_at: string
-          discount_amount: number
-          discount_used: boolean
+          created_at: string | null
+          discount_amount: number | null
+          discount_used: boolean | null
           id: string
           referral_code: string
           referred_id: string
           referrer_id: string
-          status: string
+          status: string | null
         }
         Insert: {
           completed_at?: string | null
-          created_at?: string
-          discount_amount?: number
-          discount_used?: boolean
+          created_at?: string | null
+          discount_amount?: number | null
+          discount_used?: boolean | null
           id?: string
           referral_code: string
           referred_id: string
           referrer_id: string
-          status?: string
+          status?: string | null
         }
         Update: {
           completed_at?: string | null
-          created_at?: string
-          discount_amount?: number
-          discount_used?: boolean
+          created_at?: string | null
+          discount_amount?: number | null
+          discount_used?: boolean | null
           id?: string
           referral_code?: string
           referred_id?: string
           referrer_id?: string
-          status?: string
+          status?: string | null
         }
         Relationships: []
       }
       renewal_history: {
         Row: {
           client_id: string
-          created_at: string
+          created_at: string | null
           id: string
           new_expires_at: string
           plan: string
@@ -333,7 +560,7 @@ export type Database = {
         }
         Insert: {
           client_id: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           new_expires_at: string
           plan: string
@@ -342,7 +569,7 @@ export type Database = {
         }
         Update: {
           client_id?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           new_expires_at?: string
           plan?: string
@@ -359,53 +586,65 @@ export type Database = {
           },
         ]
       }
+      reseller_goals: {
+        Row: {
+          client_goal: number | null
+          created_at: string | null
+          id: string
+          period: string | null
+          revenue_goal: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          client_goal?: number | null
+          created_at?: string | null
+          id?: string
+          period?: string | null
+          revenue_goal?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          client_goal?: number | null
+          created_at?: string | null
+          id?: string
+          period?: string | null
+          revenue_goal?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_messages: {
         Row: {
           client_id: string
-          created_at: string
-          custom_message: string | null
-          error_message: string | null
+          created_at: string | null
           id: string
+          message_content: string
           message_type: string
-          parent_id: string | null
-          recurrence_end_date: string | null
-          recurrence_type: string | null
           scheduled_at: string
-          sent_at: string | null
-          status: string
-          updated_at: string
+          status: string | null
           user_id: string
         }
         Insert: {
           client_id: string
-          created_at?: string
-          custom_message?: string | null
-          error_message?: string | null
+          created_at?: string | null
           id?: string
+          message_content: string
           message_type: string
-          parent_id?: string | null
-          recurrence_end_date?: string | null
-          recurrence_type?: string | null
           scheduled_at: string
-          sent_at?: string | null
-          status?: string
-          updated_at?: string
+          status?: string | null
           user_id: string
         }
         Update: {
           client_id?: string
-          created_at?: string
-          custom_message?: string | null
-          error_message?: string | null
+          created_at?: string | null
           id?: string
+          message_content?: string
           message_type?: string
-          parent_id?: string | null
-          recurrence_end_date?: string | null
-          recurrence_type?: string | null
           scheduled_at?: string
-          sent_at?: string | null
-          status?: string
-          updated_at?: string
+          status?: string | null
           user_id?: string
         }
         Relationships: [
@@ -416,21 +655,83 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "scheduled_messages_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "scheduled_messages"
-            referencedColumns: ["id"]
-          },
         ]
+      }
+      sent_contacts: {
+        Row: {
+          created_at: string | null
+          dispatch_history_id: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          original_contact_id: string | null
+          phone: string
+          sent_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          dispatch_history_id?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          original_contact_id?: string | null
+          phone: string
+          sent_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          dispatch_history_id?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          original_contact_id?: string | null
+          phone?: string
+          sent_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_instances: {
+        Row: {
+          created_at: string
+          id: string
+          instance_name: string
+          last_connected_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instance_name: string
+          last_connected_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instance_name?: string
+          last_connected_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      generate_referral_code: { Args: never; Returns: string }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
