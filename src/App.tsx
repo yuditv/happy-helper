@@ -19,8 +19,7 @@ const Install = lazy(() => import("./pages/Install"));
 const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
 const ResellerArea = lazy(() => import("./pages/ResellerArea"));
 const Contacts = lazy(() => import("./pages/Contacts"));
-const BulkDispatch = lazy(() => import("./pages/BulkDispatch"));
-const Campaigns = lazy(() => import("./pages/Campaigns"));
+const WhatsApp = lazy(() => import("./pages/WhatsApp"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -126,14 +125,9 @@ const AppRoutes = () => (
           <Contacts />
         </ProtectedRoute>
       } />
-      <Route path="/bulk-dispatch" element={
+      <Route path="/whatsapp" element={
         <ProtectedRoute>
-          <BulkDispatch />
-        </ProtectedRoute>
-      } />
-      <Route path="/campaigns" element={
-        <ProtectedRoute>
-          <Campaigns />
+          <WhatsApp />
         </ProtectedRoute>
       } />
       <Route path="/install" element={<Install />} />
