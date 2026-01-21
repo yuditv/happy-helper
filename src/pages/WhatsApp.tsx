@@ -53,6 +53,7 @@ import {
   WifiOff,
   AlertCircle,
   CircleDot,
+  Bot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,6 +69,7 @@ import { CreateCampaignDialog } from '@/components/CreateCampaignDialog';
 import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
+import { WhatsAppAgents } from '@/components/WhatsAppAgents';
 
 interface DispatchResult {
   clientId: string;
@@ -504,7 +506,7 @@ export default function WhatsApp() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-7 w-full max-w-4xl">
+        <TabsList className="grid grid-cols-8 w-full max-w-5xl">
           <TabsTrigger value="dispatch" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Disparo</span>
@@ -512,6 +514,10 @@ export default function WhatsApp() {
           <TabsTrigger value="status" className="gap-2">
             <CircleDot className="h-4 w-4" />
             <span className="hidden sm:inline">Status</span>
+          </TabsTrigger>
+          <TabsTrigger value="agents" className="gap-2">
+            <Bot className="h-4 w-4" />
+            <span className="hidden sm:inline">Agente IA</span>
           </TabsTrigger>
           <TabsTrigger value="instances" className="gap-2">
             <Smartphone className="h-4 w-4" />
@@ -676,6 +682,11 @@ export default function WhatsApp() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        {/* Agents Tab */}
+        <TabsContent value="agents" className="space-y-4">
+          <WhatsAppAgents />
         </TabsContent>
 
         {/* Instances Tab */}
