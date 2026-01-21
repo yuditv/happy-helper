@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,10 +35,13 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
-  Activity
+  Activity,
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WarmingTemplate {
   id: string;
@@ -76,10 +79,70 @@ export function WhatsAppWarming() {
   const [batchTemplates, setBatchTemplates] = useState('');
   const [conversationSpeed, setConversationSpeed] = useState<ConversationSpeed>('normal');
   const [useAI, setUseAI] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiGeneratedMessages, setAiGeneratedMessages] = useState<string[]>([]);
   
   // Debug panel
   const [showDebug, setShowDebug] = useState(false);
   const [logs, setLogs] = useState<string[]>(['Sistema iniciado']);
+
+  // Generate AI messages
+  const generateAIMessages = useCallback(async () => {
+    if (!useAI) return null;
+    
+    setIsGeneratingAI(true);
+    setLogs(prev => [...prev, 'Gerando mensagens com IA...']);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-warming-message', {
+        body: { 
+          templates: templates.map(t => t.content),
+          context: `Velocidade: ${conversationSpeed}`
+        }
+      });
+      
+      if (error) {
+        console.error('AI generation error:', error);
+        toast.error("Erro ao gerar mensagens com IA");
+        setLogs(prev => [...prev, `Erro IA: ${error.message}`]);
+        return null;
+      }
+      
+      if (data?.messages && data.messages.length > 0) {
+        setAiGeneratedMessages(data.messages);
+        setLogs(prev => [...prev, `IA gerou ${data.messages.length} mensagens`]);
+        toast.success(`${data.messages.length} mensagens geradas com IA!`);
+        return data.messages;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Error calling AI:', err);
+      toast.error("Falha na comunicação com IA");
+      setLogs(prev => [...prev, 'Falha na comunicação com IA']);
+      return null;
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  }, [useAI, templates, conversationSpeed]);
+
+  // Add AI messages to templates
+  const addAIMessagesToTemplates = () => {
+    if (aiGeneratedMessages.length === 0) {
+      toast.error("Nenhuma mensagem de IA disponível");
+      return;
+    }
+    
+    const newTemplates = aiGeneratedMessages.map(content => ({
+      id: crypto.randomUUID(),
+      content
+    }));
+    
+    setTemplates(prev => [...prev, ...newTemplates]);
+    setAiGeneratedMessages([]);
+    toast.success(`${newTemplates.length} mensagens adicionadas aos templates`);
+    setLogs(prev => [...prev, `${newTemplates.length} mensagens IA adicionadas`]);
+  };
 
   // Toggle instance selection
   const toggleInstance = (instanceId: string) => {
@@ -602,7 +665,7 @@ Boa noite!`}
               {/* AI Settings */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4 text-primary" />
                   <Label className="font-medium">Configurações de IA</Label>
                 </div>
                 
@@ -610,17 +673,82 @@ Boa noite!`}
                   <div className="space-y-1">
                     <p className="font-medium">Usar IA para Personalização</p>
                     <p className="text-sm text-muted-foreground">
-                      Gera frases curtas (2-5 palavras) mais naturais e humanizadas durante o aquecimento
+                      Gera frases curtas (2-8 palavras) mais naturais e humanizadas durante o aquecimento
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="gap-1">
-                      <Settings className="h-3 w-3" />
-                      Configurar IA
-                    </Button>
-                    <Switch checked={useAI} onCheckedChange={setUseAI} />
-                  </div>
+                  <Switch checked={useAI} onCheckedChange={setUseAI} />
                 </div>
+
+                {useAI && (
+                  <div className="space-y-4 p-4 border border-primary/30 rounded-lg bg-primary/5">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="font-medium flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Gerador de Mensagens IA
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Gere mensagens naturais baseadas nos seus templates
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={generateAIMessages}
+                        disabled={isGeneratingAI}
+                        className="gap-2"
+                      >
+                        {isGeneratingAI ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Gerando...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            Gerar Mensagens
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* AI Generated Messages Preview */}
+                    {aiGeneratedMessages.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Mensagens Geradas pela IA ({aiGeneratedMessages.length})</Label>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={addAIMessagesToTemplates}
+                            className="gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Adicionar aos Templates
+                          </Button>
+                        </div>
+                        <ScrollArea className="h-[120px] border rounded-lg bg-background/50">
+                          <div className="p-2 space-y-2">
+                            {aiGeneratedMessages.map((msg, index) => (
+                              <div 
+                                key={index}
+                                className="flex items-center gap-2 p-2 bg-primary/10 rounded border border-primary/20"
+                              >
+                                <Sparkles className="h-3 w-3 text-primary flex-shrink-0" />
+                                <span className="text-sm">{msg}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
+
+                    <Alert>
+                      <Sparkles className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        A IA gera mensagens curtas e naturais baseadas nos seus templates para simular conversas reais entre amigos.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
