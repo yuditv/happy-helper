@@ -7,7 +7,7 @@ export interface WarmingSession {
   id: string;
   user_id: string;
   name: string;
-  status: 'idle' | 'running' | 'paused' | 'completed' | 'error';
+  status: 'idle' | 'running' | 'paused' | 'completed' | 'error' | 'scheduled';
   selected_instances: string[];
   balancing_mode: 'auto' | 'round-robin' | 'random';
   conversation_speed: 'slow' | 'normal' | 'fast';
@@ -19,6 +19,10 @@ export interface WarmingSession {
   progress: number;
   started_at: string | null;
   completed_at: string | null;
+  scheduled_start_time: string | null;
+  schedule_enabled: boolean;
+  schedule_recurrence: 'none' | 'daily' | 'weekly' | null;
+  schedule_days: number[] | null; // 0=Sun, 1=Mon, etc.
   created_at: string;
   updated_at: string;
 }
@@ -212,13 +216,88 @@ export function useWarmingSessions() {
     fetchSessions();
   }, [fetchSessions]);
 
-  // Poll for status updates when session is running
+  // Real-time subscription for warming logs
+  useEffect(() => {
+    if (!currentSession || currentSession.status !== 'running') return;
+
+    // Subscribe to real-time log inserts
+    const channel = supabase
+      .channel(`warming-logs-${currentSession.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'warming_logs',
+          filter: `session_id=eq.${currentSession.id}`,
+        },
+        (payload) => {
+          const newLog = payload.new as WarmingLog;
+          
+          // Add to logs state
+          setLogs(prev => [newLog, ...prev.slice(0, 49)]);
+          
+          // Show notification
+          if (newLog.status === 'sent') {
+            toast.success(
+              `📤 Mensagem enviada${newLog.ai_generated ? ' (IA)' : ''}: "${newLog.message.substring(0, 30)}..."`,
+              { duration: 3000 }
+            );
+          } else if (newLog.status === 'failed') {
+            toast.error(
+              `❌ Falha no envio: ${newLog.error_message || 'Erro desconhecido'}`,
+              { duration: 4000 }
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSession]);
+
+  // Real-time subscription for session updates
+  useEffect(() => {
+    if (!currentSession) return;
+
+    const channel = supabase
+      .channel(`warming-session-${currentSession.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'warming_sessions',
+          filter: `id=eq.${currentSession.id}`,
+        },
+        (payload) => {
+          const updatedSession = payload.new as WarmingSession;
+          setCurrentSession(updatedSession);
+          
+          // Notify on status changes
+          if (updatedSession.status === 'completed') {
+            toast.success('🎉 Aquecimento concluído!', { duration: 5000 });
+          } else if (updatedSession.status === 'error') {
+            toast.error('⚠️ Erro no aquecimento', { duration: 5000 });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSession]);
+
+  // Poll for status updates when session is running (fallback)
   useEffect(() => {
     if (!currentSession || currentSession.status !== 'running') return;
 
     const interval = setInterval(() => {
       getStatus(currentSession.id);
-    }, 5000);
+    }, 10000); // Increased to 10s since we have realtime now
 
     return () => clearInterval(interval);
   }, [currentSession, getStatus]);

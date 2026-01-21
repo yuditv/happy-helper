@@ -39,7 +39,10 @@ import {
   Activity,
   Sparkles,
   Loader2,
-  History
+  History,
+  Calendar,
+  Bell,
+  BellOff
 } from "lucide-react";
 import { toast } from "sonner";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
@@ -47,6 +50,7 @@ import { useWarmingSessions, WarmingSession } from "@/hooks/useWarmingSessions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { WarmingSessionHistory } from "./WarmingSessionHistory";
+import { WarmingScheduler, ScheduleConfig } from "./WarmingScheduler";
 
 interface WarmingTemplate {
   id: string;
@@ -113,10 +117,13 @@ export function WhatsAppWarming() {
   const [aiGeneratedMessages, setAiGeneratedMessages] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Debug panel
+  // Debug panel and UI state
   const [showDebug, setShowDebug] = useState(false);
   const [logs, setLogs] = useState<string[]>(['Sistema iniciado']);
   const [activeTab, setActiveTab] = useState<'config' | 'history'>('config');
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Load session from history
   const loadSessionFromHistory = useCallback((session: WarmingSession) => {
@@ -287,7 +294,7 @@ export function WhatsAppWarming() {
     
     setIsSaving(true);
     try {
-      const sessionData = {
+      const sessionData: any = {
         name: 'Sessão de Aquecimento',
         selected_instances: Array.from(selectedInstances),
         balancing_mode: balancingMode as 'auto' | 'round-robin' | 'random',
@@ -296,6 +303,23 @@ export function WhatsAppWarming() {
         use_ai: useAI,
         templates: templates.map(t => t.content),
       };
+      
+      // Add schedule config if enabled
+      if (scheduleConfig?.enabled) {
+        const today = new Date();
+        const [hours, minutes] = scheduleConfig.startTime.split(':').map(Number);
+        today.setHours(hours, minutes, 0, 0);
+        
+        if (today <= new Date()) {
+          today.setDate(today.getDate() + 1);
+        }
+        
+        sessionData.scheduled_start_time = today.toISOString();
+        sessionData.schedule_enabled = true;
+        sessionData.schedule_recurrence = scheduleConfig.recurrence;
+        sessionData.schedule_days = scheduleConfig.days;
+        sessionData.status = 'scheduled';
+      }
       
       const saved = await saveSession(sessionData);
       if (saved) {
@@ -390,10 +414,26 @@ export function WhatsAppWarming() {
     }
   };
 
+  const handleScheduleSave = (config: ScheduleConfig) => {
+    setScheduleConfig(config);
+    setLogs(prev => [...prev, config.enabled 
+      ? `Agendamento configurado: ${config.startTime} (${config.recurrence})`
+      : 'Agendamento desativado'
+    ]);
+  };
+
   const canStartWarming = selectedInstances.size >= 2 && templates.length > 0;
 
   return (
     <div className="space-y-6">
+      {/* Scheduler Dialog */}
+      <WarmingScheduler
+        open={showScheduler}
+        onOpenChange={setShowScheduler}
+        onSave={handleScheduleSave}
+        currentSchedule={scheduleConfig}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -404,6 +444,32 @@ export function WhatsAppWarming() {
           <p className="text-muted-foreground">
             Sistema inteligente de aquecimento para números WhatsApp
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Notifications Toggle */}
+          <Button
+            variant={notificationsEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setNotificationsEnabled(!notificationsEnabled);
+              toast.info(notificationsEnabled ? 'Notificações desativadas' : 'Notificações ativadas');
+            }}
+            className="gap-2"
+          >
+            {notificationsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+            {notificationsEnabled ? 'Notificações On' : 'Notificações Off'}
+          </Button>
+          
+          {/* Schedule Button */}
+          <Button
+            variant={scheduleConfig?.enabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowScheduler(true)}
+            className="gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            {scheduleConfig?.enabled ? `Agendado ${scheduleConfig.startTime}` : 'Agendar'}
+          </Button>
         </div>
       </div>
 
