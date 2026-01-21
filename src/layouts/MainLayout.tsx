@@ -7,9 +7,6 @@ import { AnimatedBackground } from "@/components/AnimatedBackground";
 // Lazy load heavy components
 const Index = lazy(() => import("@/pages/Index"));
 const ResellerArea = lazy(() => import("@/pages/ResellerArea"));
-const Mentorias = lazy(() => import("@/pages/Mentorias"));
-const Paineis = lazy(() => import("@/pages/Paineis"));
-const Creditos = lazy(() => import("@/pages/Creditos"));
 const Contacts = lazy(() => import("@/pages/Contacts"));
 const WhatsApp = lazy(() => import("@/pages/WhatsApp"));
 
@@ -40,14 +37,8 @@ export function MainLayout() {
           />
         );
       case "iptv":
-        // IPTV now opens in new tab via AppSidebar
+        // IPTV opens in new tab via AppSidebar
         return <Index />;
-      case "creditos":
-        return <Creditos />;
-      case "mentorias":
-        return <Mentorias />;
-      case "paineis":
-        return <Paineis />;
       default:
         return <Index />;
     }
