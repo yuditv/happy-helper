@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -37,13 +38,15 @@ import {
   ChevronDown,
   Activity,
   Sparkles,
-  Loader2
+  Loader2,
+  History
 } from "lucide-react";
 import { toast } from "sonner";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import { useWarmingSessions, WarmingSession } from "@/hooks/useWarmingSessions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { WarmingSessionHistory } from "./WarmingSessionHistory";
 
 interface WarmingTemplate {
   id: string;
@@ -61,13 +64,16 @@ export function WhatsAppWarming() {
   
   // Use warming sessions hook
   const {
+    sessions,
     currentSession,
     logs: sessionLogs,
     saveSession,
     startWarming: startWarmingSession,
     pauseWarming: pauseWarmingSession,
     stopWarming: stopWarmingSession,
-    getStatus
+    getStatus,
+    fetchSessions,
+    setCurrentSession
   } = useWarmingSessions();
   
   // Local warming state (synced with session)
@@ -110,6 +116,21 @@ export function WhatsAppWarming() {
   // Debug panel
   const [showDebug, setShowDebug] = useState(false);
   const [logs, setLogs] = useState<string[]>(['Sistema iniciado']);
+  const [activeTab, setActiveTab] = useState<'config' | 'history'>('config');
+
+  // Load session from history
+  const loadSessionFromHistory = useCallback((session: WarmingSession) => {
+    setSelectedInstances(new Set(session.selected_instances));
+    setBalancingMode(session.balancing_mode);
+    setConversationSpeed(session.conversation_speed);
+    setDailyLimit(session.daily_limit);
+    setUseAI(session.use_ai);
+    setTemplates(session.templates.map((t, i) => ({ id: String(i), content: t })));
+    setCurrentSession(session);
+    setSessionId(session.id);
+    setActiveTab('config');
+    toast.success('Configuração carregada do histórico');
+  }, [setCurrentSession]);
 
   // Sync with current session
   useEffect(() => {
@@ -374,17 +395,33 @@ export function WhatsAppWarming() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Flame className="h-6 w-6 text-orange-500" />
-          Aquecimento de WhatsApp
-        </h2>
-        <p className="text-muted-foreground">
-          Sistema inteligente de aquecimento para números WhatsApp
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Flame className="h-6 w-6 text-orange-500" />
+            Aquecimento de WhatsApp
+          </h2>
+          <p className="text-muted-foreground">
+            Sistema inteligente de aquecimento para números WhatsApp
+          </p>
+        </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'config' | 'history')}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="config" className="gap-2">
+            <Settings className="h-4 w-4" />
+            Configuração
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="h-4 w-4" />
+            Histórico
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="config" className="mt-6">
+          {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardContent className="p-4">
@@ -1047,6 +1084,16 @@ Boa noite!`}
           </Card>
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-6">
+          <WarmingSessionHistory 
+            sessions={sessions} 
+            onLoadSession={loadSessionFromHistory}
+            onRefresh={fetchSessions}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

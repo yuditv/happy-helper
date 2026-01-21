@@ -223,6 +223,28 @@ export function useWarmingSessions() {
     return () => clearInterval(interval);
   }, [currentSession, getStatus]);
 
+  // Delete a session
+  const deleteSession = useCallback(async (sessionId: string) => {
+    try {
+      // Delete logs first
+      await (supabase as any).from('warming_logs').delete().eq('session_id', sessionId);
+      // Then delete session
+      const { error } = await (supabase as any).from('warming_sessions').delete().eq('id', sessionId);
+      
+      if (error) throw error;
+      
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+      if (currentSession?.id === sessionId) {
+        setCurrentSession(null);
+      }
+      
+      toast.success('Sessão excluída');
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast.error('Erro ao excluir sessão');
+    }
+  }, [currentSession]);
+
   return {
     sessions,
     currentSession,
@@ -235,6 +257,7 @@ export function useWarmingSessions() {
     getStatus,
     fetchLogs,
     setCurrentSession,
-    fetchSessions
+    fetchSessions,
+    deleteSession
   };
 }
