@@ -31,51 +31,78 @@ interface AppSidebarProps {
   onSectionChange: (section: AppSection) => void;
 }
 
-const menuItems = [
+interface MenuItem {
+  id: AppSection;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color?: string;
+  activeColor?: string;
+  externalUrl?: string;
+}
+
+const menuItems: MenuItem[] = [
   {
-    id: "clients" as AppSection,
+    id: "clients",
     title: "Gerenciador",
     icon: Users,
+    color: "text-blue-500",
+    activeColor: "bg-blue-500 text-white hover:bg-blue-600",
   },
   {
-    id: "contatos" as AppSection,
+    id: "contatos",
     title: "Contatos",
     icon: Contact,
+    color: "text-cyan-500",
+    activeColor: "bg-cyan-500 text-white hover:bg-cyan-600",
   },
   {
-    id: "whatsapp" as AppSection,
+    id: "whatsapp",
     title: "WhatsApp",
     icon: WhatsAppIcon,
+    color: "text-green-500",
+    activeColor: "bg-green-500 text-white hover:bg-green-600",
   },
   {
-    id: "filter-numbers" as AppSection,
+    id: "filter-numbers",
     title: "Filtrar Números Ativos",
     icon: Search,
+    color: "text-purple-500",
+    activeColor: "bg-purple-500 text-white hover:bg-purple-600",
   },
   {
-    id: "ai-agent" as AppSection,
+    id: "ai-agent",
     title: "Agente IA",
     icon: Bot,
+    color: "text-indigo-500",
+    activeColor: "bg-indigo-500 text-white hover:bg-indigo-600",
   },
   {
-    id: "warm-chips" as AppSection,
+    id: "warm-chips",
     title: "Aquecer Chips",
     icon: Flame,
+    color: "text-orange-500",
+    activeColor: "bg-orange-500 text-white hover:bg-orange-600",
   },
   {
-    id: "revenda" as AppSection,
+    id: "revenda",
     title: "Área de Revenda",
     icon: Package,
+    color: "text-amber-500",
+    activeColor: "bg-amber-500 text-white hover:bg-amber-600",
   },
   {
-    id: "vpn" as AppSection,
+    id: "vpn",
     title: "Internet Ilimitada",
     icon: Shield,
+    color: "text-emerald-500",
+    activeColor: "bg-emerald-500 text-white hover:bg-emerald-600",
   },
   {
-    id: "iptv" as AppSection,
+    id: "iptv",
     title: "StreamingTV",
     icon: Tv,
+    color: "text-rose-500",
+    activeColor: "bg-rose-500 text-white hover:bg-rose-600",
     externalUrl: "https://bommesmo.site/#/sign-in",
   },
 ];
@@ -84,7 +111,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
   const { state, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed";
 
-  const handleClick = (item: typeof menuItems[0]) => {
+  const handleClick = (item: MenuItem) => {
     if (item.externalUrl) {
       window.open(item.externalUrl, "_blank");
     } else {
@@ -136,10 +163,13 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
                       tooltip={item.title}
                       className={cn(
                         "h-11 gap-3 transition-all duration-200",
-                        isActive && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                        isActive && item.activeColor
                       )}
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <item.icon className={cn(
+                        "h-5 w-5 flex-shrink-0 transition-colors",
+                        isActive ? "text-current" : item.color
+                      )} />
                       <span className={cn(
                         "font-medium text-[15px] transition-opacity duration-200",
                         isCollapsed ? "opacity-0 w-0" : "opacity-100"
