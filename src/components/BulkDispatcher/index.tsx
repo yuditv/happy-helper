@@ -1,16 +1,16 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Send, RotateCcw, Save, FolderOpen } from 'lucide-react';
+import { Send, RotateCcw } from 'lucide-react';
 import { InstanceSelector } from './InstanceSelector';
 import { MessageComposer } from './MessageComposer';
 import { ContactsManager, Contact } from './ContactsManager';
 import { TimingConfig } from './TimingConfig';
 import { SendingWindow } from './SendingWindow';
 import { DispatchProgress } from './DispatchProgress';
+import { ConfigManager } from './ConfigManager';
 import { useBulkDispatch, DispatchMessage } from '@/hooks/useBulkDispatch';
+import { useDispatchConfigs } from '@/hooks/useDispatchConfigs';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,7 +28,17 @@ export function BulkDispatcher() {
     pauseDispatch,
     resumeDispatch,
     cancelDispatch,
+    loadConfig,
   } = useBulkDispatch();
+  
+  const {
+    configs: savedConfigs,
+    isLoading: configsLoading,
+    saveConfig,
+    updateConfig: updateSavedConfig,
+    deleteConfig,
+    configToDispatchConfig,
+  } = useDispatchConfigs();
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
@@ -129,6 +139,24 @@ export function BulkDispatcher() {
     startDispatch(selectedInstances);
   };
 
+  // Config management handlers
+  const handleSaveConfig = useCallback(async (name: string) => {
+    await saveConfig(name, config);
+  }, [saveConfig, config]);
+
+  const handleLoadConfig = useCallback((savedConfig: any) => {
+    const dispatchConfig = configToDispatchConfig(savedConfig);
+    loadConfig(dispatchConfig);
+  }, [configToDispatchConfig, loadConfig]);
+
+  const handleUpdateConfig = useCallback(async (id: string, name: string) => {
+    await updateSavedConfig(id, name, config);
+  }, [updateSavedConfig, config]);
+
+  const handleDeleteConfig = useCallback(async (id: string) => {
+    await deleteConfig(id);
+  }, [deleteConfig]);
+
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
@@ -143,6 +171,15 @@ export function BulkDispatcher() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ConfigManager
+            configs={savedConfigs}
+            currentConfig={config}
+            isLoading={configsLoading}
+            onSave={handleSaveConfig}
+            onLoad={handleLoadConfig}
+            onUpdate={handleUpdateConfig}
+            onDelete={handleDeleteConfig}
+          />
           <Button variant="outline" size="sm" onClick={resetConfig}>
             <RotateCcw className="w-4 h-4 mr-1" />
             Resetar
