@@ -26,6 +26,16 @@ export interface AIChatMessage {
   content: string;
   metadata: Record<string, unknown>;
   created_at: string;
+  rating?: 'up' | 'down' | null;
+}
+
+export interface WhatsAppAgentRouting {
+  id: string;
+  instance_id: string;
+  agent_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateAgentInput {
@@ -266,6 +276,117 @@ export function useAIAgents() {
     },
   });
 
+  // Rate a message (thumbs up/down)
+  const rateMessage = useMutation({
+    mutationFn: async ({ messageId, rating }: { messageId: string; rating: 'up' | 'down' | null }) => {
+      const { data, error } = await supabase
+        .from('ai_chat_messages')
+        .update({ rating })
+        .eq('id', messageId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error rating message:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['ai-chat-messages', data.agent_id] 
+      });
+      if (data.rating === 'up') {
+        toast.success('Obrigado pelo feedback positivo!');
+      } else if (data.rating === 'down') {
+        toast.success('Obrigado pelo feedback. Vamos melhorar!');
+      }
+    },
+    onError: (error) => {
+      console.error('Rate message error:', error);
+      toast.error('Erro ao registrar avaliação.');
+    },
+  });
+
+  // Fetch agent routings (for admin)
+  const { data: agentRoutings = [], isLoading: isLoadingRoutings, refetch: refetchRoutings } = useQuery({
+    queryKey: ['whatsapp-agent-routings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('whatsapp_agent_routing')
+        .select(`
+          *,
+          instance:whatsapp_instances(id, instance_name, status),
+          agent:ai_agents(id, name, color)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching routings:', error);
+        throw error;
+      }
+
+      return data;
+    },
+  });
+
+  // Create or update agent routing
+  const upsertRouting = useMutation({
+    mutationFn: async ({ instanceId, agentId, isActive = true }: { instanceId: string; agentId: string; isActive?: boolean }) => {
+      const { data, error } = await supabase
+        .from('whatsapp_agent_routing')
+        .upsert({
+          instance_id: instanceId,
+          agent_id: agentId,
+          is_active: isActive,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'instance_id'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error upserting routing:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-agent-routings'] });
+      toast.success('Roteamento configurado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Upsert routing error:', error);
+      toast.error('Erro ao configurar roteamento.');
+    },
+  });
+
+  // Delete routing
+  const deleteRouting = useMutation({
+    mutationFn: async (routingId: string) => {
+      const { error } = await supabase
+        .from('whatsapp_agent_routing')
+        .delete()
+        .eq('id', routingId);
+
+      if (error) {
+        console.error('Error deleting routing:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-agent-routings'] });
+      toast.success('Roteamento removido!');
+    },
+    onError: (error) => {
+      console.error('Delete routing error:', error);
+      toast.error('Erro ao remover roteamento.');
+    },
+  });
+
   return {
     agents,
     isLoadingAgents,
@@ -277,5 +398,11 @@ export function useAIAgents() {
     toggleAgentActive,
     sendMessage,
     clearChatHistory,
+    rateMessage,
+    agentRoutings,
+    isLoadingRoutings,
+    refetchRoutings,
+    upsertRouting,
+    deleteRouting,
   };
 }

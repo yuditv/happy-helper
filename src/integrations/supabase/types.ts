@@ -66,6 +66,7 @@ export type Database = {
           created_at: string | null
           id: string
           metadata: Json | null
+          rating: string | null
           role: string
           session_id: string | null
           user_id: string
@@ -76,6 +77,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metadata?: Json | null
+          rating?: string | null
           role: string
           session_id?: string | null
           user_id: string
@@ -86,6 +88,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metadata?: Json | null
+          rating?: string | null
           role?: string
           session_id?: string | null
           user_id?: string
@@ -984,6 +987,48 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      whatsapp_agent_routing: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          instance_id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          instance_id: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          instance_id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_agent_routing_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_agent_routing_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_instances: {
         Row: {
