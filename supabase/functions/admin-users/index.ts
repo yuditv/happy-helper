@@ -78,14 +78,26 @@ Deno.serve(async (req) => {
         .select('*')
         .in('user_id', userIds);
 
-      const enrichedUsers = authUsers.users.map(u => ({
-        id: u.id,
-        email: u.email,
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at,
-        profile: profiles?.find(p => p.user_id === u.id) || null,
-        role: roles?.find(r => r.user_id === u.id)?.role || 'user',
-      }));
+      // Get blocked users
+      const { data: blockedUsers } = await supabaseAdmin
+        .from('blocked_users')
+        .select('user_id, blocked_at, reason')
+        .is('unblocked_at', null);
+
+      const enrichedUsers = authUsers.users.map(u => {
+        const blockedInfo = blockedUsers?.find(b => b.user_id === u.id);
+        return {
+          id: u.id,
+          email: u.email,
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at,
+          profile: profiles?.find(p => p.user_id === u.id) || null,
+          role: roles?.find(r => r.user_id === u.id)?.role || 'user',
+          is_blocked: !!blockedInfo,
+          blocked_at: blockedInfo?.blocked_at || null,
+          block_reason: blockedInfo?.reason || null,
+        };
+      });
 
       return new Response(JSON.stringify({ users: enrichedUsers }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -158,6 +170,83 @@ Deno.serve(async (req) => {
 
       if (deleteError) {
         throw deleteError;
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // POST - Block user
+    if (req.method === 'POST' && action === 'block-user') {
+      const { userId, reason } = await req.json();
+
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'Missing userId' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Prevent self-blocking
+      if (userId === user.id) {
+        return new Response(JSON.stringify({ error: 'Cannot block yourself' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Check if already blocked
+      const { data: existingBlock } = await supabaseAdmin
+        .from('blocked_users')
+        .select('id')
+        .eq('user_id', userId)
+        .is('unblocked_at', null)
+        .single();
+
+      if (existingBlock) {
+        return new Response(JSON.stringify({ error: 'User is already blocked' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error: blockError } = await supabaseAdmin
+        .from('blocked_users')
+        .insert({
+          user_id: userId,
+          blocked_by: user.id,
+          reason: reason || null,
+        });
+
+      if (blockError) {
+        throw blockError;
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // POST - Unblock user
+    if (req.method === 'POST' && action === 'unblock-user') {
+      const { userId } = await req.json();
+
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'Missing userId' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error: unblockError } = await supabaseAdmin
+        .from('blocked_users')
+        .update({ unblocked_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('unblocked_at', null);
+
+      if (unblockError) {
+        throw unblockError;
       }
 
       return new Response(JSON.stringify({ success: true }), {

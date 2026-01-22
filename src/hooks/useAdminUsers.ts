@@ -13,6 +13,9 @@ export interface AdminUser {
     avatar_url: string | null;
   } | null;
   role: 'admin' | 'moderator' | 'user';
+  is_blocked: boolean;
+  blocked_at: string | null;
+  block_reason: string | null;
 }
 
 export function useAdminUsers() {
@@ -45,13 +48,6 @@ export function useAdminUsers() {
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-users', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        body: null,
-      });
-
-      // Handle the invocation differently - need to pass action as query param
       const response = await fetch(
         `https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/admin-users?action=list`,
         {
@@ -117,6 +113,76 @@ export function useAdminUsers() {
     }
   }, [fetchUsers, toast]);
 
+  const blockUser = useCallback(async (userId: string, reason?: string) => {
+    try {
+      const response = await fetch(
+        `https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/admin-users?action=block-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({ userId, reason }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to block user');
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Usuário bloqueado',
+      });
+
+      await fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Falha ao bloquear usuário',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchUsers, toast]);
+
+  const unblockUser = useCallback(async (userId: string) => {
+    try {
+      const response = await fetch(
+        `https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/admin-users?action=unblock-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to unblock user');
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Usuário desbloqueado',
+      });
+
+      await fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Falha ao desbloquear usuário',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchUsers, toast]);
+
   const deleteUser = useCallback(async (userId: string) => {
     try {
       const response = await fetch(
@@ -159,6 +225,8 @@ export function useAdminUsers() {
     checkAdminStatus,
     fetchUsers,
     updateUserRole,
+    blockUser,
+    unblockUser,
     deleteUser,
   };
 }
