@@ -10,7 +10,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import logoFuturistic from "@/assets/logo-futuristic.png";
+import logoFuturistic from "@/assets/logo-red-futuristic.png";
 import { cn } from "@/lib/utils";
 
 // Custom WhatsApp icon component
@@ -138,13 +138,16 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
     >
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <img
-            src={logoFuturistic}
-            alt="Logo"
-            className="h-8 w-8 rounded-lg object-contain"
-          />
+          <div className="relative">
+            <img
+              src={logoFuturistic}
+              alt="Logo"
+              className="h-10 w-10 rounded-lg object-contain glitch-subtle logo-glow"
+            />
+            <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse flicker"></div>
+          </div>
           {!isCollapsed && (
-            <span className="font-semibold text-foreground animate-fade-in">Painel</span>
+            <span className="font-bold text-foreground animate-fade-in text-gradient">Painel</span>
           )}
         </div>
       </SidebarHeader>
