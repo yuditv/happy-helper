@@ -234,7 +234,13 @@ export function useDispatchConfigs() {
     return {
       instanceIds: saved.instance_ids,
       balancingMode: saved.balancing_mode as any,
-      messages: saved.messages,
+      messages: saved.messages.map(msg => ({
+        ...msg,
+        mediaType: msg.mediaType || 'none',
+        mediaUrl: msg.mediaUrl,
+        fileName: msg.fileName,
+        mimetype: msg.mimetype,
+      })),
       randomizeOrder: saved.randomize_order,
       minDelay: saved.min_delay_seconds,
       maxDelay: saved.max_delay_seconds,

@@ -7,17 +7,20 @@ const corsHeaders = {
 };
 
 interface WhatsAppRequest {
+  instanceKey?: string;
   phone: string;
-  message: string;
+  message?: string;
+  // Media fields
+  mediaType?: 'none' | 'image' | 'video' | 'audio' | 'document';
+  mediaUrl?: string;
+  fileName?: string;
+  caption?: string;
 }
 
 // Format phone number to international format (55 + DDD + number)
 function formatPhoneNumber(phone: string): string {
-  // Remove all non-numeric characters
   let cleaned = phone.replace(/\D/g, '');
   
-  // If starts with +, remove it (already handled by regex)
-  // If doesn't start with 55, add it
   if (!cleaned.startsWith('55')) {
     cleaned = '55' + cleaned;
   }
@@ -26,7 +29,6 @@ function formatPhoneNumber(phone: string): string {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -46,11 +48,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { phone, message }: WhatsAppRequest = await req.json();
+    const requestData: WhatsAppRequest = await req.json();
+    const { phone, message, mediaType, mediaUrl, fileName, caption } = requestData;
 
-    if (!phone || !message) {
+    if (!phone) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: phone, message" }),
+        JSON.stringify({ error: "Missing required field: phone" }),
         {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -59,18 +62,81 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const formattedPhone = formatPhoneNumber(phone);
-    console.log(`Sending WhatsApp to: ${formattedPhone}`);
+    console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}`);
 
-    const response = await fetch(`${UAZAPI_URL}/sendText`, {
+    let endpoint: string;
+    let body: Record<string, any>;
+
+    // Determine endpoint and body based on media type
+    if (mediaType && mediaType !== 'none' && mediaUrl) {
+      switch (mediaType) {
+        case 'image':
+          endpoint = '/sendImage';
+          body = {
+            phone: formattedPhone,
+            image: mediaUrl,
+            caption: caption || message || ''
+          };
+          break;
+        case 'video':
+          endpoint = '/sendVideo';
+          body = {
+            phone: formattedPhone,
+            video: mediaUrl,
+            caption: caption || message || ''
+          };
+          break;
+        case 'audio':
+          endpoint = '/sendAudio';
+          body = {
+            phone: formattedPhone,
+            audio: mediaUrl,
+            ptt: true // Send as voice note
+          };
+          break;
+        case 'document':
+          endpoint = '/sendDocument';
+          body = {
+            phone: formattedPhone,
+            document: mediaUrl,
+            filename: fileName || 'document',
+            caption: caption || message || ''
+          };
+          break;
+        default:
+          endpoint = '/sendText';
+          body = {
+            phone: formattedPhone,
+            message: message || ''
+          };
+      }
+    } else {
+      // Text message
+      if (!message) {
+        return new Response(
+          JSON.stringify({ error: "Missing required field: message (for text messages)" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+      endpoint = '/sendText';
+      body = {
+        phone: formattedPhone,
+        message: message
+      };
+    }
+
+    console.log(`Calling UAZAPI endpoint: ${endpoint}`);
+
+    const response = await fetch(`${UAZAPI_URL}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${UAZAPI_TOKEN}`,
       },
-      body: JSON.stringify({
-        phone: formattedPhone,
-        message: message,
-      }),
+      body: JSON.stringify(body),
     });
 
     const responseData = await response.json();
