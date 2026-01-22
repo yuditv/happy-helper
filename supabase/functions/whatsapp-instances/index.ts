@@ -344,17 +344,15 @@ serve(async (req: Request): Promise<Response> => {
 
       console.log("Deleting instance:", entityId, "name:", instance?.instance_name, "key:", instance?.instance_key ? "exists" : "none");
 
-      // Delete from UAZAPI - use admintoken for admin operations with POST method
-      if (instance?.instance_name && uazapiAdminToken) {
+      // Delete from UAZAPI - uses DELETE /instance with instance token
+      if (instance?.instance_key) {
         try {
-          console.log("Calling UAZAPI delete for instance:", instance.instance_name);
-          const deleteResponse = await fetch(`${uazapiUrl}/instance/delete`, {
-            method: "POST",
+          console.log("Calling UAZAPI delete for instance with key:", instance.instance_key);
+          const deleteResponse = await fetch(`${uazapiUrl}/instance`, {
+            method: "DELETE",
             headers: { 
-              "Content-Type": "application/json",
-              "admintoken": uazapiAdminToken 
+              "token": instance.instance_key 
             },
-            body: JSON.stringify({ name: instance.instance_name }),
           });
           
           console.log("UAZAPI delete response status:", deleteResponse.status);
@@ -364,7 +362,7 @@ serve(async (req: Request): Promise<Response> => {
           console.error("UAZAPI delete error:", e);
         }
       } else {
-        console.log("Skipping UAZAPI delete - no instance name or admin token");
+        console.log("Skipping UAZAPI delete - no instance key");
       }
 
       const { error } = await supabase
