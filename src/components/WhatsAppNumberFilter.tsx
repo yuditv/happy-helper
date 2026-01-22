@@ -45,7 +45,7 @@ interface VerificationResult {
 }
 
 export function WhatsAppNumberFilter() {
-  const { instances } = useWhatsAppInstances();
+  const { instances, checkNumbers } = useWhatsAppInstances();
   const connectedInstances = instances.filter(i => i.status === 'connected');
   
   const [selectedInstance, setSelectedInstance] = useState<string>("");
@@ -170,7 +170,7 @@ export function WhatsAppNumberFilter() {
     toast.success("Lista limpa");
   };
 
-  // Verify numbers (mock implementation - would need actual WhatsApp API)
+  // Verify numbers using real WhatsApp API
   const handleVerifyNumbers = async () => {
     if (!selectedInstance) {
       toast.error("Selecione uma instância conectada");
@@ -187,34 +187,54 @@ export function WhatsAppNumberFilter() {
     setVerificationResults([]);
     
     const results: VerificationResult[] = [];
+    const batchSize = 10; // Process in batches to avoid overwhelming the API
+    const phones = parsedNumbers.map(n => n.phone);
     
-    // Simulate verification (replace with actual API call)
-    for (let i = 0; i < parsedNumbers.length; i++) {
-      const num = parsedNumbers[i];
+    try {
+      // Process in batches
+      for (let i = 0; i < phones.length; i += batchSize) {
+        const batch = phones.slice(i, i + batchSize);
+        const batchParsed = parsedNumbers.slice(i, i + batchSize);
+        
+        const batchResults = await checkNumbers(selectedInstance, batch, fetchOriginalName);
+        
+        if (batchResults) {
+          for (let j = 0; j < batchResults.length; j++) {
+            const result = batchResults[j];
+            const original = batchParsed[j];
+            
+            results.push({
+              phone: result.phone,
+              name: original?.name,
+              exists: result.exists,
+              whatsappName: result.whatsappName,
+            });
+          }
+        } else {
+          // If batch failed, mark all as unknown
+          for (const num of batchParsed) {
+            results.push({
+              phone: num.phone,
+              name: num.name,
+              exists: false,
+            });
+          }
+        }
+        
+        setVerificationProgress(((i + batch.length) / parsedNumbers.length) * 100);
+        setVerificationResults([...results]);
+      }
       
-      // Mock verification - in production, call the WhatsApp API
-      await new Promise(resolve => setTimeout(resolve, 200));
+      const validCount = results.filter(r => r.exists).length;
+      const invalidCount = results.filter(r => !r.exists).length;
       
-      // Random result for demo
-      const exists = Math.random() > 0.3;
-      
-      results.push({
-        phone: num.phone,
-        name: num.name,
-        exists,
-        whatsappName: exists && fetchOriginalName ? `User ${num.phone.slice(-4)}` : undefined
-      });
-      
-      setVerificationProgress(((i + 1) / parsedNumbers.length) * 100);
-      setVerificationResults([...results]);
+      toast.success(`Verificação concluída: ${validCount} válidos, ${invalidCount} inválidos`);
+    } catch (error) {
+      console.error("Verification error:", error);
+      toast.error("Erro durante a verificação");
+    } finally {
+      setIsVerifying(false);
     }
-    
-    setIsVerifying(false);
-    
-    const validCount = results.filter(r => r.exists).length;
-    const invalidCount = results.filter(r => !r.exists).length;
-    
-    toast.success(`Verificação concluída: ${validCount} válidos, ${invalidCount} inválidos`);
   };
 
   // Export valid numbers

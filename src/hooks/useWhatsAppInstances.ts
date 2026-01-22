@@ -152,6 +152,21 @@ export function useWhatsAppInstances() {
     }
   };
 
+  const checkNumbers = async (instanceId: string, phones: string[], fetchName: boolean = false) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'check-number', instanceId, phones, fetchName },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data.results as Array<{ phone: string; exists: boolean; whatsappName?: string; error?: string }>;
+    } catch (error: any) {
+      console.error('Check numbers error:', error);
+      toast.error(error.message || 'Erro ao verificar números');
+      return null;
+    }
+  };
+
   return {
     instances,
     isLoading,
@@ -160,6 +175,7 @@ export function useWhatsAppInstances() {
     checkStatus,
     deleteInstance,
     getPairingCode,
+    checkNumbers,
     refetch: fetchInstances,
   };
 }
