@@ -344,12 +344,12 @@ serve(async (req: Request): Promise<Response> => {
 
       console.log("Deleting instance:", entityId, "name:", instance?.instance_name, "key:", instance?.instance_key ? "exists" : "none");
 
-      // Delete from UAZAPI - use admintoken for admin operations
+      // Delete from UAZAPI - use admintoken for admin operations with POST method
       if (instance?.instance_name && uazapiAdminToken) {
         try {
           console.log("Calling UAZAPI delete for instance:", instance.instance_name);
           const deleteResponse = await fetch(`${uazapiUrl}/instance/delete`, {
-            method: "DELETE",
+            method: "POST",
             headers: { 
               "Content-Type": "application/json",
               "admintoken": uazapiAdminToken 
