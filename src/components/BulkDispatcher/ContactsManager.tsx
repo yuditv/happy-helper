@@ -50,6 +50,8 @@ interface ContactsManagerProps {
   savedContacts?: SavedContact[];
   isLoadingSaved?: boolean;
   onRefreshSaved?: () => void;
+  onSaveContacts?: (contacts: { name: string; phone: string; email?: string }[]) => Promise<boolean>;
+  isSaving?: boolean;
 }
 
 export function ContactsManager({
@@ -62,7 +64,9 @@ export function ContactsManager({
   verificationProgress = 0,
   savedContacts = [],
   isLoadingSaved = false,
-  onRefreshSaved
+  onRefreshSaved,
+  onSaveContacts,
+  isSaving = false
 }: ContactsManagerProps) {
   const [manualInput, setManualInput] = useState('');
   const [activeTab, setActiveTab] = useState('manual');
@@ -72,6 +76,7 @@ export function ContactsManager({
   // State for saved contacts tab
   const [savedSearch, setSavedSearch] = useState('');
   const [selectedSavedIds, setSelectedSavedIds] = useState<Set<string>>(new Set());
+  const [autoSave, setAutoSave] = useState(false);
 
   const parseManualInput = useCallback((text: string): Contact[] => {
     const lines = text.split('\n').filter(line => line.trim());
@@ -259,9 +264,32 @@ export function ContactsManager({
     if (duplicates > 0) {
       toast.success(`${newContacts.length} contato(s) adicionado(s). ${duplicates} duplicado(s) ignorado(s)`);
     } else {
-      toast.success(`${newContacts.length} contato(s) adicionado(s) ao disparo`);
-    }
+    toast.success(`${newContacts.length} contato(s) adicionado(s) ao disparo`);
+  }
   }, [contacts, savedContacts, selectedSavedIds, onContactsChange]);
+
+  // Get contacts that are not yet saved in the database
+  const unsavedContacts = useMemo(() => {
+    const savedPhones = new Set(savedContacts.map(c => c.phone));
+    return contacts.filter(c => c.phone && !savedPhones.has(c.phone));
+  }, [contacts, savedContacts]);
+
+  // Save new contacts to database
+  const handleSaveNewContacts = useCallback(async () => {
+    if (!onSaveContacts || unsavedContacts.length === 0) return;
+    
+    const toSave = unsavedContacts.map(c => ({
+      name: c.name || c.phone,
+      phone: c.phone,
+      email: c.email
+    }));
+    
+    const success = await onSaveContacts(toSave);
+    if (success) {
+      toast.success(`${toSave.length} contato(s) salvo(s) na lista permanente`);
+      onRefreshSaved?.();
+    }
+  }, [onSaveContacts, unsavedContacts, onRefreshSaved]);
 
   const validCount = contacts.filter(c => c.isValid === true).length;
   const invalidCount = contacts.filter(c => c.isValid === false).length;
@@ -341,6 +369,37 @@ Exemplo:
 5521988887777 Maria Santos"
               className="min-h-[200px] font-mono text-sm"
             />
+            
+            {/* Save to permanent list option */}
+            {contacts.length > 0 && onSaveContacts && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="auto-save"
+                    checked={autoSave}
+                    onCheckedChange={setAutoSave}
+                  />
+                  <Label htmlFor="auto-save" className="text-sm">
+                    Salvar novos contatos automaticamente
+                  </Label>
+                </div>
+                {unsavedContacts.length > 0 && !autoSave && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveNewContacts}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Database className="w-4 h-4 mr-1" />
+                    )}
+                    Salvar {unsavedContacts.length} novo(s)
+                  </Button>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="upload">

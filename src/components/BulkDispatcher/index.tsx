@@ -45,7 +45,8 @@ export function BulkDispatcher() {
   const {
     contacts: savedContactsRaw,
     isLoading: savedContactsLoading,
-    refetch: refreshSavedContacts
+    refetch: refreshSavedContacts,
+    importContacts
   } = useContactsSupabase();
 
   // Map saved contacts to the expected format
@@ -60,6 +61,26 @@ export function BulkDispatcher() {
       notes: c.notes || undefined
     })));
   }, [savedContactsRaw]);
+
+  const [isSavingContacts, setIsSavingContacts] = useState(false);
+
+  // Save contacts to permanent list
+  const handleSaveContacts = useCallback(async (contactsToSave: { name: string; phone: string; email?: string }[]) => {
+    setIsSavingContacts(true);
+    try {
+      await importContacts(contactsToSave.map(c => ({
+        name: c.name,
+        phone: c.phone,
+        email: c.email || ''
+      })));
+      return true;
+    } catch (error) {
+      console.error('Error saving contacts:', error);
+      return false;
+    } finally {
+      setIsSavingContacts(false);
+    }
+  }, [importContacts]);
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
@@ -241,6 +262,8 @@ export function BulkDispatcher() {
             savedContacts={savedContacts}
             isLoadingSaved={savedContactsLoading}
             onRefreshSaved={refreshSavedContacts}
+            onSaveContacts={handleSaveContacts}
+            isSaving={isSavingContacts}
           />
 
           {/* Verify Button */}
