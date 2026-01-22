@@ -26,11 +26,12 @@ import {
 import { 
   MessageSquare, Plus, Trash2, Bold, Italic, 
   Sparkles, Copy, Info, RefreshCw,
-  Image, Video, FileAudio, FileText, Type, Loader2, Wand2
+  Image, Video, FileAudio, FileText, Type, Loader2, Wand2, Shuffle
 } from 'lucide-react';
 import { generatePreview, validateSpintax, SPINTAX_SUGGESTIONS } from '@/lib/spintaxParser';
 import { cn } from '@/lib/utils';
 import { MediaUploader, MediaType } from './MediaUploader';
+import { SpintaxManager } from './SpintaxManager';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -83,6 +84,7 @@ export function MessageComposer({
   const [aiTone, setAiTone] = useState<ToneType>('persuasivo');
   const [includeVariables, setIncludeVariables] = useState(true);
   const [aiQuantity, setAiQuantity] = useState<number>(1);
+  const [showSpintaxManager, setShowSpintaxManager] = useState(false);
 
   const addMessage = () => {
     const newMessage: Message = {
@@ -179,6 +181,10 @@ export function MessageComposer({
 
   const insertSpintax = (suggestion: typeof SPINTAX_SUGGESTIONS[0]) => {
     const spintax = `{{ ${suggestion.key} : ${suggestion.options.join(' | ')} }}`;
+    insertVariable(spintax);
+  };
+
+  const handleInsertSpintaxFromManager = (spintax: string) => {
     insertVariable(spintax);
   };
 
@@ -390,8 +396,8 @@ export function MessageComposer({
 
         {/* Spintax Suggestions */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Spintax rápido:</span>
-          {SPINTAX_SUGGESTIONS.slice(0, 4).map(s => (
+          <span className="text-sm text-muted-foreground">Spintax:</span>
+          {SPINTAX_SUGGESTIONS.slice(0, 3).map(s => (
             <Button
               key={s.key}
               variant="ghost"
@@ -403,6 +409,15 @@ export function MessageComposer({
               {s.key}
             </Button>
           ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={() => setShowSpintaxManager(true)}
+          >
+            <Shuffle className="w-3.5 h-3.5" />
+            Gerenciar KEYs
+          </Button>
         </div>
 
         {/* Message Tabs */}
@@ -760,6 +775,13 @@ export function MessageComposer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Spintax Manager Dialog */}
+      <SpintaxManager 
+        open={showSpintaxManager} 
+        onOpenChange={setShowSpintaxManager}
+        onInsertSpintax={handleInsertSpintaxFromManager}
+      />
     </Card>
   );
 }
