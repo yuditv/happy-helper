@@ -50,6 +50,7 @@ export interface DispatchProgress {
   sent: number;
   failed: number;
   pending: number;
+  archived: number;
   currentContact?: string;
   isPaused: boolean;
   isRunning: boolean;
@@ -90,6 +91,7 @@ export function useBulkDispatch() {
     sent: 0,
     failed: 0,
     pending: 0,
+    archived: 0,
     isPaused: false,
     isRunning: false,
     logs: [],
@@ -213,6 +215,7 @@ export function useBulkDispatch() {
       sent: 0,
       failed: 0,
       pending: contacts.length,
+      archived: 0,
       isPaused: false,
       isRunning: true,
       logs: [],
@@ -237,6 +240,7 @@ export function useBulkDispatch() {
 
     let sentCount = 0;
     let failedCount = 0;
+    let archivedCount = 0;
     let messagesSinceLastPause = 0;
 
     for (let i = 0; i < contacts.length; i++) {
@@ -310,7 +314,14 @@ export function useBulkDispatch() {
         if (error) throw error;
 
         sentCount++;
-        addLog('success', `✓ ${contact.name || phone}`);
+        
+        // Check if chat was archived successfully
+        if (config.autoArchive && data?.archived) {
+          archivedCount++;
+          addLog('success', `✓ ${contact.name || phone} (arquivado)`);
+        } else {
+          addLog('success', `✓ ${contact.name || phone}`);
+        }
 
         // Move contact to sent_contacts if it came from saved contacts
         if (contact.originalId) {
@@ -355,6 +366,7 @@ export function useBulkDispatch() {
         sent: sentCount,
         failed: failedCount,
         pending: contacts.length - sentCount - failedCount,
+        archived: archivedCount,
         estimatedTimeRemaining: (contacts.length - i - 1) * ((config.minDelay + config.maxDelay) / 2)
       }));
 
@@ -447,6 +459,7 @@ export function useBulkDispatch() {
       sent: 0,
       failed: 0,
       pending: 0,
+      archived: 0,
       isPaused: false,
       isRunning: false,
       logs: [],
