@@ -7,14 +7,32 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { 
   MessageSquare, Plus, Trash2, Bold, Italic, 
   Sparkles, Copy, Info, RefreshCw,
-  Image, Video, FileAudio, FileText, Type
+  Image, Video, FileAudio, FileText, Type, Loader2, Wand2
 } from 'lucide-react';
 import { generatePreview, validateSpintax, SPINTAX_SUGGESTIONS } from '@/lib/spintaxParser';
 import { cn } from '@/lib/utils';
 import { MediaUploader, MediaType } from './MediaUploader';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
@@ -43,6 +61,9 @@ const VARIABLES = [
   { key: '{link}', label: 'Link personalizado', example: 'https://...' },
 ];
 
+type CopyType = 'copy' | 'anuncio' | 'lembrete' | 'promocao';
+type ToneType = 'casual' | 'formal' | 'persuasivo' | 'urgente';
+
 export function MessageComposer({
   messages,
   randomizeOrder,
@@ -53,6 +74,14 @@ export function MessageComposer({
     messages[0]?.id || null
   );
   const [showPreview, setShowPreview] = useState(false);
+  
+  // AI Generation states
+  const [showAiDialog, setShowAiDialog] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiType, setAiType] = useState<CopyType>('copy');
+  const [aiTone, setAiTone] = useState<ToneType>('persuasivo');
+  const [includeVariables, setIncludeVariables] = useState(true);
 
   const addMessage = () => {
     const newMessage: Message = {
@@ -208,6 +237,63 @@ export function MessageComposer({
     );
   };
 
+  const handleGenerateWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Digite uma descrição do que deseja gerar');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-copy', {
+        body: {
+          prompt: aiPrompt,
+          type: aiType,
+          tone: aiTone,
+          includeVariables
+        }
+      });
+
+      if (error) {
+        console.error('Error generating copy:', error);
+        toast.error('Erro ao gerar mensagem. Tente novamente.');
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      if (data?.content) {
+        // If there's an active message, update it. Otherwise create new one
+        if (activeMessageId) {
+          updateMessage(activeMessageId, data.content);
+        } else {
+          const newMessage: Message = {
+            id: crypto.randomUUID(),
+            content: data.content,
+            variations: [],
+            mediaType: 'none',
+            mediaUrl: undefined,
+            fileName: undefined,
+            mimetype: undefined
+          };
+          onMessagesChange([...messages, newMessage]);
+          setActiveMessageId(newMessage.id);
+        }
+        toast.success('Mensagem gerada com sucesso!');
+        setShowAiDialog(false);
+        setAiPrompt('');
+      }
+    } catch (error) {
+      console.error('Error calling generate-copy:', error);
+      toast.error('Erro ao conectar com o serviço de IA.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const activeMessage = messages.find(m => m.id === activeMessageId);
   const validation = activeMessage ? validateSpintax(activeMessage.content) : { valid: true, errors: [] };
   const preview = activeMessage ? generatePreview(activeMessage.content) : '';
@@ -226,6 +312,15 @@ export function MessageComposer({
             </Badge>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowAiDialog(true)}
+              className="gap-1.5"
+            >
+              <Wand2 className="w-4 h-4 text-primary" />
+              Gerar com IA
+            </Button>
             <Button variant="outline" size="sm" onClick={addMessage}>
               <Plus className="w-4 h-4 mr-1" />
               Adicionar Mensagem
@@ -533,6 +628,100 @@ export function MessageComposer({
           </div>
         )}
       </CardContent>
+
+      {/* AI Generation Dialog */}
+      <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="h-5 w-5 text-primary" />
+              Gerar Mensagem com IA
+            </DialogTitle>
+            <DialogDescription>
+              Descreva o que você quer criar e a IA irá gerar uma mensagem otimizada para WhatsApp
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Descreva o que você quer criar</Label>
+              <Textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="Ex: Anúncio de promoção de internet fibra 300MB por R$99,90 com instalação grátis"
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Tipo de Mensagem</Label>
+                <Select value={aiType} onValueChange={(v) => setAiType(v as CopyType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="copy">Copy Geral</SelectItem>
+                    <SelectItem value="anuncio">Anúncio</SelectItem>
+                    <SelectItem value="lembrete">Lembrete</SelectItem>
+                    <SelectItem value="promocao">Promoção</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-sm">Tom da Mensagem</Label>
+                <Select value={aiTone} onValueChange={(v) => setAiTone(v as ToneType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="formal">Formal</SelectItem>
+                    <SelectItem value="persuasivo">Persuasivo</SelectItem>
+                    <SelectItem value="urgente">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+              <Checkbox 
+                id="includeVars"
+                checked={includeVariables}
+                onCheckedChange={(checked) => setIncludeVariables(checked === true)}
+              />
+              <Label htmlFor="includeVars" className="text-sm cursor-pointer">
+                Incluir variáveis personalizadas ({'{nome}'}, {'{plano}'}, etc.)
+              </Label>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAiDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleGenerateWithAI}
+              disabled={isGenerating || !aiPrompt.trim()}
+              className="gap-2"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Gerar Mensagem
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
