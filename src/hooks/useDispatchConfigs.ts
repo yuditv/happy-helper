@@ -36,7 +36,10 @@ export function useDispatchConfigs() {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchConfigs = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setConfigs([]);
+      return;
+    }
     
     setIsLoading(true);
     try {
@@ -61,7 +64,7 @@ export function useDispatchConfigs() {
         pause_after_messages: item.pause_after_messages || 100,
         pause_duration_minutes: item.pause_duration_minutes || 30,
         stop_after_messages: item.stop_after_messages || 0,
-        smart_delay: item.smart_delay || true,
+        smart_delay: item.smart_delay ?? true,
         attention_call: item.attention_call || false,
         auto_archive: item.auto_archive || false,
         ai_personalization: item.ai_personalization || false,
@@ -85,11 +88,14 @@ export function useDispatchConfigs() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [user?.id, toast]);
 
+  // Re-fetch when user becomes available
   useEffect(() => {
-    fetchConfigs();
-  }, [fetchConfigs]);
+    if (user) {
+      fetchConfigs();
+    }
+  }, [user, fetchConfigs]);
 
   const saveConfig = useCallback(async (
     name: string, 
