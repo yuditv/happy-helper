@@ -55,6 +55,13 @@ export default function Contacts() {
       c.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Load contacts when user is logged in
+  useEffect(() => {
+    if (userId) {
+      refetch();
+    }
+  }, [userId, refetch]);
+
   // Check for localStorage contacts
   useEffect(() => {
     try {
