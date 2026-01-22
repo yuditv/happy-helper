@@ -2,6 +2,26 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export interface UserPermissions {
+  can_view_dashboard: boolean;
+  can_view_clients: boolean;
+  can_manage_clients: boolean;
+  can_view_contacts: boolean;
+  can_manage_contacts: boolean;
+  can_view_whatsapp: boolean;
+  can_manage_whatsapp: boolean;
+  can_view_dispatches: boolean;
+  can_send_dispatches: boolean;
+  can_view_campaigns: boolean;
+  can_manage_campaigns: boolean;
+  can_view_warming: boolean;
+  can_manage_warming: boolean;
+  can_view_ai_agent: boolean;
+  can_view_settings: boolean;
+  can_view_reports: boolean;
+  can_view_reseller: boolean;
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -16,6 +36,7 @@ export interface AdminUser {
   is_blocked: boolean;
   blocked_at: string | null;
   block_reason: string | null;
+  permissions: UserPermissions | null;
 }
 
 export function useAdminUsers() {
@@ -218,6 +239,41 @@ export function useAdminUsers() {
     }
   }, [fetchUsers, toast]);
 
+  const updatePermissions = useCallback(async (userId: string, permissions: Partial<UserPermissions>) => {
+    try {
+      const response = await fetch(
+        `https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/admin-users?action=update-permissions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({ userId, permissions }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update permissions');
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Permissões atualizadas',
+      });
+
+      await fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Falha ao atualizar permissões',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchUsers, toast]);
+
   return {
     users,
     isLoading,
@@ -228,5 +284,6 @@ export function useAdminUsers() {
     blockUser,
     unblockUser,
     deleteUser,
+    updatePermissions,
   };
 }

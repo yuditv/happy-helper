@@ -658,63 +658,6 @@ export type Database = {
         }
         Relationships: []
       }
-      referral_codes: {
-        Row: {
-          code: string
-          created_at: string | null
-          id: string
-          user_id: string
-        }
-        Insert: {
-          code: string
-          created_at?: string | null
-          id?: string
-          user_id: string
-        }
-        Update: {
-          code?: string
-          created_at?: string | null
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      referrals: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          discount_amount: number | null
-          discount_used: boolean | null
-          id: string
-          referral_code: string
-          referred_id: string
-          referrer_id: string
-          status: string | null
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          discount_amount?: number | null
-          discount_used?: boolean | null
-          id?: string
-          referral_code: string
-          referred_id: string
-          referrer_id: string
-          status?: string | null
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          discount_amount?: number | null
-          discount_used?: boolean | null
-          id?: string
-          referral_code?: string
-          referred_id?: string
-          referrer_id?: string
-          status?: string | null
-        }
-        Relationships: []
-      }
       renewal_history: {
         Row: {
           client_id: string
@@ -859,6 +802,78 @@ export type Database = {
           original_contact_id?: string | null
           phone?: string
           sent_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_permissions: {
+        Row: {
+          can_manage_campaigns: boolean | null
+          can_manage_clients: boolean | null
+          can_manage_contacts: boolean | null
+          can_manage_warming: boolean | null
+          can_manage_whatsapp: boolean | null
+          can_send_dispatches: boolean | null
+          can_view_ai_agent: boolean | null
+          can_view_campaigns: boolean | null
+          can_view_clients: boolean | null
+          can_view_contacts: boolean | null
+          can_view_dashboard: boolean | null
+          can_view_dispatches: boolean | null
+          can_view_reports: boolean | null
+          can_view_reseller: boolean | null
+          can_view_settings: boolean | null
+          can_view_warming: boolean | null
+          can_view_whatsapp: boolean | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_manage_campaigns?: boolean | null
+          can_manage_clients?: boolean | null
+          can_manage_contacts?: boolean | null
+          can_manage_warming?: boolean | null
+          can_manage_whatsapp?: boolean | null
+          can_send_dispatches?: boolean | null
+          can_view_ai_agent?: boolean | null
+          can_view_campaigns?: boolean | null
+          can_view_clients?: boolean | null
+          can_view_contacts?: boolean | null
+          can_view_dashboard?: boolean | null
+          can_view_dispatches?: boolean | null
+          can_view_reports?: boolean | null
+          can_view_reseller?: boolean | null
+          can_view_settings?: boolean | null
+          can_view_warming?: boolean | null
+          can_view_whatsapp?: boolean | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_manage_campaigns?: boolean | null
+          can_manage_clients?: boolean | null
+          can_manage_contacts?: boolean | null
+          can_manage_warming?: boolean | null
+          can_manage_whatsapp?: boolean | null
+          can_send_dispatches?: boolean | null
+          can_view_ai_agent?: boolean | null
+          can_view_campaigns?: boolean | null
+          can_view_clients?: boolean | null
+          can_view_contacts?: boolean | null
+          can_view_dashboard?: boolean | null
+          can_view_dispatches?: boolean | null
+          can_view_reports?: boolean | null
+          can_view_reseller?: boolean | null
+          can_view_settings?: boolean | null
+          can_view_warming?: boolean | null
+          can_view_whatsapp?: boolean | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

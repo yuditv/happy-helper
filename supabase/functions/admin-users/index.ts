@@ -84,8 +84,15 @@ Deno.serve(async (req) => {
         .select('user_id, blocked_at, reason')
         .is('unblocked_at', null);
 
+      // Get user permissions
+      const { data: permissions } = await supabaseAdmin
+        .from('user_permissions')
+        .select('*')
+        .in('user_id', userIds);
+
       const enrichedUsers = authUsers.users.map(u => {
         const blockedInfo = blockedUsers?.find(b => b.user_id === u.id);
+        const userPermissions = permissions?.find(p => p.user_id === u.id);
         return {
           id: u.id,
           email: u.email,
@@ -96,6 +103,7 @@ Deno.serve(async (req) => {
           is_blocked: !!blockedInfo,
           blocked_at: blockedInfo?.blocked_at || null,
           block_reason: blockedInfo?.reason || null,
+          permissions: userPermissions || null,
         };
       });
 
@@ -247,6 +255,34 @@ Deno.serve(async (req) => {
 
       if (unblockError) {
         throw unblockError;
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // POST - Update user permissions
+    if (req.method === 'POST' && action === 'update-permissions') {
+      const { userId, permissions } = await req.json();
+
+      if (!userId || !permissions) {
+        return new Response(JSON.stringify({ error: 'Missing userId or permissions' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error: upsertError } = await supabaseAdmin
+        .from('user_permissions')
+        .upsert({
+          user_id: userId,
+          ...permissions,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (upsertError) {
+        throw upsertError;
       }
 
       return new Response(JSON.stringify({ success: true }), {
