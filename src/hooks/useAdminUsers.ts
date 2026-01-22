@@ -274,6 +274,47 @@ export function useAdminUsers() {
     }
   }, [fetchUsers, toast]);
 
+  const createUser = useCallback(async (userData: {
+    email: string;
+    password: string;
+    whatsapp?: string;
+    displayName?: string;
+  }) => {
+    try {
+      const response = await fetch(
+        `https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/admin-users?action=create-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify(userData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create user');
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Usuário criado com sucesso!',
+      });
+
+      await fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Falha ao criar usuário',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  }, [fetchUsers, toast]);
+
   return {
     users,
     isLoading,
@@ -285,5 +326,6 @@ export function useAdminUsers() {
     unblockUser,
     deleteUser,
     updatePermissions,
+    createUser,
   };
 }

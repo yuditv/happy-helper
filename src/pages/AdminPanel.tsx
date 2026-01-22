@@ -43,10 +43,12 @@ import {
   Lock,
   Ban,
   ShieldCheck,
-  Settings
+  Settings,
+  UserPlus
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { UserPermissionsDialog } from "@/components/UserPermissionsDialog";
+import { CreateUserDialog } from "@/components/CreateUserDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -81,12 +83,14 @@ export default function AdminPanel() {
     blockUser,
     unblockUser,
     deleteUser,
-    updatePermissions
+    updatePermissions,
+    createUser
   } = useAdminUsers();
   const [isChecking, setIsChecking] = useState(true);
   const [blockReason, setBlockReason] = useState("");
   const [userToBlock, setUserToBlock] = useState<string | null>(null);
   const [permissionsUser, setPermissionsUser] = useState<typeof users[0] | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -164,10 +168,18 @@ export default function AdminPanel() {
             <Button
               onClick={fetchUsers}
               disabled={isLoading}
-              className="btn-futuristic"
+              variant="outline"
+              className="border-primary/30"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Atualizar
+            </Button>
+            <Button
+              onClick={() => setShowCreateDialog(true)}
+              className="btn-futuristic"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Adicionar Usuário
             </Button>
           </div>
         </div>
@@ -514,6 +526,14 @@ export default function AdminPanel() {
         open={!!permissionsUser}
         onOpenChange={(open) => !open && setPermissionsUser(null)}
         onSave={updatePermissions}
+      />
+
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onUserCreated={fetchUsers}
+        createUser={createUser}
       />
     </div>
   );
