@@ -19,6 +19,8 @@ export interface UserPermissions {
   can_view_settings: boolean;
   can_view_reports: boolean;
   can_view_reseller: boolean;
+  can_view_inbox: boolean;
+  can_manage_inbox: boolean;
 }
 
 const defaultPermissions: UserPermissions = {
@@ -39,6 +41,8 @@ const defaultPermissions: UserPermissions = {
   can_view_settings: true,
   can_view_reports: true,
   can_view_reseller: false,
+  can_view_inbox: true,
+  can_manage_inbox: true,
 };
 
 export function useUserPermissions() {
@@ -70,6 +74,8 @@ export function useUserPermissions() {
         setPermissions({
           ...defaultPermissions,
           can_view_reseller: true,
+          can_view_inbox: true,
+          can_manage_inbox: true,
         });
         setIsLoading(false);
         return;
@@ -101,6 +107,8 @@ export function useUserPermissions() {
           can_view_settings: permData.can_view_settings ?? true,
           can_view_reports: permData.can_view_reports ?? true,
           can_view_reseller: permData.can_view_reseller ?? false,
+          can_view_inbox: permData.can_view_inbox ?? true,
+          can_manage_inbox: permData.can_manage_inbox ?? true,
         });
       }
     } catch (error) {
