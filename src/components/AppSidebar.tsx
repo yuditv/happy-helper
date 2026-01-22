@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import logoFuturistic from "@/assets/logo-red-futuristic.png";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 // Custom WhatsApp icon component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -34,6 +33,14 @@ interface AppSidebarProps {
   onSectionChange: (section: AppSection) => void;
 }
 
+type PermissionKey = 
+  | 'can_view_clients'
+  | 'can_view_contacts'
+  | 'can_view_whatsapp'
+  | 'can_view_warming'
+  | 'can_view_ai_agent'
+  | 'can_view_reseller';
+
 interface MenuItem {
   id: AppSection;
   title: string;
@@ -42,6 +49,7 @@ interface MenuItem {
   activeColor?: string;
   externalUrl?: string;
   adminOnly?: boolean;
+  permissionKey?: PermissionKey;
 }
 
 const menuItems: MenuItem[] = [
@@ -59,6 +67,7 @@ const menuItems: MenuItem[] = [
     icon: Users,
     color: "text-blue-500",
     activeColor: "bg-blue-500 text-white hover:bg-blue-600",
+    permissionKey: "can_view_clients",
   },
   {
     id: "contatos",
@@ -66,6 +75,7 @@ const menuItems: MenuItem[] = [
     icon: Contact,
     color: "text-cyan-500",
     activeColor: "bg-cyan-500 text-white hover:bg-cyan-600",
+    permissionKey: "can_view_contacts",
   },
   {
     id: "whatsapp",
@@ -73,6 +83,7 @@ const menuItems: MenuItem[] = [
     icon: WhatsAppIcon,
     color: "text-green-500",
     activeColor: "bg-green-500 text-white hover:bg-green-600",
+    permissionKey: "can_view_whatsapp",
   },
   {
     id: "filter-numbers",
@@ -80,6 +91,7 @@ const menuItems: MenuItem[] = [
     icon: Search,
     color: "text-purple-500",
     activeColor: "bg-purple-500 text-white hover:bg-purple-600",
+    permissionKey: "can_view_whatsapp",
   },
   {
     id: "ai-agent",
@@ -87,6 +99,7 @@ const menuItems: MenuItem[] = [
     icon: Bot,
     color: "text-indigo-500",
     activeColor: "bg-indigo-500 text-white hover:bg-indigo-600",
+    permissionKey: "can_view_ai_agent",
   },
   {
     id: "warm-chips",
@@ -94,6 +107,7 @@ const menuItems: MenuItem[] = [
     icon: Flame,
     color: "text-orange-500",
     activeColor: "bg-orange-500 text-white hover:bg-orange-600",
+    permissionKey: "can_view_warming",
   },
   {
     id: "revenda",
@@ -101,6 +115,7 @@ const menuItems: MenuItem[] = [
     icon: Package,
     color: "text-amber-500",
     activeColor: "bg-amber-500 text-white hover:bg-amber-600",
+    permissionKey: "can_view_reseller",
   },
   {
     id: "vpn",
@@ -123,23 +138,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
   const { state, setOpen } = useSidebar();
   const navigate = useNavigate();
   const isCollapsed = state === "collapsed";
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    const checkAdmin = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .single();
-        setIsAdmin(!!data);
-      }
-    };
-    checkAdmin();
-  }, []);
+  const { permissions, isAdmin, isLoading } = useUserPermissions();
 
   const handleClick = (item: MenuItem) => {
     if (item.externalUrl) {
@@ -161,7 +160,21 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
     setOpen(false);
   };
 
-  const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+  // Filter menu items based on permissions
+  const visibleMenuItems = menuItems.filter(item => {
+    // Admin-only items: only show to admins
+    if (item.adminOnly) {
+      return isAdmin;
+    }
+    
+    // Items with permission requirements
+    if (item.permissionKey) {
+      return permissions[item.permissionKey];
+    }
+    
+    // Items without permission requirements are always visible
+    return true;
+  });
 
   return (
     <Sidebar 
