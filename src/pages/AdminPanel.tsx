@@ -40,8 +40,11 @@ import {
   Crown,
   UserCog,
   User,
-  Lock
+  Lock,
+  Ban,
+  ShieldCheck
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -73,9 +76,13 @@ export default function AdminPanel() {
     checkAdminStatus, 
     fetchUsers, 
     updateUserRole, 
+    blockUser,
+    unblockUser,
     deleteUser 
   } = useAdminUsers();
   const [isChecking, setIsChecking] = useState(true);
+  const [blockReason, setBlockReason] = useState("");
+  const [userToBlock, setUserToBlock] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -162,7 +169,7 @@ export default function AdminPanel() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="glass-card glow-border">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -206,6 +213,21 @@ export default function AdminPanel() {
               </div>
             </CardContent>
           </Card>
+          <Card className="glass-card glow-border">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-orange-500/20">
+                  <Ban className="h-6 w-6 text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {users.filter(u => u.is_blocked).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Bloqueados</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Users Table */}
@@ -225,6 +247,7 @@ export default function AdminPanel() {
                     <TableHead className="text-muted-foreground">Email</TableHead>
                     <TableHead className="text-muted-foreground">WhatsApp</TableHead>
                     <TableHead className="text-muted-foreground">Role</TableHead>
+                    <TableHead className="text-muted-foreground">Status</TableHead>
                     <TableHead className="text-muted-foreground">Criado em</TableHead>
                     <TableHead className="text-muted-foreground">Último acesso</TableHead>
                     <TableHead className="text-muted-foreground text-right">Ações</TableHead>
@@ -304,6 +327,19 @@ export default function AdminPanel() {
                             </SelectContent>
                           </Select>
                         </TableCell>
+                        <TableCell>
+                          {u.is_blocked ? (
+                            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+                              <Ban className="h-3 w-3 mr-1" />
+                              Bloqueado
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                              <ShieldCheck className="h-3 w-3 mr-1" />
+                              Ativo
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">
                           {u.created_at ? format(new Date(u.created_at), "dd/MM/yyyy", { locale: ptBR }) : '-'}
                         </TableCell>
@@ -313,43 +349,138 @@ export default function AdminPanel() {
                             : 'Nunca'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                disabled={isCurrentUser}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="glass-card border-primary/20">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta ação não pode ser desfeita. O usuário{' '}
-                                  <strong>{u.email}</strong> será permanentemente removido.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteUser(u.id)}
-                                  className="bg-red-500 hover:bg-red-600"
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Block/Unblock Button */}
+                            {u.is_blocked ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                                    disabled={isCurrentUser}
+                                    title="Desbloquear usuário"
+                                  >
+                                    <ShieldCheck className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="glass-card border-primary/20">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Desbloquear usuário?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O usuário <strong>{u.email}</strong> poderá acessar o sistema novamente.
+                                      {u.block_reason && (
+                                        <span className="block mt-2 text-muted-foreground">
+                                          Motivo do bloqueio: {u.block_reason}
+                                        </span>
+                                      )}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => unblockUser(u.id)}
+                                      className="bg-green-500 hover:bg-green-600"
+                                    >
+                                      Desbloquear
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <AlertDialog open={userToBlock === u.id} onOpenChange={(open) => {
+                                if (!open) {
+                                  setUserToBlock(null);
+                                  setBlockReason("");
+                                }
+                              }}>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                                    disabled={isCurrentUser}
+                                    title="Bloquear usuário"
+                                    onClick={() => setUserToBlock(u.id)}
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="glass-card border-primary/20">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Bloquear usuário?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O usuário <strong>{u.email}</strong> não poderá acessar o sistema enquanto estiver bloqueado.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <div className="py-4">
+                                    <Input
+                                      placeholder="Motivo do bloqueio (opcional)"
+                                      value={blockReason}
+                                      onChange={(e) => setBlockReason(e.target.value)}
+                                      className="border-primary/20"
+                                    />
+                                  </div>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={() => {
+                                      setUserToBlock(null);
+                                      setBlockReason("");
+                                    }}>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => {
+                                        blockUser(u.id, blockReason);
+                                        setUserToBlock(null);
+                                        setBlockReason("");
+                                      }}
+                                      className="bg-orange-500 hover:bg-orange-600"
+                                    >
+                                      Bloquear
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+
+                            {/* Delete Button */}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                  disabled={isCurrentUser}
+                                  title="Excluir usuário"
                                 >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="glass-card border-primary/20">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta ação não pode ser desfeita. O usuário{' '}
+                                    <strong>{u.email}</strong> será permanentemente removido.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteUser(u.id)}
+                                    className="bg-red-500 hover:bg-red-600"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
                   })}
                   {users.length === 0 && !isLoading && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Nenhum usuário encontrado
                       </TableCell>
                     </TableRow>
