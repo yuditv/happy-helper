@@ -290,6 +290,85 @@ Deno.serve(async (req) => {
       });
     }
 
+    // POST - Create new user
+    if (req.method === 'POST' && action === 'create-user') {
+      const { email, password, whatsapp, displayName } = await req.json();
+
+      if (!email || !password) {
+        return new Response(JSON.stringify({ error: 'Email e senha são obrigatórios' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (password.length < 6) {
+        return new Response(JSON.stringify({ error: 'Senha deve ter no mínimo 6 caracteres' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Create user in Auth
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { whatsapp },
+      });
+
+      if (createError) {
+        console.error('Error creating user:', createError);
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const newUserId = newUser.user.id;
+
+      // Create profile
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          user_id: newUserId,
+          display_name: displayName || null,
+          whatsapp: whatsapp || null,
+        });
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+      }
+
+      // Set default role as 'user'
+      const { error: roleError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({
+          user_id: newUserId,
+          role: 'user',
+        });
+
+      if (roleError) {
+        console.error('Error creating role:', roleError);
+      }
+
+      // Create default permissions
+      const { error: permError } = await supabaseAdmin
+        .from('user_permissions')
+        .insert({
+          user_id: newUserId,
+        });
+
+      if (permError) {
+        console.error('Error creating permissions:', permError);
+      }
+
+      console.log('User created successfully:', newUserId);
+
+      return new Response(JSON.stringify({ success: true, userId: newUserId }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
