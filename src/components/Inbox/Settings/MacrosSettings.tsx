@@ -38,8 +38,13 @@ const ACTION_TYPES = [
   { value: "add_label", label: "Adicionar Etiqueta", icon: Tag },
   { value: "remove_label", label: "Remover Etiqueta", icon: Tag },
   { value: "send_message", label: "Enviar Mensagem", icon: MessageSquare },
+  { value: "send_private_note", label: "Nota Privada", icon: MessageSquare },
+  { value: "send_template", label: "Enviar Template", icon: MessageSquare },
   { value: "resolve", label: "Resolver Conversa", icon: CheckCircle },
   { value: "toggle_ai", label: "Ativar/Desativar IA", icon: Bot },
+  { value: "snooze", label: "Adiar Conversa", icon: Tag },
+  { value: "assign_to_me", label: "Assumir Conversa", icon: Tag },
+  { value: "set_priority", label: "Definir Prioridade", icon: Tag },
 ];
 
 export function MacrosSettings() {
@@ -347,9 +352,9 @@ export function MacrosSettings() {
                 </Button>
               </div>
               
-              {newAction.type === "send_message" && (
+              {(newAction.type === "send_message" || newAction.type === "send_private_note") && (
                 <Textarea
-                  placeholder="Mensagem a ser enviada..."
+                  placeholder={newAction.type === "send_private_note" ? "Nota privada..." : "Mensagem a ser enviada..."}
                   value={String(newAction.params?.message || "")}
                   onChange={(e) => setNewAction(prev => ({
                     ...prev,
@@ -358,6 +363,71 @@ export function MacrosSettings() {
                   rows={2}
                   className="mt-2"
                 />
+              )}
+
+              {newAction.type === "send_template" && (
+                <Input
+                  placeholder="Nome do template..."
+                  value={String(newAction.params?.template_name || "")}
+                  onChange={(e) => setNewAction(prev => ({
+                    ...prev,
+                    params: { ...prev.params, template_name: e.target.value }
+                  }))}
+                  className="mt-2"
+                />
+              )}
+
+              {newAction.type === "snooze" && (
+                <div className="mt-2 space-y-2">
+                  <Label className="text-xs">Adiar por (minutos)</Label>
+                  <Input
+                    type="number"
+                    placeholder="30"
+                    value={String(newAction.params?.duration_minutes || "")}
+                    onChange={(e) => setNewAction(prev => ({
+                      ...prev,
+                      params: { ...prev.params, duration_minutes: parseInt(e.target.value) || 0 }
+                    }))}
+                  />
+                </div>
+              )}
+
+              {newAction.type === "set_priority" && (
+                <Select
+                  value={String(newAction.params?.priority || "")}
+                  onValueChange={(value) => setNewAction(prev => ({
+                    ...prev,
+                    params: { ...prev.params, priority: value }
+                  }))}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selecione a prioridade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Baixa</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="urgent">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+
+              {newAction.type === "toggle_ai" && (
+                <Select
+                  value={String(newAction.params?.enabled ?? "true")}
+                  onValueChange={(value) => setNewAction(prev => ({
+                    ...prev,
+                    params: { ...prev.params, enabled: value === "true" }
+                  }))}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Ativar ou desativar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Ativar IA</SelectItem>
+                    <SelectItem value="false">Desativar IA</SelectItem>
+                  </SelectContent>
+                </Select>
               )}
             </div>
           </div>

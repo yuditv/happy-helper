@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Edit2, Trash2, Zap, Play, Pause } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Zap, Play, Pause, Clock, MessageSquare, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,13 +33,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useInboxAutomation, AutomationRule } from "@/hooks/useInboxAutomation";
+import { useInboxMacros } from "@/hooks/useInboxMacros";
 import { useToast } from "@/hooks/use-toast";
 
 const EVENT_TYPES = [
-  { value: "conversation_created", label: "Nova conversa" },
-  { value: "message_created", label: "Nova mensagem recebida" },
-  { value: "conversation_resolved", label: "Conversa resolvida" },
-  { value: "conversation_reopened", label: "Conversa reaberta" },
+  { value: "conversation_created", label: "Nova conversa", icon: Zap },
+  { value: "message_created", label: "Nova mensagem recebida", icon: MessageSquare },
+  { value: "conversation_resolved", label: "Conversa resolvida", icon: Tag },
+  { value: "conversation_reopened", label: "Conversa reaberta", icon: Tag },
+  { value: "keyword_detected", label: "Palavra-chave detectada", icon: Search },
+  { value: "business_hours_start", label: "Início do horário comercial", icon: Clock },
+  { value: "business_hours_end", label: "Fim do horário comercial", icon: Clock },
+  { value: "inactivity_timeout", label: "Tempo de inatividade", icon: Clock },
 ];
 
 const ACTION_TYPES = [
@@ -47,12 +52,17 @@ const ACTION_TYPES = [
   { value: "assign_team", label: "Atribuir a equipe" },
   { value: "add_label", label: "Adicionar etiqueta" },
   { value: "send_message", label: "Enviar mensagem" },
+  { value: "send_private_note", label: "Nota privada" },
   { value: "toggle_ai", label: "Ativar/Desativar IA" },
   { value: "resolve", label: "Resolver conversa" },
+  { value: "execute_macro", label: "Executar Macro" },
+  { value: "snooze", label: "Adiar conversa" },
+  { value: "set_priority", label: "Definir prioridade" },
 ];
 
 export function AutomationSettings() {
   const { rules, isLoading, createRule, updateRule, deleteRule, toggleActive } = useInboxAutomation();
+  const { macros } = useInboxMacros();
   const { toast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -341,12 +351,46 @@ export function AutomationSettings() {
                 <SelectContent>
                   {EVENT_TYPES.map((event) => (
                     <SelectItem key={event.value} value={event.value}>
-                      {event.label}
+                      <div className="flex items-center gap-2">
+                        <event.icon className="h-4 w-4" />
+                        {event.label}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Conditions for keyword detection */}
+            {formData.event_type === "keyword_detected" && (
+              <div className="space-y-2">
+                <Label>Palavras-chave (separadas por vírgula)</Label>
+                <Input
+                  placeholder="urgente, ajuda, suporte"
+                  value={(formData.conditions.keywords as string) || ""}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    conditions: { ...prev.conditions, keywords: e.target.value }
+                  }))}
+                />
+              </div>
+            )}
+
+            {/* Conditions for inactivity timeout */}
+            {formData.event_type === "inactivity_timeout" && (
+              <div className="space-y-2">
+                <Label>Tempo de inatividade (minutos)</Label>
+                <Input
+                  type="number"
+                  placeholder="30"
+                  value={(formData.conditions.inactivity_minutes as number) || ""}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    conditions: { ...prev.conditions, inactivity_minutes: parseInt(e.target.value) || 0 }
+                  }))}
+                />
+              </div>
+            )}
 
             {/* Actions */}
             <div className="space-y-2">
