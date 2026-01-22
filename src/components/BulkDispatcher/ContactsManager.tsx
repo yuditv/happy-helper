@@ -29,6 +29,7 @@ export interface Contact {
   variables?: Record<string, string>;
   isValid?: boolean;
   whatsappName?: string;
+  originalId?: string; // ID do contato original se veio de "Meus Contatos"
 }
 
 export interface SavedContact {
@@ -301,10 +302,12 @@ export function ContactsManager({
       return;
     }
     
+    // Include originalId to track contacts from saved list
     const formatted: Contact[] = newContacts.map(c => ({
       phone: c.phone,
       name: c.name,
-      email: c.email
+      email: c.email,
+      originalId: c.id // Track original contact ID for moving to sent list
     }));
     
     onContactsChange([...contacts, ...formatted]);
@@ -313,8 +316,8 @@ export function ContactsManager({
     if (duplicates > 0) {
       toast.success(`${newContacts.length} contato(s) adicionado(s). ${duplicates} duplicado(s) ignorado(s)`);
     } else {
-    toast.success(`${newContacts.length} contato(s) adicionado(s) ao disparo`);
-  }
+      toast.success(`${newContacts.length} contato(s) adicionado(s) ao disparo`);
+    }
   }, [contacts, savedContacts, selectedSavedIds, onContactsChange]);
 
   // Get contacts that are not yet saved in the database
