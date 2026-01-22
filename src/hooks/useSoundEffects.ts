@@ -90,6 +90,64 @@ const playSuccessSound = (isMuted: boolean) => {
   }
 };
 
+// Generate a dispatch complete fanfare sound
+const playDispatchCompleteSound = (isMuted: boolean) => {
+  if (isMuted) return;
+  
+  try {
+    const ctx = getAudioContext();
+    
+    // Play a triumphant ascending melody
+    const notes = [
+      { freq: 523.25, time: 0 },      // C5
+      { freq: 659.25, time: 0.12 },   // E5
+      { freq: 783.99, time: 0.24 },   // G5
+      { freq: 1046.50, time: 0.36 },  // C6
+    ];
+    
+    notes.forEach(({ freq, time }) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(freq, ctx.currentTime + time);
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime + time);
+      gainNode.gain.linearRampToValueAtTime(0.15, ctx.currentTime + time + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + time + 0.2);
+      
+      oscillator.start(ctx.currentTime + time);
+      oscillator.stop(ctx.currentTime + time + 0.25);
+    });
+    
+    // Add a subtle chord at the end
+    setTimeout(() => {
+      const chordFreqs = [523.25, 659.25, 783.99]; // C major chord
+      chordFreqs.forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      });
+    }, 450);
+  } catch (e) {
+    // Silently fail
+  }
+};
+
 export function useSoundEffects() {
   const [isMuted, setIsMuted] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -116,12 +174,17 @@ export function useSoundEffects() {
     playSuccessSound(isMuted);
   }, [isMuted]);
 
+  const playDispatchComplete = useCallback(() => {
+    playDispatchCompleteSound(isMuted);
+  }, [isMuted]);
+
   return {
     isMuted,
     toggleMute,
     playClick,
     playHover,
     playSuccess,
+    playDispatchComplete,
   };
 }
 
