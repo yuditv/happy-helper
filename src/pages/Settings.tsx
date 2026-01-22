@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, DollarSign, Palette, Save, Moon, Sun, Monitor, Loader2 } from 'lucide-react';
+import { ArrowLeft, DollarSign, Palette, Save, Moon, Sun, Monitor, Loader2, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
-import { NotificationSettings as NotificationSettingsComponent } from '@/components/NotificationSettings';
+import { RenewalReminderSettings } from '@/components/RenewalReminderSettings';
 import { toast } from 'sonner';
 
 export default function Settings() {
@@ -88,10 +88,14 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="plans" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="plans" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Planos</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Notificações</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
@@ -161,6 +165,11 @@ export default function Settings() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <RenewalReminderSettings />
           </TabsContent>
 
           {/* Appearance Tab */}

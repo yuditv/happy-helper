@@ -3,18 +3,32 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export interface ReminderMessages {
+  before: string;
+  today: string;
+  after: string;
+}
+
 export interface NotificationSettings {
   email_reminders_enabled: boolean;
   whatsapp_reminders_enabled: boolean;
   auto_send_enabled: boolean;
   reminder_days: number[];
+  reminder_messages: ReminderMessages;
 }
+
+const defaultReminderMessages: ReminderMessages = {
+  before: 'Olá {nome}! Seu plano {plano} vence AMANHÃ ({vencimento}). Renove agora para não perder o acesso!',
+  today: 'Olá {nome}! Seu plano {plano} vence HOJE ({vencimento}). Renove agora para continuar com acesso!',
+  after: 'Olá {nome}! Seu plano {plano} venceu ontem ({vencimento}). Renove para reativar seu acesso!',
+};
 
 const defaultSettings: NotificationSettings = {
   email_reminders_enabled: true,
   whatsapp_reminders_enabled: false,
   auto_send_enabled: false,
-  reminder_days: [7, 3, 1],
+  reminder_days: [1, 0, -1], // 1 day before, today, 1 day after
+  reminder_messages: defaultReminderMessages,
 };
 
 export function useNotificationSettings() {
@@ -40,11 +54,25 @@ export function useNotificationSettings() {
         console.error('Error loading notification settings:', error);
         setSettings(defaultSettings);
       } else if (data) {
+        // Parse reminder_messages from JSONB
+        let reminderMessages = defaultReminderMessages;
+        if (data.reminder_messages) {
+          const parsed = typeof data.reminder_messages === 'string' 
+            ? JSON.parse(data.reminder_messages) 
+            : data.reminder_messages;
+          reminderMessages = {
+            before: parsed.before || defaultReminderMessages.before,
+            today: parsed.today || defaultReminderMessages.today,
+            after: parsed.after || defaultReminderMessages.after,
+          };
+        }
+
         setSettings({
           email_reminders_enabled: data.email_reminders_enabled ?? defaultSettings.email_reminders_enabled,
           whatsapp_reminders_enabled: data.whatsapp_reminders_enabled ?? defaultSettings.whatsapp_reminders_enabled,
           auto_send_enabled: data.auto_send_enabled ?? defaultSettings.auto_send_enabled,
           reminder_days: data.reminder_days ?? defaultSettings.reminder_days,
+          reminder_messages: reminderMessages,
         });
       } else {
         // No settings exist yet, create default
@@ -82,6 +110,9 @@ export function useNotificationSettings() {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      // Cast reminder_messages to Json type for Supabase
+      const reminderMessagesJson = updatedSettings.reminder_messages as unknown as Record<string, string>;
+
       let error;
       if (existing) {
         // Update existing
@@ -92,6 +123,7 @@ export function useNotificationSettings() {
             whatsapp_reminders_enabled: updatedSettings.whatsapp_reminders_enabled,
             auto_send_enabled: updatedSettings.auto_send_enabled,
             reminder_days: updatedSettings.reminder_days,
+            reminder_messages: reminderMessagesJson,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', user.id);
@@ -100,13 +132,14 @@ export function useNotificationSettings() {
         // Insert new
         const { error: insertError } = await supabase
           .from('notification_settings')
-          .insert({
+          .insert([{
             user_id: user.id,
             email_reminders_enabled: updatedSettings.email_reminders_enabled,
             whatsapp_reminders_enabled: updatedSettings.whatsapp_reminders_enabled,
             auto_send_enabled: updatedSettings.auto_send_enabled,
             reminder_days: updatedSettings.reminder_days,
-          });
+            reminder_messages: reminderMessagesJson,
+          }]);
         error = insertError;
       }
 
@@ -170,5 +203,6 @@ export function useNotificationSettings() {
     refetch: fetchSettings,
     triggerReminderCheck,
     triggerDispatcher,
+    defaultReminderMessages,
   };
 }

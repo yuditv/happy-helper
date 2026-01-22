@@ -539,6 +539,7 @@ export type Database = {
           email_reminders_enabled: boolean | null
           id: string
           reminder_days: number[] | null
+          reminder_messages: Json | null
           updated_at: string | null
           user_id: string
           whatsapp_reminders_enabled: boolean | null
@@ -549,6 +550,7 @@ export type Database = {
           email_reminders_enabled?: boolean | null
           id?: string
           reminder_days?: number[] | null
+          reminder_messages?: Json | null
           updated_at?: string | null
           user_id: string
           whatsapp_reminders_enabled?: boolean | null
@@ -559,6 +561,7 @@ export type Database = {
           email_reminders_enabled?: boolean | null
           id?: string
           reminder_days?: number[] | null
+          reminder_messages?: Json | null
           updated_at?: string | null
           user_id?: string
           whatsapp_reminders_enabled?: boolean | null
