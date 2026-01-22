@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      bulk_dispatch_history: {
+        Row: {
+          completed_at: string | null
+          config_id: string | null
+          created_at: string | null
+          dispatch_type: string
+          failed_count: number | null
+          id: string
+          message_content: string | null
+          started_at: string | null
+          status: string | null
+          success_count: number | null
+          target_type: string
+          total_recipients: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          config_id?: string | null
+          created_at?: string | null
+          dispatch_type?: string
+          failed_count?: number | null
+          id?: string
+          message_content?: string | null
+          started_at?: string | null
+          status?: string | null
+          success_count?: number | null
+          target_type?: string
+          total_recipients?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          config_id?: string | null
+          created_at?: string | null
+          dispatch_type?: string
+          failed_count?: number | null
+          id?: string
+          message_content?: string | null
+          started_at?: string | null
+          status?: string | null
+          success_count?: number | null
+          target_type?: string
+          total_recipients?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_dispatch_history_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "dispatch_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_contacts: {
         Row: {
           campaign_id: string
@@ -324,6 +380,84 @@ export type Database = {
           phone?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      dispatch_configs: {
+        Row: {
+          ai_personalization: boolean | null
+          allowed_days: number[] | null
+          attention_call: boolean | null
+          auto_archive: boolean | null
+          balancing_mode: string | null
+          business_hours_enabled: boolean | null
+          business_hours_end: string | null
+          business_hours_start: string | null
+          created_at: string | null
+          id: string
+          instance_ids: string[]
+          max_delay_seconds: number | null
+          messages: Json
+          min_delay_seconds: number | null
+          name: string
+          pause_after_messages: number | null
+          pause_duration_minutes: number | null
+          randomize_order: boolean | null
+          smart_delay: boolean | null
+          stop_after_messages: number | null
+          updated_at: string | null
+          user_id: string
+          verify_numbers: boolean | null
+        }
+        Insert: {
+          ai_personalization?: boolean | null
+          allowed_days?: number[] | null
+          attention_call?: boolean | null
+          auto_archive?: boolean | null
+          balancing_mode?: string | null
+          business_hours_enabled?: boolean | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          created_at?: string | null
+          id?: string
+          instance_ids?: string[]
+          max_delay_seconds?: number | null
+          messages?: Json
+          min_delay_seconds?: number | null
+          name: string
+          pause_after_messages?: number | null
+          pause_duration_minutes?: number | null
+          randomize_order?: boolean | null
+          smart_delay?: boolean | null
+          stop_after_messages?: number | null
+          updated_at?: string | null
+          user_id: string
+          verify_numbers?: boolean | null
+        }
+        Update: {
+          ai_personalization?: boolean | null
+          allowed_days?: number[] | null
+          attention_call?: boolean | null
+          auto_archive?: boolean | null
+          balancing_mode?: string | null
+          business_hours_enabled?: boolean | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          created_at?: string | null
+          id?: string
+          instance_ids?: string[]
+          max_delay_seconds?: number | null
+          messages?: Json
+          min_delay_seconds?: number | null
+          name?: string
+          pause_after_messages?: number | null
+          pause_duration_minutes?: number | null
+          randomize_order?: boolean | null
+          smart_delay?: boolean | null
+          stop_after_messages?: number | null
+          updated_at?: string | null
+          user_id?: string
+          verify_numbers?: boolean | null
         }
         Relationships: []
       }
