@@ -139,7 +139,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // QRCODE - with UAZAPI integration
+    // QRCODE - POST /instance/connect + GET /instance/status
     if (action === "qrcode" && entityId) {
       const { data: instance, error } = await supabase
         .from("whatsapp_instances")
@@ -181,7 +181,6 @@ serve(async (req: Request): Promise<Response> => {
                 .update({ instance_key: newInstanceKey })
                 .eq("id", entityId);
               
-              // Update local reference for QR code fetch
               instance.instance_key = newInstanceKey;
             }
           }
@@ -197,28 +196,57 @@ serve(async (req: Request): Promise<Response> => {
         .eq("id", entityId)
         .single();
 
-      // Get QR code from UAZAPI if we have instance_key
       const activeInstanceKey = instance.instance_key || updatedInstance?.instance_key;
       if (activeInstanceKey) {
         try {
-          console.log("Fetching QR code for instance key...");
-          const qrResponse = await fetch(`${uazapiUrl}/instance/qrcode`, {
-            method: "GET",
+          // Step 1: POST /instance/connect to initiate connection and get QR code
+          console.log("Calling POST /instance/connect to get QR code...");
+          const connectResponse = await fetch(`${uazapiUrl}/instance/connect`, {
+            method: "POST",
             headers: {
+              "Content-Type": "application/json",
               "token": activeInstanceKey,
             },
           });
 
-          if (qrResponse.ok) {
-            const qrData = await qrResponse.json();
-            console.log("QR code received");
+          console.log("Connect response status:", connectResponse.status);
+          
+          if (connectResponse.ok) {
+            const connectData = await connectResponse.json();
+            console.log("Connect response:", JSON.stringify(connectData));
 
-            // Save QR code to DB
-            if (qrData.qrcode || qrData.qr) {
-              const qrCode = qrData.qrcode || qrData.qr;
+            // QR code is in instance.qrcode field
+            const qrCode = connectData.instance?.qrcode;
+            if (qrCode) {
               await supabase
                 .from("whatsapp_instances")
-                .update({ qr_code: qrCode })
+                .update({ qr_code: qrCode, status: "connecting" })
+                .eq("id", entityId);
+
+              return new Response(
+                JSON.stringify({ success: true, qrcode: qrCode }),
+                { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
+
+          // Step 2: Fallback - GET /instance/status to get updated QR code
+          console.log("Fetching GET /instance/status for QR code...");
+          const statusResponse = await fetch(`${uazapiUrl}/instance/status`, {
+            headers: { "token": activeInstanceKey },
+          });
+
+          console.log("Status response status:", statusResponse.status);
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log("Status response:", JSON.stringify(statusData));
+
+            const qrCode = statusData.instance?.qrcode;
+            if (qrCode) {
+              await supabase
+                .from("whatsapp_instances")
+                .update({ qr_code: qrCode, status: "connecting" })
                 .eq("id", entityId);
 
               return new Response(
