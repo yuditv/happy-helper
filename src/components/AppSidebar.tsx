@@ -1,4 +1,4 @@
-import { Users, Shield, Tv, Package, Contact, Search, Bot } from "lucide-react";
+import { Users, Shield, Tv, Package, Contact, Search, Bot, Flame } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +24,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "ai-agent" | "revenda" | "vpn" | "iptv";
+export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "ai-agent" | "warm-chips" | "revenda" | "vpn" | "iptv";
 
 interface AppSidebarProps {
   activeSection: AppSection;
@@ -56,6 +56,11 @@ const menuItems = [
     id: "ai-agent" as AppSection,
     title: "Agente IA",
     icon: Bot,
+  },
+  {
+    id: "warm-chips" as AppSection,
+    title: "Aquecer Chips",
+    icon: Flame,
   },
   {
     id: "revenda" as AppSection,

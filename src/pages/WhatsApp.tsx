@@ -70,7 +70,6 @@ import { CreateCampaignDialog } from '@/components/CreateCampaignDialog';
 import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
-import { WhatsAppWarming } from '@/components/WhatsAppWarming';
 
 interface DispatchResult {
   clientId: string;
@@ -508,14 +507,10 @@ export default function WhatsApp() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-10 w-full max-w-6xl">
+        <TabsList className="grid grid-cols-7 w-full max-w-4xl">
           <TabsTrigger value="dispatch" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Disparo</span>
-          </TabsTrigger>
-          <TabsTrigger value="warming" className="gap-2">
-            <Flame className="h-4 w-4" />
-            <span className="hidden sm:inline">Aquecimento</span>
           </TabsTrigger>
           <TabsTrigger value="status" className="gap-2">
             <CircleDot className="h-4 w-4" />
@@ -542,11 +537,6 @@ export default function WhatsApp() {
             <span className="hidden sm:inline">Histórico</span>
           </TabsTrigger>
         </TabsList>
-
-        {/* Warming Tab */}
-        <TabsContent value="warming" className="space-y-6">
-          <WhatsAppWarming />
-        </TabsContent>
 
         {/* Dispatch Tab */}
         <TabsContent value="dispatch" className="space-y-6">
