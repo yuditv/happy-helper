@@ -51,7 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const requestData: WhatsAppRequest = await req.json();
-    const { phone, message, mediaType, mediaUrl, fileName, caption, autoArchive } = requestData;
+    const { phone, message, mediaType, mediaUrl, fileName, caption, autoArchive, instanceKey } = requestData;
 
     if (!phone) {
       return new Response(
@@ -63,8 +63,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Use instance-specific token if provided, otherwise fallback to default
+    const instanceToken = instanceKey || UAZAPI_TOKEN;
+    
     const formattedPhone = formatPhoneNumber(phone);
-    console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}`);
+    console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
     let endpoint: string;
     let body: Record<string, any>;
@@ -136,7 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${UAZAPI_TOKEN}`,
+        "token": instanceToken,
       },
       body: JSON.stringify(body),
     });
@@ -157,22 +160,30 @@ const handler = async (req: Request): Promise<Response> => {
     // Archive chat if autoArchive is enabled
     if (autoArchive) {
       try {
-        console.log(`Archiving chat with: ${formattedPhone}`);
+        console.log(`[Archive] Attempting to archive chat with: ${formattedPhone}`);
+        console.log(`[Archive] Using instance token: ${instanceKey ? 'custom' : 'default'}`);
+        
         const archiveResponse = await fetch(`${UAZAPI_URL}/archiveChat`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${UAZAPI_TOKEN}`,
+            "token": instanceToken,
           },
           body: JSON.stringify({
             phone: formattedPhone,
             archive: true
           }),
         });
+        
         const archiveData = await archiveResponse.json();
-        console.log("Archive response:", archiveData);
+        
+        if (!archiveResponse.ok) {
+          console.error(`[Archive] Failed with status ${archiveResponse.status}:`, archiveData);
+        } else {
+          console.log("[Archive] Success:", archiveData);
+        }
       } catch (archiveError) {
-        console.error("Error archiving chat:", archiveError);
+        console.error("[Archive] Error:", archiveError);
         // Don't fail the request if archiving fails
       }
     }
