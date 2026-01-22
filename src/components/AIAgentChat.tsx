@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Bot, Send, Trash2, ChevronDown, MessageSquare, 
-  Loader2, User, Sparkles
+  Bot, Send, Trash2, ChevronDown, 
+  Loader2, User, Sparkles, ThumbsUp, ThumbsDown
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,7 +18,7 @@ import { useAIAgents, type AIAgent, type AIChatMessage } from "@/hooks/useAIAgen
 import { cn } from "@/lib/utils";
 
 export function AIAgentChat() {
-  const { agents, isLoadingAgents, useChatMessages, sendMessage, clearChatHistory } = useAIAgents();
+  const { agents, isLoadingAgents, useChatMessages, sendMessage, clearChatHistory, rateMessage } = useAIAgents();
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
   const [sessionId] = useState(() => crypto.randomUUID());
   const [inputMessage, setInputMessage] = useState("");
@@ -256,28 +256,66 @@ export function AIAgentChat() {
                   </div>
                 )}
                 
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2.5",
-                    message.role === 'user'
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-muted rounded-bl-md"
-                  )}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  <p 
+                <div className="flex flex-col">
+                  <div
                     className={cn(
-                      "text-xs mt-1",
-                      message.role === 'user' 
-                        ? "text-primary-foreground/70" 
-                        : "text-muted-foreground"
+                      "max-w-[80%] rounded-2xl px-4 py-2.5",
+                      message.role === 'user'
+                        ? "bg-primary text-primary-foreground rounded-br-md"
+                        : "bg-muted rounded-bl-md"
                     )}
                   >
-                    {new Date(message.created_at).toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p 
+                      className={cn(
+                        "text-xs mt-1",
+                        message.role === 'user' 
+                          ? "text-primary-foreground/70" 
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {new Date(message.created_at).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  
+                  {/* Rating buttons for assistant messages */}
+                  {message.role === 'assistant' && (
+                    <div className="flex gap-1 mt-1.5 ml-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-6 w-6 p-0 hover:bg-green-500/20",
+                          message.rating === 'up' && "bg-green-500/20 text-green-500"
+                        )}
+                        onClick={() => rateMessage.mutate({ 
+                          messageId: message.id, 
+                          rating: message.rating === 'up' ? null : 'up' 
+                        })}
+                        disabled={rateMessage.isPending}
+                      >
+                        <ThumbsUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-6 w-6 p-0 hover:bg-red-500/20",
+                          message.rating === 'down' && "bg-red-500/20 text-red-500"
+                        )}
+                        onClick={() => rateMessage.mutate({ 
+                          messageId: message.id, 
+                          rating: message.rating === 'down' ? null : 'down' 
+                        })}
+                        disabled={rateMessage.isPending}
+                      >
+                        <ThumbsDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {message.role === 'user' && (

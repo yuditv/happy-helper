@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.ai-agent-chat]
 verify_jwt = false
+
+[functions.whatsapp-ai-webhook]
+verify_jwt = false
