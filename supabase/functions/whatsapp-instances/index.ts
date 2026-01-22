@@ -1,4 +1,4 @@
-// WhatsApp Instances Edge Function v8 - Full Schema Support
+// WhatsApp Instances Edge Function v9 - Init on Create
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -9,7 +9,7 @@ const corsHeaders = {
 
 serve(async (req: Request): Promise<Response> => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] === WhatsApp Instances Function v8 ===`);
+  console.log(`[${timestamp}] === WhatsApp Instances Function v9 ===`);
   console.log(`[${timestamp}] Method:`, req.method);
 
   // Handle CORS preflight
@@ -21,7 +21,7 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const uazapiUrl = Deno.env.get("UAZAPI_URL") || "https://zynk2.uazapi.com";
-    const uazapiToken = Deno.env.get("UAZAPI_TOKEN") || "";
+    const uazapiAdminToken = Deno.env.get("UAZAPI_TOKEN") || "";
 
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error("Missing Supabase configuration");
@@ -67,11 +67,49 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Action:", action, "Entity:", entityId);
 
-    // CREATE - with new columns support
+    // CREATE - Initialize in UAZAPI immediately
     if (action === "create") {
       const instanceName = (body.name as string) || `instance_${Date.now()}`;
       const dailyLimit = (body.dailyLimit as number) || 200;
 
+      let instanceKey: string | null = null;
+
+      // Initialize in UAZAPI first (uses admintoken header)
+      if (uazapiAdminToken) {
+        try {
+          console.log("Initializing instance in UAZAPI:", instanceName);
+          console.log("UAZAPI URL:", uazapiUrl);
+          
+          const initResponse = await fetch(`${uazapiUrl}/instance/init`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "admintoken": uazapiAdminToken,
+            },
+            body: JSON.stringify({ 
+              name: instanceName,
+              token: crypto.randomUUID() // Generate a unique token for this instance
+            }),
+          });
+
+          console.log("UAZAPI init response status:", initResponse.status);
+          const initData = await initResponse.json();
+          console.log("UAZAPI init response:", JSON.stringify(initData));
+
+          if (initResponse.ok && initData) {
+            instanceKey = initData.token || initData.key || initData.instance_key || null;
+            console.log("Instance key obtained:", instanceKey ? "yes" : "no");
+          } else {
+            console.error("UAZAPI init failed:", initData);
+          }
+        } catch (e) {
+          console.error("UAZAPI init error:", e);
+        }
+      } else {
+        console.log("UAZAPI_TOKEN not configured");
+      }
+
+      // Insert in database with instance_key if obtained
       const { data: instance, error: dbError } = await supabase
         .from("whatsapp_instances")
         .insert({
@@ -79,6 +117,7 @@ serve(async (req: Request): Promise<Response> => {
           instance_name: instanceName,
           status: "disconnected",
           daily_limit: dailyLimit,
+          instance_key: instanceKey,
         })
         .select()
         .single();
@@ -88,10 +127,14 @@ serve(async (req: Request): Promise<Response> => {
         throw new Error(`Database error: ${dbError.message}`);
       }
 
-      console.log("Instance created:", instance.id);
+      console.log("Instance created in DB:", instance.id, "with UAZAPI key:", !!instanceKey);
       
       return new Response(
-        JSON.stringify({ success: true, instance }),
+        JSON.stringify({ 
+          success: true, 
+          instance,
+          uazapiInitialized: !!instanceKey 
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -112,28 +155,34 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       // If no instance_key, we need to init the instance first via UAZAPI
-      if (!instance.instance_key && uazapiToken) {
+      if (!instance.instance_key && uazapiAdminToken) {
         try {
-          console.log("Initializing instance via UAZAPI...");
+          console.log("Initializing instance via UAZAPI (late init)...");
           const initResponse = await fetch(`${uazapiUrl}/instance/init`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${uazapiToken}`,
+              "admintoken": uazapiAdminToken,
             },
-            body: JSON.stringify({ name: instance.instance_name }),
+            body: JSON.stringify({ 
+              name: instance.instance_name,
+              token: crypto.randomUUID()
+            }),
           });
 
           if (initResponse.ok) {
             const initData = await initResponse.json();
             console.log("UAZAPI init response:", initData);
 
-            // Save the instance_key
-            if (initData.key || initData.instance_key) {
+            const newInstanceKey = initData.token || initData.key || initData.instance_key;
+            if (newInstanceKey) {
               await supabase
                 .from("whatsapp_instances")
-                .update({ instance_key: initData.key || initData.instance_key })
+                .update({ instance_key: newInstanceKey })
                 .eq("id", entityId);
+              
+              // Update local reference for QR code fetch
+              instance.instance_key = newInstanceKey;
             }
           }
         } catch (e) {
@@ -149,12 +198,14 @@ serve(async (req: Request): Promise<Response> => {
         .single();
 
       // Get QR code from UAZAPI if we have instance_key
-      if (updatedInstance?.instance_key && uazapiToken) {
+      const activeInstanceKey = instance.instance_key || updatedInstance?.instance_key;
+      if (activeInstanceKey) {
         try {
+          console.log("Fetching QR code for instance key...");
           const qrResponse = await fetch(`${uazapiUrl}/instance/qrcode`, {
             method: "GET",
             headers: {
-              "Authorization": `Bearer ${updatedInstance.instance_key}`,
+              "token": activeInstanceKey,
             },
           });
 
@@ -210,7 +261,7 @@ serve(async (req: Request): Promise<Response> => {
       if (instance.instance_key) {
         try {
           const statusResponse = await fetch(`${uazapiUrl}/instance/status`, {
-            headers: { "Authorization": `Bearer ${instance.instance_key}` },
+            headers: { "token": instance.instance_key },
           });
 
           if (statusResponse.ok) {
@@ -258,7 +309,7 @@ serve(async (req: Request): Promise<Response> => {
         try {
           await fetch(`${uazapiUrl}/instance/logout`, {
             method: "POST",
-            headers: { "Authorization": `Bearer ${instance.instance_key}` },
+            headers: { "token": instance.instance_key },
           });
         } catch (e) {
           console.error("UAZAPI disconnect error:", e);
@@ -296,7 +347,7 @@ serve(async (req: Request): Promise<Response> => {
         try {
           await fetch(`${uazapiUrl}/instance/delete`, {
             method: "DELETE",
-            headers: { "Authorization": `Bearer ${instance.instance_key}` },
+            headers: { "token": instance.instance_key },
           });
         } catch (e) {
           console.error("UAZAPI delete error:", e);
