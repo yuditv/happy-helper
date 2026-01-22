@@ -70,6 +70,7 @@ import { CreateCampaignDialog } from '@/components/CreateCampaignDialog';
 import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
+import { BulkDispatcher } from '@/components/BulkDispatcher';
 
 interface DispatchResult {
   clientId: string;
