@@ -255,24 +255,25 @@ export function MessageComposer({
         {messages.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
             {messages.map((msg, index) => (
-              <Button
-                key={msg.id}
-                variant={activeMessageId === msg.id ? "default" : "outline"}
-                size="sm"
-                className="shrink-0"
-                onClick={() => setActiveMessageId(msg.id)}
-              >
-                Mensagem {index + 1}
+              <div key={msg.id} className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant={activeMessageId === msg.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveMessageId(msg.id)}
+                >
+                  Mensagem {index + 1}
+                </Button>
                 {messages.length > 1 && (
-                  <Trash2
-                    className="w-3 h-3 ml-2 hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeMessage(msg.id);
-                    }}
-                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removeMessage(msg.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 )}
-              </Button>
+              </div>
             ))}
           </div>
         )}
