@@ -12,6 +12,7 @@ const WhatsApp = lazy(() => import("@/pages/WhatsApp"));
 const FilterNumbers = lazy(() => import("@/pages/FilterNumbers"));
 const AIAgent = lazy(() => import("@/pages/AIAgent"));
 const WarmChips = lazy(() => import("@/pages/WarmChips"));
+const Atendimento = lazy(() => import("@/pages/Atendimento"));
 
 const ContentLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
@@ -36,6 +37,8 @@ export function MainLayout() {
         return <AIAgent />;
       case "warm-chips":
         return <WarmChips />;
+      case "atendimento":
+        return <Atendimento />;
       case "revenda":
         return <ResellerArea />;
       case "vpn":

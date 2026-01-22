@@ -1,4 +1,4 @@
-import { Users, Shield, Tv, Package, Contact, Search, Bot, Flame, Crown } from "lucide-react";
+import { Users, Shield, Tv, Package, Contact, Search, Bot, Flame, Crown, Headset } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -26,7 +26,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "ai-agent" | "warm-chips" | "revenda" | "vpn" | "iptv" | "admin";
+export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "ai-agent" | "warm-chips" | "revenda" | "vpn" | "iptv" | "admin" | "atendimento";
 
 interface AppSidebarProps {
   activeSection: AppSection;
@@ -39,7 +39,8 @@ type PermissionKey =
   | 'can_view_whatsapp'
   | 'can_view_warming'
   | 'can_view_ai_agent'
-  | 'can_view_reseller';
+  | 'can_view_reseller'
+  | 'can_view_inbox';
 
 interface MenuItem {
   id: AppSection;
@@ -84,6 +85,14 @@ const menuItems: MenuItem[] = [
     color: "text-green-500",
     activeColor: "bg-green-500 text-white hover:bg-green-600",
     permissionKey: "can_view_whatsapp",
+  },
+  {
+    id: "atendimento",
+    title: "Central de Atendimento",
+    icon: Headset,
+    color: "text-teal-500",
+    activeColor: "bg-teal-500 text-white hover:bg-teal-600",
+    permissionKey: "can_view_inbox",
   },
   {
     id: "filter-numbers",
