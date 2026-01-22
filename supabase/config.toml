@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.send-inbox-message]
 verify_jwt = false
+
+[functions.generate-copy]
+verify_jwt = false

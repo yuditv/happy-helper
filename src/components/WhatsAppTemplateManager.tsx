@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useWhatsAppTemplates, WhatsAppTemplate } from '@/hooks/useWhatsAppTemplates';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +34,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { 
   FileText, 
   Plus, 
@@ -32,10 +46,13 @@ import {
   Trash2, 
   Loader2,
   Copy,
-  Check
+  Check,
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface Props {
   onSelectTemplate: (content: string) => void;
@@ -48,6 +65,9 @@ const messageVariables = [
   { key: '{dias}', description: 'Dias até vencimento' },
 ];
 
+type CopyType = 'copy' | 'anuncio' | 'lembrete' | 'promocao';
+type ToneType = 'casual' | 'formal' | 'persuasivo' | 'urgente';
+
 export function WhatsAppTemplateManager({ onSelectTemplate }: Props) {
   const { templates, isLoading, createTemplate, updateTemplate, deleteTemplate } = useWhatsAppTemplates();
   
@@ -59,10 +79,20 @@ export function WhatsAppTemplateManager({ onSelectTemplate }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // AI Generation states
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiType, setAiType] = useState<CopyType>('copy');
+  const [aiTone, setAiTone] = useState<ToneType>('persuasivo');
+  const [includeVariables, setIncludeVariables] = useState(true);
+
   const openNewDialog = () => {
     setEditingTemplate(null);
     setTemplateName('');
     setTemplateContent('');
+    setShowAiPanel(false);
+    setAiPrompt('');
     setIsDialogOpen(true);
   };
 
@@ -70,6 +100,8 @@ export function WhatsAppTemplateManager({ onSelectTemplate }: Props) {
     setEditingTemplate(template);
     setTemplateName(template.subject || '');
     setTemplateContent(template.content);
+    setShowAiPanel(false);
+    setAiPrompt('');
     setIsDialogOpen(true);
   };
 
@@ -104,6 +136,47 @@ export function WhatsAppTemplateManager({ onSelectTemplate }: Props) {
     onSelectTemplate(template.content);
     setCopiedId(template.id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleGenerateWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Digite uma descrição do que deseja gerar');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-copy', {
+        body: {
+          prompt: aiPrompt,
+          type: aiType,
+          tone: aiTone,
+          includeVariables
+        }
+      });
+
+      if (error) {
+        console.error('Error generating copy:', error);
+        toast.error('Erro ao gerar mensagem. Tente novamente.');
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      if (data?.content) {
+        setTemplateContent(data.content);
+        toast.success('Mensagem gerada com sucesso!');
+        setShowAiPanel(false);
+      }
+    } catch (error) {
+      console.error('Error calling generate-copy:', error);
+      toast.error('Erro ao conectar com o serviço de IA.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   if (isLoading) {
@@ -198,7 +271,7 @@ export function WhatsAppTemplateManager({ onSelectTemplate }: Props) {
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? 'Editar Template' : 'Novo Template'}
@@ -219,6 +292,99 @@ export function WhatsAppTemplateManager({ onSelectTemplate }: Props) {
                 placeholder="Ex: Lembrete de vencimento"
               />
             </div>
+
+            {/* AI Generation Panel */}
+            <Collapsible open={showAiPanel} onOpenChange={setShowAiPanel}>
+              <CollapsibleTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2 justify-between"
+                  type="button"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Gerar com IA
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showAiPanel ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Descreva o que você quer criar</Label>
+                    <Textarea
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="Ex: Anúncio de promoção de internet fibra 300MB por R$99,90 com instalação grátis"
+                      rows={2}
+                      className="resize-none"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Tipo</Label>
+                      <Select value={aiType} onValueChange={(v) => setAiType(v as CopyType)}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="copy">Copy Geral</SelectItem>
+                          <SelectItem value="anuncio">Anúncio</SelectItem>
+                          <SelectItem value="lembrete">Lembrete</SelectItem>
+                          <SelectItem value="promocao">Promoção</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Tom</Label>
+                      <Select value={aiTone} onValueChange={(v) => setAiTone(v as ToneType)}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="casual">Casual</SelectItem>
+                          <SelectItem value="formal">Formal</SelectItem>
+                          <SelectItem value="persuasivo">Persuasivo</SelectItem>
+                          <SelectItem value="urgente">Urgente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id="includeVariables"
+                      checked={includeVariables}
+                      onCheckedChange={(checked) => setIncludeVariables(checked === true)}
+                    />
+                    <Label htmlFor="includeVariables" className="text-sm cursor-pointer">
+                      Incluir variáveis ({'{nome}'}, {'{plano}'}, etc.)
+                    </Label>
+                  </div>
+                  
+                  <Button 
+                    onClick={handleGenerateWithAI}
+                    disabled={isGenerating || !aiPrompt.trim()}
+                    className="w-full gap-2"
+                    type="button"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Gerar Mensagem
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
             
             <div className="space-y-2">
               <Label>Mensagem</Label>
