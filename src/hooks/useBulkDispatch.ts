@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { processMessage } from '@/lib/spintaxParser';
 import { useToast } from '@/hooks/use-toast';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 
 export interface DispatchContact {
   phone: string;
@@ -84,6 +85,7 @@ const DEFAULT_CONFIG: DispatchConfig = {
 export function useBulkDispatch() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { playDispatchComplete } = useSoundEffects();
   const [config, setConfig] = useState<DispatchConfig>(DEFAULT_CONFIG);
   const [contacts, setContacts] = useState<DispatchContact[]>([]);
   const [progress, setProgress] = useState<DispatchProgress>({
@@ -413,11 +415,16 @@ export function useBulkDispatch() {
       isPaused: false,
     }));
 
-    addLog('info', `Disparo finalizado: ${sentCount} enviados, ${failedCount} falharam`);
+    addLog('info', `Disparo finalizado: ${sentCount} enviados, ${failedCount} falharam${config.autoArchive ? `, ${archivedCount} arquivados` : ''}`);
     
+    // Play completion sound
+    playDispatchComplete();
+    
+    // Show detailed completion toast
+    const archivedInfo = config.autoArchive ? `\n📦 ${archivedCount} arquivados` : '';
     toast({
-      title: 'Disparo Concluído',
-      description: `${sentCount} mensagens enviadas, ${failedCount} falharam`,
+      title: '🎉 Disparo Concluído!',
+      description: `✅ ${sentCount} enviados\n❌ ${failedCount} falharam${archivedInfo}`,
     });
   }, [user, contacts, config, toast, addLog, getNextInstance, selectRandomMessage, isWithinBusinessHours, getRandomDelay]);
 
