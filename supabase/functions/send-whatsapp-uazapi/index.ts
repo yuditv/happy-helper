@@ -15,6 +15,8 @@ interface WhatsAppRequest {
   mediaUrl?: string;
   fileName?: string;
   caption?: string;
+  // Auto archive after sending
+  autoArchive?: boolean;
 }
 
 // Format phone number to international format (55 + DDD + number)
@@ -49,7 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const requestData: WhatsAppRequest = await req.json();
-    const { phone, message, mediaType, mediaUrl, fileName, caption } = requestData;
+    const { phone, message, mediaType, mediaUrl, fileName, caption, autoArchive } = requestData;
 
     if (!phone) {
       return new Response(
@@ -150,6 +152,29 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
+    }
+
+    // Archive chat if autoArchive is enabled
+    if (autoArchive) {
+      try {
+        console.log(`Archiving chat with: ${formattedPhone}`);
+        const archiveResponse = await fetch(`${UAZAPI_URL}/archiveChat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${UAZAPI_TOKEN}`,
+          },
+          body: JSON.stringify({
+            phone: formattedPhone,
+            archive: true
+          }),
+        });
+        const archiveData = await archiveResponse.json();
+        console.log("Archive response:", archiveData);
+      } catch (archiveError) {
+        console.error("Error archiving chat:", archiveError);
+        // Don't fail the request if archiving fails
+      }
     }
 
     return new Response(
