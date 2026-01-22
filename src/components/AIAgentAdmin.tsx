@@ -2,15 +2,17 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bot, Plus, Settings, Trash2, Power, ExternalLink, 
-  MessageSquare, Smartphone, Globe, Pencil
+  MessageSquare, Smartphone, Globe, Pencil, Link2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAIAgents, type AIAgent } from "@/hooks/useAIAgents";
 import { CreateAgentDialog } from "./CreateAgentDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+import { WhatsAppAgentRouting } from "./WhatsAppAgentRouting";
 
 export function AIAgentAdmin() {
   const { agents, isLoadingAgents, deleteAgent, toggleAgentActive } = useAIAgents();
@@ -43,18 +45,18 @@ export function AIAgentAdmin() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Settings className="h-6 w-6 text-primary" />
-            Gerenciar Agentes n8n
-          </h2>
-          <p className="text-muted-foreground">
-            Configure agentes de IA conectados aos seus workflows do n8n
-          </p>
-        </div>
+    <Tabs defaultValue="agents" className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <TabsList className="bg-muted/50">
+          <TabsTrigger value="agents" className="gap-2">
+            <Bot className="h-4 w-4" />
+            Agentes
+          </TabsTrigger>
+          <TabsTrigger value="routing" className="gap-2">
+            <Link2 className="h-4 w-4" />
+            Roteamento WhatsApp
+          </TabsTrigger>
+        </TabsList>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)} 
           className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
@@ -64,7 +66,7 @@ export function AIAgentAdmin() {
         </Button>
       </div>
 
-      {/* Stats Cards */}
+      <TabsContent value="agents" className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardContent className="pt-6">
@@ -278,6 +280,11 @@ export function AIAgentAdmin() {
         title="Excluir Agente"
         description={`Tem certeza que deseja excluir o agente "${deletingAgent?.name}"? Esta ação não pode ser desfeita e todo o histórico de conversas será perdido.`}
       />
-    </div>
+      </TabsContent>
+
+      <TabsContent value="routing">
+        <WhatsAppAgentRouting />
+      </TabsContent>
+    </Tabs>
   );
 }
