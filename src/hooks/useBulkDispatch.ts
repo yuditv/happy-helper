@@ -289,6 +289,7 @@ export function useBulkDispatch() {
         const requestBody: Record<string, any> = {
           instanceKey: instance.instance_key,
           phone,
+          autoArchive: true, // Auto archive after sending
         };
 
         if (selectedMessage.mediaType && selectedMessage.mediaType !== 'none' && selectedMessage.mediaUrl) {
