@@ -382,6 +382,36 @@ export type Database = {
           },
         ]
       }
+      canned_responses: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_global: boolean | null
+          short_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_global?: boolean | null
+          short_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_global?: boolean | null
+          short_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_inbox_messages: {
         Row: {
           content: string | null
@@ -762,6 +792,84 @@ export type Database = {
         }
         Relationships: []
       }
+      inbox_audit_logs: {
+        Row: {
+          action: string
+          auditable_id: string | null
+          auditable_type: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          new_data: Json | null
+          old_data: Json | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          auditable_id?: string | null
+          auditable_type?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          auditable_id?: string | null
+          auditable_type?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      inbox_automation_rules: {
+        Row: {
+          actions: Json
+          conditions: Json | null
+          created_at: string
+          description: string | null
+          event_type: string
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actions?: Json
+          conditions?: Json | null
+          created_at?: string
+          description?: string | null
+          event_type: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actions?: Json
+          conditions?: Json | null
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inbox_labels: {
         Row: {
           color: string
@@ -783,6 +891,95 @@ export type Database = {
         }
         Update: {
           color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      inbox_macros: {
+        Row: {
+          actions: Json
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+          visibility: string | null
+        }
+        Insert: {
+          actions?: Json
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+          visibility?: string | null
+        }
+        Update: {
+          actions?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+          visibility?: string | null
+        }
+        Relationships: []
+      }
+      inbox_team_members: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          team_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          team_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_teams: {
+        Row: {
+          auto_assign: boolean | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_assign?: boolean | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_assign?: boolean | null
           created_at?: string
           description?: string | null
           id?: string
