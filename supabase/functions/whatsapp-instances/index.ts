@@ -270,6 +270,83 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // PAIRCODE - Connect via pairing code
+    if (action === "paircode" && entityId) {
+      const phoneNumber = body.phoneNumber as string;
+      
+      if (!phoneNumber) {
+        return new Response(
+          JSON.stringify({ error: "Número de telefone obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: instance, error } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("id", entityId)
+        .single();
+
+      if (error || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instance not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância não inicializada. Tente gerar o QR Code primeiro." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        console.log("Requesting pairing code for phone:", phoneNumber);
+        const pairResponse = await fetch(`${uazapiUrl}/instance/paircode`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({ number: phoneNumber }),
+        });
+
+        console.log("Paircode response status:", pairResponse.status);
+        const pairData = await pairResponse.json();
+        console.log("Paircode response:", JSON.stringify(pairData));
+
+        if (pairResponse.ok && (pairData.paircode || pairData.code)) {
+          await supabase
+            .from("whatsapp_instances")
+            .update({ status: "connecting" })
+            .eq("id", entityId);
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              paircode: pairData.paircode || pairData.code 
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: pairData.error || pairData.message || "Não foi possível gerar o código" 
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("UAZAPI paircode error:", e);
+        return new Response(
+          JSON.stringify({ error: "Erro ao comunicar com UAZAPI" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // STATUS - check instance status
     if (action === "status" && entityId) {
       const { data: instance, error } = await supabase

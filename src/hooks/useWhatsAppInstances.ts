@@ -118,6 +118,23 @@ export function useWhatsAppInstances() {
     }
   };
 
+  const getPairingCode = async (instanceId: string, phoneNumber: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'paircode', instanceId, phoneNumber },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Código de pareamento gerado!');
+      await fetchInstances();
+      return data.paircode;
+    } catch (error: any) {
+      console.error('Pairing code error:', error);
+      toast.error(error.message || 'Erro ao gerar código de pareamento');
+      return null;
+    }
+  };
+
   const deleteInstance = async (instanceId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
@@ -142,6 +159,7 @@ export function useWhatsAppInstances() {
     getQRCode,
     checkStatus,
     deleteInstance,
+    getPairingCode,
     refetch: fetchInstances,
   };
 }

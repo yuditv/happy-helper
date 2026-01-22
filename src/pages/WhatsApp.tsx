@@ -94,6 +94,7 @@ export default function WhatsApp() {
     getQRCode, 
     checkStatus, 
     deleteInstance, 
+    getPairingCode,
     refetch: refetchInstances 
   } = useWhatsAppInstances();
   const { 
@@ -993,6 +994,7 @@ export default function WhatsApp() {
         onOpenChange={setQrCodeDialogOpen}
         instance={selectedInstance}
         getQRCode={getQRCode}
+        getPairingCode={getPairingCode}
       />
       
       <CreateInstanceDialog
