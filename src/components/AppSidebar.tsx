@@ -1,4 +1,5 @@
-import { Users, Shield, Tv, Package, Contact, Search, Bot, Flame } from "lucide-react";
+import { Users, Shield, Tv, Package, Contact, Search, Bot, Flame, Crown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/sidebar";
 import logoFuturistic from "@/assets/logo-red-futuristic.png";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 // Custom WhatsApp icon component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -24,7 +27,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "ai-agent" | "warm-chips" | "revenda" | "vpn" | "iptv";
+export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "ai-agent" | "warm-chips" | "revenda" | "vpn" | "iptv" | "admin";
 
 interface AppSidebarProps {
   activeSection: AppSection;
@@ -38,9 +41,18 @@ interface MenuItem {
   color?: string;
   activeColor?: string;
   externalUrl?: string;
+  adminOnly?: boolean;
 }
 
 const menuItems: MenuItem[] = [
+  {
+    id: "admin",
+    title: "Painel Admin",
+    icon: Crown,
+    color: "text-red-500",
+    activeColor: "bg-red-500 text-white hover:bg-red-600",
+    adminOnly: true,
+  },
   {
     id: "clients",
     title: "Gerenciador",
@@ -109,11 +121,31 @@ const menuItems: MenuItem[] = [
 
 export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) {
   const { state, setOpen } = useSidebar();
+  const navigate = useNavigate();
   const isCollapsed = state === "collapsed";
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .single();
+        setIsAdmin(!!data);
+      }
+    };
+    checkAdmin();
+  }, []);
 
   const handleClick = (item: MenuItem) => {
     if (item.externalUrl) {
       window.open(item.externalUrl, "_blank");
+    } else if (item.id === 'admin') {
+      navigate('/admin');
     } else {
       onSectionChange(item.id);
     }
@@ -128,6 +160,8 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
   const handleMouseLeave = () => {
     setOpen(false);
   };
+
+  const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
     <Sidebar 
@@ -156,7 +190,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {visibleMenuItems.map((item) => {
                 const isActive = activeSection === item.id && !item.externalUrl;
                 return (
                   <SidebarMenuItem key={item.id}>

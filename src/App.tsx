@@ -20,6 +20,7 @@ const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
 const ResellerArea = lazy(() => import("./pages/ResellerArea"));
 const Contacts = lazy(() => import("./pages/Contacts"));
 const WhatsApp = lazy(() => import("./pages/WhatsApp"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -128,6 +129,11 @@ const AppRoutes = () => (
       <Route path="/whatsapp" element={
         <ProtectedRoute>
           <WhatsApp />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin" element={
+        <ProtectedRoute>
+          <AdminPanel />
         </ProtectedRoute>
       } />
       <Route path="/install" element={<Install />} />
