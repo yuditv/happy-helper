@@ -23,6 +23,7 @@ import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialo
 import { ImportClientsDialog } from '@/components/ImportClientsDialog';
 import { SendEmailDialog } from '@/components/SendEmailDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { SoundToggle } from '@/components/SoundToggle';
 import { TagManager } from '@/components/TagManager';
 import { TagFilter } from '@/components/TagFilter';
 import { TagBadge } from '@/components/TagBadge';
@@ -382,6 +383,7 @@ const Index = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              <SoundToggle />
               <ThemeToggle />
 
               <Button onClick={() => setFormOpen(true)} className="gap-2 btn-futuristic text-primary-foreground font-semibold">
