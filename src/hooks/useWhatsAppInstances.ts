@@ -5,17 +5,14 @@ import { toast } from 'sonner';
 
 export interface WhatsAppInstance {
   id: string;
-  name: string;
-  instance_key: string;
+  instance_name: string;
+  name: string; // Alias for instance_name (backwards compatibility)
   status: string;
-  qr_code: string | null;
-  phone_connected: string | null;
-  daily_limit: number;
-  messages_sent_today: number;
-  business_hours_start: string;
-  business_hours_end: string;
-  is_active: boolean;
+  last_connected_at: string | null;
+  phone_connected: string | null; // Computed from last_connected_at for compatibility
+  daily_limit: number; // Default value for compatibility
   created_at: string;
+  updated_at: string;
 }
 
 export function useWhatsAppInstances() {
@@ -26,9 +23,8 @@ export function useWhatsAppInstances() {
   const fetchInstances = useCallback(async () => {
     if (!user) return;
     try {
-      // Use raw fetch since table may not be in types yet
       const { data, error } = await supabase
-        .from('whatsapp_instances' as any)
+        .from('whatsapp_instances')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -38,7 +34,21 @@ export function useWhatsAppInstances() {
         setInstances([]);
         return;
       }
-      setInstances((data as unknown as WhatsAppInstance[]) || []);
+      
+      // Map data to include backwards-compatible properties
+      const mappedData: WhatsAppInstance[] = (data || []).map((item) => ({
+        id: item.id,
+        instance_name: item.instance_name,
+        name: item.instance_name, // Alias
+        status: item.status,
+        last_connected_at: item.last_connected_at,
+        phone_connected: null, // Not in current schema
+        daily_limit: 200, // Default value
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      }));
+      
+      setInstances(mappedData);
     } catch (error: any) {
       console.error('Error fetching instances:', error);
       setInstances([]);

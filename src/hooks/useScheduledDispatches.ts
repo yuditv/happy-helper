@@ -7,13 +7,14 @@ export interface ScheduledDispatch {
   id: string;
   client_id: string;
   message_type: string;
-  custom_message: string | null;
+  message_content: string;
+  custom_message?: string | null;
   scheduled_at: string;
   status: string;
-  sent_at: string | null;
-  error_message: string | null;
-  recurrence_type: string | null;
-  recurrence_end_date: string | null;
+  sent_at?: string | null;
+  error_message?: string | null;
+  recurrence_type?: string | null;
+  recurrence_end_date?: string | null;
   created_at: string;
   client?: {
     name: string;
@@ -40,7 +41,25 @@ export function useScheduledDispatches() {
         .order('scheduled_at', { ascending: true });
 
       if (error) throw error;
-      setSchedules(data || []);
+      
+      // Map the data to match our interface
+      const mappedData: ScheduledDispatch[] = (data || []).map((item: any) => ({
+        id: item.id,
+        client_id: item.client_id,
+        message_type: item.message_type,
+        message_content: item.message_content,
+        custom_message: item.message_content, // Use message_content as custom_message
+        scheduled_at: item.scheduled_at,
+        status: item.status || 'pending',
+        sent_at: null,
+        error_message: null,
+        recurrence_type: null,
+        recurrence_end_date: null,
+        created_at: item.created_at,
+        client: item.client,
+      }));
+      
+      setSchedules(mappedData);
     } catch (error: any) {
       console.error('Error fetching scheduled dispatches:', error);
     } finally {
@@ -66,11 +85,9 @@ export function useScheduledDispatches() {
         user_id: user.id,
         client_id: clientId,
         message_type: 'whatsapp',
-        custom_message: message,
+        message_content: message, // Use message_content which exists in the schema
         scheduled_at: scheduledAt.toISOString(),
         status: 'pending',
-        recurrence_type: recurrenceType || null,
-        recurrence_end_date: recurrenceEndDate?.toISOString() || null,
       }));
 
       const { error } = await supabase
