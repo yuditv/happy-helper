@@ -338,20 +338,33 @@ serve(async (req: Request): Promise<Response> => {
     if (action === "delete" && entityId) {
       const { data: instance } = await supabase
         .from("whatsapp_instances")
-        .select("instance_key")
+        .select("instance_key, instance_name")
         .eq("id", entityId)
         .single();
 
-      // Delete from UAZAPI if we have instance_key
-      if (instance?.instance_key) {
+      console.log("Deleting instance:", entityId, "name:", instance?.instance_name, "key:", instance?.instance_key ? "exists" : "none");
+
+      // Delete from UAZAPI - use admintoken for admin operations
+      if (instance?.instance_name && uazapiAdminToken) {
         try {
-          await fetch(`${uazapiUrl}/instance/delete`, {
+          console.log("Calling UAZAPI delete for instance:", instance.instance_name);
+          const deleteResponse = await fetch(`${uazapiUrl}/instance/delete`, {
             method: "DELETE",
-            headers: { "token": instance.instance_key },
+            headers: { 
+              "Content-Type": "application/json",
+              "admintoken": uazapiAdminToken 
+            },
+            body: JSON.stringify({ name: instance.instance_name }),
           });
+          
+          console.log("UAZAPI delete response status:", deleteResponse.status);
+          const deleteData = await deleteResponse.json();
+          console.log("UAZAPI delete response:", JSON.stringify(deleteData));
         } catch (e) {
           console.error("UAZAPI delete error:", e);
         }
+      } else {
+        console.log("Skipping UAZAPI delete - no instance name or admin token");
       }
 
       const { error } = await supabase
