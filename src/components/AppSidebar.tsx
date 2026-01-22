@@ -1,4 +1,4 @@
-import { Users, Shield, Tv, Package, Contact } from "lucide-react";
+import { Users, Shield, Tv, Package, Contact, Search } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +24,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export type AppSection = "clients" | "contatos" | "whatsapp" | "revenda" | "vpn" | "iptv";
+export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "revenda" | "vpn" | "iptv";
 
 interface AppSidebarProps {
   activeSection: AppSection;
@@ -46,6 +46,11 @@ const menuItems = [
     id: "whatsapp" as AppSection,
     title: "WhatsApp",
     icon: WhatsAppIcon,
+  },
+  {
+    id: "filter-numbers" as AppSection,
+    title: "Filtrar Números Ativos",
+    icon: Search,
   },
   {
     id: "revenda" as AppSection,
