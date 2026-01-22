@@ -158,6 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Archive chat if autoArchive is enabled
+    let archived = false;
     if (autoArchive) {
       try {
         console.log(`[Archive] Attempting to archive chat with: ${formattedPhone}`);
@@ -181,6 +182,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.error(`[Archive] Failed with status ${archiveResponse.status}:`, archiveData);
         } else {
           console.log("[Archive] Success:", archiveData);
+          archived = true;
         }
       } catch (archiveError) {
         console.error("[Archive] Error:", archiveError);
@@ -189,7 +191,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: responseData }),
+      JSON.stringify({ success: true, data: responseData, archived }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },

@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Play, Pause, Square, BarChart3, 
-  CheckCircle2, XCircle, Clock, User 
+  CheckCircle2, XCircle, Clock, User, Archive 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,6 +17,7 @@ interface DispatchProgressProps {
     sent: number;
     failed: number;
     pending: number;
+    archived: number;
     currentContact?: string;
     isPaused: boolean;
     isRunning: boolean;
@@ -32,6 +33,7 @@ interface DispatchProgressProps {
   onResume: () => void;
   onCancel: () => void;
   canStart: boolean;
+  showArchiveCount?: boolean;
 }
 
 export function DispatchProgress({
@@ -40,7 +42,8 @@ export function DispatchProgress({
   onPause,
   onResume,
   onCancel,
-  canStart
+  canStart,
+  showArchiveCount = true
 }: DispatchProgressProps) {
   const percentage = progress.total > 0 
     ? Math.round(((progress.sent + progress.failed) / progress.total) * 100)
@@ -163,7 +166,7 @@ export function DispatchProgress({
 
         {/* Stats */}
         {(progress.total > 0) && (
-          <div className="grid grid-cols-4 gap-3">
+          <div className={cn("grid gap-3", showArchiveCount ? "grid-cols-5" : "grid-cols-4")}>
             <div className="text-center p-3 rounded-lg bg-muted/50">
               <div className="text-2xl font-bold">{progress.total}</div>
               <div className="text-xs text-muted-foreground">Total</div>
@@ -176,6 +179,15 @@ export function DispatchProgress({
               <div className="text-2xl font-bold text-destructive">{progress.failed}</div>
               <div className="text-xs text-destructive/70">Falharam</div>
             </div>
+            {showArchiveCount && (
+              <div className="text-center p-3 rounded-lg bg-blue-500/10">
+                <div className="flex items-center justify-center gap-1">
+                  <Archive className="w-4 h-4 text-blue-500" />
+                  <span className="text-2xl font-bold text-blue-500">{progress.archived}</span>
+                </div>
+                <div className="text-xs text-blue-500/70">Arquivados</div>
+              </div>
+            )}
             <div className="text-center p-3 rounded-lg bg-muted/50">
               <div className="text-2xl font-bold text-muted-foreground">{progress.pending}</div>
               <div className="text-xs text-muted-foreground">Pendentes</div>
