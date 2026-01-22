@@ -167,6 +167,42 @@ export function useWhatsAppInstances() {
     }
   };
 
+  // Refresh all instances status from UAZAPI
+  const refreshAllStatus = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    
+    try {
+      // First fetch current instances from DB
+      const { data } = await supabase
+        .from('whatsapp_instances')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (data && data.length > 0) {
+        // Check status for each instance that has an instance_key
+        for (const instance of data) {
+          if (instance.instance_key) {
+            try {
+              await supabase.functions.invoke('whatsapp-instances', {
+                body: { action: 'status', instanceId: instance.id },
+              });
+            } catch (e) {
+              console.error('Error checking status for instance:', instance.id, e);
+            }
+          }
+        }
+      }
+      
+      // Reload instances with updated status
+      await fetchInstances();
+    } catch (error) {
+      console.error('Error refreshing all status:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, fetchInstances]);
+
   return {
     instances,
     isLoading,
@@ -177,5 +213,6 @@ export function useWhatsAppInstances() {
     getPairingCode,
     checkNumbers,
     refetch: fetchInstances,
+    refreshAllStatus,
   };
 }

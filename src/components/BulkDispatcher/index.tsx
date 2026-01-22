@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export function BulkDispatcher() {
   const { toast } = useToast();
-  const { instances, isLoading: instancesLoading, refetch: fetchInstances, checkNumbers } = useWhatsAppInstances();
+  const { instances, isLoading: instancesLoading, refetch: fetchInstances, checkNumbers, refreshAllStatus } = useWhatsAppInstances();
   const {
     config,
     contacts,
@@ -254,7 +254,7 @@ export function BulkDispatcher() {
             balancingMode={config.balancingMode}
             onSelectionChange={(ids) => updateConfig({ instanceIds: ids })}
             onBalancingModeChange={(mode) => updateConfig({ balancingMode: mode })}
-            onRefresh={fetchInstances}
+            onRefresh={refreshAllStatus}
             isLoading={instancesLoading}
           />
 
