@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,6 +52,12 @@ interface ContactsManagerProps {
   onRefreshSaved?: () => void;
   onSaveContacts?: (contacts: { name: string; phone: string; email?: string }[]) => Promise<boolean>;
   isSaving?: boolean;
+  // New props for lazy loading
+  onTabChange?: (tab: string) => void;
+  savedContactsTotal?: number;
+  hasMoreSavedContacts?: boolean;
+  onLoadMoreSavedContacts?: () => void;
+  onSearchSavedContacts?: (query: string, limit?: number) => Promise<SavedContact[]>;
 }
 
 export function ContactsManager({
@@ -66,7 +72,12 @@ export function ContactsManager({
   isLoadingSaved = false,
   onRefreshSaved,
   onSaveContacts,
-  isSaving = false
+  isSaving = false,
+  onTabChange,
+  savedContactsTotal = 0,
+  hasMoreSavedContacts = false,
+  onLoadMoreSavedContacts,
+  onSearchSavedContacts
 }: ContactsManagerProps) {
   const [manualInput, setManualInput] = useState('');
   const [activeTab, setActiveTab] = useState('manual');
@@ -77,6 +88,40 @@ export function ContactsManager({
   const [savedSearch, setSavedSearch] = useState('');
   const [selectedSavedIds, setSelectedSavedIds] = useState<Set<string>>(new Set());
   const [autoSave, setAutoSave] = useState(false);
+  const [searchResults, setSearchResults] = useState<SavedContact[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Debounced search for server-side filtering
+  useEffect(() => {
+    if (!savedSearch.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    
+    // For large datasets, use server-side search
+    if (savedContactsTotal > 500 && onSearchSavedContacts) {
+      setIsSearching(true);
+      const timer = setTimeout(async () => {
+        const results = await onSearchSavedContacts(savedSearch, 100);
+        // Map Contact to SavedContact format
+        setSearchResults(results.map(c => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          email: c.email,
+          notes: c.notes
+        })));
+        setIsSearching(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [savedSearch, savedContactsTotal, onSearchSavedContacts]);
+
+  // Handle tab change and notify parent
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   const parseManualInput = useCallback((text: string): Contact[] => {
     const lines = text.split('\n').filter(line => line.trim());
@@ -207,15 +252,19 @@ export function ContactsManager({
     URL.revokeObjectURL(url);
   };
 
-  // Filter saved contacts by search
-  const filteredSavedContacts = useMemo(() => {
+  // Display contacts: use search results if searching, otherwise use local filter for small datasets
+  const displayedSavedContacts = useMemo(() => {
+    // If server search returned results, use those
+    if (searchResults !== null) return searchResults;
+    
+    // For small datasets or no search, filter locally
     if (!savedSearch.trim()) return savedContacts;
     const search = savedSearch.toLowerCase();
     return savedContacts.filter(c => 
       c.name.toLowerCase().includes(search) ||
       c.phone.includes(search)
     );
-  }, [savedContacts, savedSearch]);
+  }, [savedContacts, savedSearch, searchResults]);
 
   // Toggle contact selection
   const toggleSavedContact = useCallback((id: string) => {
@@ -232,12 +281,12 @@ export function ContactsManager({
 
   // Select all visible contacts
   const selectAllSaved = useCallback(() => {
-    if (selectedSavedIds.size === filteredSavedContacts.length) {
+    if (selectedSavedIds.size === displayedSavedContacts.length) {
       setSelectedSavedIds(new Set());
     } else {
-      setSelectedSavedIds(new Set(filteredSavedContacts.map(c => c.id)));
+      setSelectedSavedIds(new Set(displayedSavedContacts.map(c => c.id)));
     }
-  }, [filteredSavedContacts, selectedSavedIds.size]);
+  }, [displayedSavedContacts, selectedSavedIds.size]);
 
   // Add selected saved contacts to dispatch list
   const handleAddSavedContacts = useCallback(() => {
@@ -341,7 +390,7 @@ export function ContactsManager({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="manual">
               Manual
@@ -456,26 +505,30 @@ Exemplo:
 
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                {savedContacts.length} contato(s) salvos
+                {savedContactsTotal > 0 ? (
+                  <>Mostrando {savedContacts.length} de {savedContactsTotal} contato(s)</>
+                ) : (
+                  <>{savedContacts.length} contato(s) salvos</>
+                )}
               </span>
-              {filteredSavedContacts.length > 0 && (
+              {displayedSavedContacts.length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={selectAllSaved}
                 >
-                  {selectedSavedIds.size === filteredSavedContacts.length
+                  {selectedSavedIds.size === displayedSavedContacts.length
                     ? 'Desmarcar Todos'
                     : 'Selecionar Todos'}
                 </Button>
               )}
             </div>
 
-            {isLoadingSaved ? (
+            {isLoadingSaved || isSearching ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
-            ) : filteredSavedContacts.length === 0 ? (
+            ) : displayedSavedContacts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Database className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>{savedSearch ? 'Nenhum contato encontrado' : 'Nenhum contato salvo'}</p>
@@ -486,7 +539,7 @@ Exemplo:
             ) : (
               <ScrollArea className="h-[200px] rounded-lg border border-border/50">
                 <div className="p-2 space-y-1">
-                  {filteredSavedContacts.map((contact) => (
+                  {displayedSavedContacts.map((contact) => (
                     <div
                       key={contact.id}
                       onClick={() => toggleSavedContact(contact.id)}
@@ -513,6 +566,22 @@ Exemplo:
                   ))}
                 </div>
               </ScrollArea>
+            )}
+
+            {/* Load More Button */}
+            {hasMoreSavedContacts && !savedSearch && onLoadMoreSavedContacts && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={onLoadMoreSavedContacts}
+                disabled={isLoadingSaved}
+              >
+                {isLoadingSaved ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
+                Carregar Mais
+              </Button>
             )}
 
             {selectedSavedIds.size > 0 && (

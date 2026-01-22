@@ -41,16 +41,28 @@ export function BulkDispatcher() {
     configToDispatchConfig,
   } = useDispatchConfigs();
 
-  // Saved contacts from database
+  // Saved contacts from database - lazy load only when needed
   const {
     contacts: savedContactsRaw,
     isLoading: savedContactsLoading,
     refetch: refreshSavedContacts,
-    importContacts
+    importContacts,
+    loadMoreContacts,
+    pagination: savedContactsPagination,
+    hasInitialLoad: savedContactsInitialized,
+    searchContactsRemote,
   } = useContactsSupabase();
 
   // Map saved contacts to the expected format
   const [savedContacts, setSavedContacts] = useState<SavedContact[]>([]);
+  const [shouldLoadSavedContacts, setShouldLoadSavedContacts] = useState(false);
+  
+  // Load saved contacts when tab is accessed
+  useEffect(() => {
+    if (shouldLoadSavedContacts && !savedContactsInitialized) {
+      refreshSavedContacts();
+    }
+  }, [shouldLoadSavedContacts, savedContactsInitialized, refreshSavedContacts]);
   
   useEffect(() => {
     setSavedContacts(savedContactsRaw.map(c => ({
@@ -264,6 +276,15 @@ export function BulkDispatcher() {
             onRefreshSaved={refreshSavedContacts}
             onSaveContacts={handleSaveContacts}
             isSaving={isSavingContacts}
+            onTabChange={(tab) => {
+              if (tab === 'saved') {
+                setShouldLoadSavedContacts(true);
+              }
+            }}
+            savedContactsTotal={savedContactsPagination.totalCount}
+            hasMoreSavedContacts={savedContactsPagination.hasMore}
+            onLoadMoreSavedContacts={loadMoreContacts}
+            onSearchSavedContacts={searchContactsRemote}
           />
 
           {/* Verify Button */}
