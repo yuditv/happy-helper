@@ -13,7 +13,9 @@ interface DeleteConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
-  clientName: string;
+  clientName?: string;
+  title?: string;
+  description?: string;
 }
 
 export function DeleteConfirmDialog({
@@ -21,14 +23,21 @@ export function DeleteConfirmDialog({
   onOpenChange,
   onConfirm,
   clientName,
+  title,
+  description,
 }: DeleteConfirmDialogProps) {
+  const dialogTitle = title || 'Excluir cliente';
+  const dialogDescription = description || (
+    <>Tem certeza que deseja excluir <strong>{clientName}</strong>? Esta ação não pode ser desfeita.</>
+  );
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
+          <AlertDialogTitle>{dialogTitle}</AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja excluir <strong>{clientName}</strong>? Esta ação não pode ser desfeita.
+            {dialogDescription}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

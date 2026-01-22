@@ -1,0 +1,283 @@
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Bot, Plus, Settings, Trash2, Power, ExternalLink, 
+  MessageSquare, Smartphone, Globe, Pencil
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { useAIAgents, type AIAgent } from "@/hooks/useAIAgents";
+import { CreateAgentDialog } from "./CreateAgentDialog";
+import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+
+export function AIAgentAdmin() {
+  const { agents, isLoadingAgents, deleteAgent, toggleAgentActive } = useAIAgents();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<AIAgent | null>(null);
+  const [deletingAgent, setDeletingAgent] = useState<AIAgent | null>(null);
+
+  const handleToggleActive = (agent: AIAgent) => {
+    toggleAgentActive.mutate({ id: agent.id, is_active: !agent.is_active });
+  };
+
+  const handleDelete = () => {
+    if (deletingAgent) {
+      deleteAgent.mutate(deletingAgent.id);
+      setDeletingAgent(null);
+    }
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Settings className="h-6 w-6 text-primary" />
+            Gerenciar Agentes n8n
+          </h2>
+          <p className="text-muted-foreground">
+            Configure agentes de IA conectados aos seus workflows do n8n
+          </p>
+        </div>
+        <Button 
+          onClick={() => setIsCreateDialogOpen(true)} 
+          className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" />
+          Novo Agente
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-primary/20">
+                <Bot className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{agents.length}</p>
+                <p className="text-sm text-muted-foreground">Total de Agentes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-emerald-500/20">
+                <Power className="h-6 w-6 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">
+                  {agents.filter(a => a.is_active).length}
+                </p>
+                <p className="text-sm text-muted-foreground">Ativos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-accent/20">
+                <MessageSquare className="h-6 w-6 text-accent" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">
+                  {agents.filter(a => a.is_chat_enabled).length}
+                </p>
+                <p className="text-sm text-muted-foreground">Com Chat Web</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Agents List */}
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            Agentes Configurados
+          </CardTitle>
+          <CardDescription>
+            Gerencie seus agentes conectados ao n8n
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingAgents ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          ) : agents.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center py-12 text-center"
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                <Bot className="h-16 w-16 text-primary relative z-10" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mt-4 mb-2">
+                Nenhum agente configurado
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-md">
+                Crie seu primeiro agente de IA conectando um workflow do n8n para automatizar conversas
+              </p>
+              <Button 
+                onClick={() => setIsCreateDialogOpen(true)} 
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Criar Primeiro Agente
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+            >
+              <AnimatePresence>
+                {agents.map((agent) => (
+                  <motion.div
+                    key={agent.id}
+                    variants={itemVariants}
+                    layout
+                    exit={{ opacity: 0, scale: 0.9 }}
+                  >
+                    <Card className="bg-background/50 border-border/50 hover:border-primary/50 transition-all duration-300 group">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110"
+                              style={{ 
+                                backgroundColor: `${agent.color}20`,
+                              }}
+                            >
+                              <Bot 
+                                className="h-5 w-5 transition-colors" 
+                                style={{ color: agent.color }} 
+                              />
+                            </div>
+                            <div>
+                              <CardTitle className="text-base">{agent.name}</CardTitle>
+                              <div className="flex items-center gap-1 mt-1">
+                                <Badge 
+                                  variant={agent.is_active ? "default" : "secondary"}
+                                  className="text-xs"
+                                >
+                                  {agent.is_active ? 'Ativo' : 'Inativo'}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={agent.is_active}
+                            onCheckedChange={() => handleToggleActive(agent)}
+                          />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0 space-y-4">
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {agent.description || "Sem descrição"}
+                        </p>
+
+                        {/* Capabilities */}
+                        <div className="flex gap-2">
+                          {agent.is_chat_enabled && (
+                            <Badge variant="outline" className="gap-1 text-xs">
+                              <Globe className="h-3 w-3" />
+                              Web
+                            </Badge>
+                          )}
+                          {agent.is_whatsapp_enabled && (
+                            <Badge variant="outline" className="gap-1 text-xs">
+                              <Smartphone className="h-3 w-3" />
+                              WhatsApp
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Webhook URL (truncated) */}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{agent.webhook_url}</span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2 pt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 gap-1"
+                            onClick={() => setEditingAgent(agent)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Editar
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeletingAgent(agent)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Dialog */}
+      <CreateAgentDialog
+        open={isCreateDialogOpen || !!editingAgent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateDialogOpen(false);
+            setEditingAgent(null);
+          }
+        }}
+        editingAgent={editingAgent}
+      />
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmDialog
+        open={!!deletingAgent}
+        onOpenChange={(open) => !open && setDeletingAgent(null)}
+        onConfirm={handleDelete}
+        title="Excluir Agente"
+        description={`Tem certeza que deseja excluir o agente "${deletingAgent?.name}"? Esta ação não pode ser desfeita e todo o histórico de conversas será perdido.`}
+      />
+    </div>
+  );
+}
