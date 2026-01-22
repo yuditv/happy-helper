@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_agents: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          is_chat_enabled: boolean | null
+          is_whatsapp_enabled: boolean | null
+          name: string
+          updated_at: string | null
+          webhook_url: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_chat_enabled?: boolean | null
+          is_whatsapp_enabled?: boolean | null
+          name: string
+          updated_at?: string | null
+          webhook_url: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_chat_enabled?: boolean | null
+          is_whatsapp_enabled?: boolean | null
+          name?: string
+          updated_at?: string | null
+          webhook_url?: string
+        }
+        Relationships: []
+      }
+      ai_chat_messages: {
+        Row: {
+          agent_id: string
+          content: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          role: string
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          role: string
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          role?: string
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_chat_messages_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocked_users: {
         Row: {
           blocked_at: string
