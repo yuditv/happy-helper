@@ -1,4 +1,5 @@
 // Renewal Reminder Scheduler - Creates scheduled messages for expiring clients
+// Supports: 1 day before, on the day, and 1 day after expiration
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -6,6 +7,32 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+interface ReminderMessages {
+  before: string;
+  today: string;
+  after: string;
+}
+
+const defaultMessages: ReminderMessages = {
+  before: "Olá {nome}! Seu plano {plano} vence AMANHÃ ({vencimento}). Renove agora para não perder o acesso!",
+  today: "Olá {nome}! Seu plano {plano} vence HOJE ({vencimento}). Renove agora para continuar com acesso!",
+  after: "Olá {nome}! Seu plano {plano} venceu ontem ({vencimento}). Renove para reativar seu acesso!",
+};
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('pt-BR');
+}
+
+function replaceVariables(template: string, client: any): string {
+  const expiresAt = new Date(client.expires_at);
+  return template
+    .replace(/{nome}/g, client.name || '')
+    .replace(/{plano}/g, client.plan || '')
+    .replace(/{vencimento}/g, formatDate(expiresAt))
+    .replace(/{whatsapp}/g, client.whatsapp || '')
+    .replace(/{email}/g, client.email || '');
+}
 
 serve(async (req: Request): Promise<Response> => {
   const timestamp = new Date().toISOString();
@@ -26,7 +53,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get all users with notification settings enabled
+    // Get all users with WhatsApp reminders enabled
     const { data: settings, error: settingsError } = await supabase
       .from("notification_settings")
       .select("*")
@@ -55,16 +82,33 @@ serve(async (req: Request): Promise<Response> => {
     for (const setting of settings) {
       results.usersProcessed++;
       const userId = setting.user_id;
-      const reminderDays = setting.reminder_days || [7, 3, 1];
+      // Default: 1 day before, on the day, 1 day after
+      const reminderDays: number[] = setting.reminder_days || [1, 0, -1];
+      
+      // Parse custom messages or use defaults
+      let reminderMessages: ReminderMessages = defaultMessages;
+      if (setting.reminder_messages) {
+        const parsed = typeof setting.reminder_messages === 'string' 
+          ? JSON.parse(setting.reminder_messages) 
+          : setting.reminder_messages;
+        reminderMessages = {
+          before: parsed.before || defaultMessages.before,
+          today: parsed.today || defaultMessages.today,
+          after: parsed.after || defaultMessages.after,
+        };
+      }
 
       try {
-        // Get clients expiring in the configured days
         const now = new Date();
+        now.setHours(0, 0, 0, 0);
         
         for (const days of reminderDays) {
+          // Calculate target date based on relative days
+          // days > 0: before expiration (expires in X days)
+          // days = 0: on expiration day
+          // days < 0: after expiration (expired X days ago)
           const targetDate = new Date(now);
           targetDate.setDate(targetDate.getDate() + days);
-          targetDate.setHours(0, 0, 0, 0);
           
           const nextDay = new Date(targetDate);
           nextDay.setDate(nextDay.getDate() + 1);
@@ -86,12 +130,12 @@ serve(async (req: Request): Promise<Response> => {
             continue;
           }
 
-          console.log(`Found ${expiringClients.length} clients expiring in ${days} days for user ${userId}`);
+          const dayLabel = days > 0 ? `${days} day(s) before` : days === 0 ? 'today' : `${Math.abs(days)} day(s) after`;
+          console.log(`Found ${expiringClients.length} clients expiring ${dayLabel} for user ${userId}`);
 
           for (const client of expiringClients) {
-            // Check if we already sent a reminder for this client/day combination
+            // Check if we already sent a reminder for this client/day combination today
             const todayStart = new Date(now);
-            todayStart.setHours(0, 0, 0, 0);
             
             const { data: existingNotification } = await supabase
               .from("notification_history")
@@ -103,16 +147,22 @@ serve(async (req: Request): Promise<Response> => {
               .limit(1);
 
             if (existingNotification && existingNotification.length > 0) {
-              console.log(`Already sent ${days}-day reminder for client ${client.id}`);
+              console.log(`Already sent ${days}-day reminder for client ${client.id} today`);
               continue;
             }
 
-            // Create the scheduled message
-            const message = days === 1
-              ? `Olá ${client.name}! Seu plano ${client.plan} vence AMANHÃ. Renove agora para não ficar sem acesso!`
-              : days === 3
-              ? `Olá ${client.name}! Seu plano ${client.plan} vence em 3 dias. Que tal renovar agora?`
-              : `Olá ${client.name}! Seu plano ${client.plan} vence em ${days} dias (${new Date(client.expires_at).toLocaleDateString('pt-BR')}). Renove com antecedência!`;
+            // Select the appropriate message template based on days
+            let messageTemplate: string;
+            if (days > 0) {
+              messageTemplate = reminderMessages.before;
+            } else if (days === 0) {
+              messageTemplate = reminderMessages.today;
+            } else {
+              messageTemplate = reminderMessages.after;
+            }
+
+            // Replace variables in the message
+            const message = replaceVariables(messageTemplate, client);
 
             const { error: insertError } = await supabase
               .from("scheduled_messages")
@@ -132,6 +182,12 @@ serve(async (req: Request): Promise<Response> => {
             }
 
             // Record in notification history
+            const subjectLabel = days > 0 
+              ? `Lembrete de renovação - ${days} dia(s) antes`
+              : days === 0 
+                ? 'Lembrete de renovação - No dia'
+                : `Lembrete de renovação - ${Math.abs(days)} dia(s) após`;
+
             await supabase
               .from("notification_history")
               .insert({
@@ -139,12 +195,12 @@ serve(async (req: Request): Promise<Response> => {
                 client_id: client.id,
                 notification_type: "whatsapp_reminder",
                 days_until_expiration: days,
-                subject: `Lembrete de renovação - ${days} dias`,
+                subject: subjectLabel,
                 status: "pending",
               });
 
             results.remindersCreated++;
-            console.log(`Created reminder for client ${client.name} (${days} days)`);
+            console.log(`Created reminder for client ${client.name} (${dayLabel})`);
           }
         }
       } catch (error) {
