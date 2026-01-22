@@ -82,6 +82,7 @@ export function MessageComposer({
   const [aiType, setAiType] = useState<CopyType>('copy');
   const [aiTone, setAiTone] = useState<ToneType>('persuasivo');
   const [includeVariables, setIncludeVariables] = useState(true);
+  const [aiQuantity, setAiQuantity] = useState<number>(1);
 
   const addMessage = () => {
     const newMessage: Message = {
@@ -250,7 +251,8 @@ export function MessageComposer({
           prompt: aiPrompt,
           type: aiType,
           tone: aiTone,
-          includeVariables
+          includeVariables,
+          quantity: aiQuantity
         }
       });
 
@@ -265,15 +267,27 @@ export function MessageComposer({
         return;
       }
 
-      if (data?.content) {
-        // If there's an active message, update it. Otherwise create new one
+      if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+        const [principal, ...variacoes] = data.messages as string[];
+        
         if (activeMessageId) {
-          updateMessage(activeMessageId, data.content);
+          // Update existing message with content and variations
+          onMessagesChange(
+            messages.map(m => m.id === activeMessageId 
+              ? { 
+                  ...m, 
+                  content: principal, 
+                  variations: variacoes.length > 0 ? variacoes : m.variations 
+                }
+              : m
+            )
+          );
         } else {
+          // Create new message with content and variations
           const newMessage: Message = {
             id: crypto.randomUUID(),
-            content: data.content,
-            variations: [],
+            content: principal,
+            variations: variacoes,
             mediaType: 'none',
             mediaUrl: undefined,
             fileName: undefined,
@@ -282,7 +296,9 @@ export function MessageComposer({
           onMessagesChange([...messages, newMessage]);
           setActiveMessageId(newMessage.id);
         }
-        toast.success('Mensagem gerada com sucesso!');
+        
+        const totalCount = data.messages.length;
+        toast.success(`${totalCount} ${totalCount === 1 ? 'mensagem gerada' : 'variações geradas'} com sucesso!`);
         setShowAiDialog(false);
         setAiPrompt('');
       }
@@ -684,6 +700,28 @@ export function MessageComposer({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm">Quantidade de Variações</Label>
+              <Select 
+                value={aiQuantity.toString()} 
+                onValueChange={(v) => setAiQuantity(parseInt(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 mensagem</SelectItem>
+                  <SelectItem value="2">2 variações</SelectItem>
+                  <SelectItem value="3">3 variações</SelectItem>
+                  <SelectItem value="4">4 variações</SelectItem>
+                  <SelectItem value="5">5 variações</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Múltiplas variações ajudam a evitar bloqueios do WhatsApp
+              </p>
             </div>
             
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">

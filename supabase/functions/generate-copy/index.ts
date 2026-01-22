@@ -10,6 +10,7 @@ interface RequestBody {
   type: 'copy' | 'anuncio' | 'lembrete' | 'promocao';
   tone: 'casual' | 'formal' | 'persuasivo' | 'urgente';
   includeVariables: boolean;
+  quantity?: number; // 1-5, default 1
 }
 
 const typeDescriptions: Record<string, string> = {
@@ -33,7 +34,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, type, tone, includeVariables }: RequestBody = await req.json();
+    const { prompt, type, tone, includeVariables, quantity = 1 }: RequestBody = await req.json();
 
     if (!prompt || !prompt.trim()) {
       return new Response(
@@ -62,7 +63,18 @@ VARIÁVEIS DISPONÍVEIS (use quando fizer sentido):
 Inclua essas variáveis de forma natural na mensagem para personalização.`
       : 'NÃO use variáveis como {nome}, {plano}, etc. Crie uma mensagem genérica.';
 
-    const systemPrompt = `Você é um copywriter especialista em WhatsApp Marketing no Brasil, focado em conversão e engajamento.
+    // Clamp quantity between 1 and 5
+    const safeQuantity = Math.min(Math.max(Math.floor(quantity), 1), 5);
+    
+    const typeDesc = typeDescriptions[type] || typeDescriptions.copy;
+    const toneDesc = toneDescriptions[tone] || toneDescriptions.persuasivo;
+
+    let systemPrompt: string;
+    let userPrompt: string;
+
+    if (safeQuantity === 1) {
+      // Single message generation
+      systemPrompt = `Você é um copywriter especialista em WhatsApp Marketing no Brasil, focado em conversão e engajamento.
 
 REGRAS OBRIGATÓRIAS:
 1. Máximo 500 caracteres (WhatsApp corta mensagens muito longas)
@@ -79,17 +91,50 @@ ${variablesInstruction}
 FORMATO DE SAÍDA:
 Retorne APENAS a mensagem final, sem explicações, sem aspas, sem markdown. A mensagem deve estar pronta para copiar e usar.`;
 
-    const typeDesc = typeDescriptions[type] || typeDescriptions.copy;
-    const toneDesc = toneDescriptions[tone] || toneDescriptions.persuasivo;
-
-    const userPrompt = `Crie ${typeDesc} com tom ${toneDesc}.
+      userPrompt = `Crie ${typeDesc} com tom ${toneDesc}.
 
 BRIEFING DO CLIENTE:
 ${prompt}
 
 Lembre-se: retorne APENAS a mensagem, nada mais.`;
+    } else {
+      // Multiple message generation
+      systemPrompt = `Você é um copywriter especialista em WhatsApp Marketing no Brasil, focado em conversão e engajamento.
 
-    console.log('Generating copy with prompt:', { type, tone, includeVariables, promptLength: prompt.length });
+TAREFA: Crie EXATAMENTE ${safeQuantity} mensagens DIFERENTES e ÚNICAS.
+
+REGRAS OBRIGATÓRIAS PARA CADA MENSAGEM:
+1. Máximo 500 caracteres por mensagem
+2. Use emojis estrategicamente (2-4 no máximo)
+3. Inclua um call-to-action claro
+4. Linguagem brasileira natural e coloquial
+5. Evite palavras que disparam filtros de spam
+6. Primeira linha deve capturar atenção
+7. NÃO inclua saudações genéricas como "Olá!" no início
+
+REGRAS PARA VARIAÇÕES:
+1. Cada mensagem deve ter abordagem DIFERENTE
+2. Varie as palavras iniciais de cada mensagem
+3. Use emojis diferentes em cada uma
+4. Mude a estrutura e ordem das informações
+5. Mantenha o mesmo objetivo, mas com textos distintos
+
+${variablesInstruction}
+
+FORMATO DE SAÍDA OBRIGATÓRIO:
+Numere cada mensagem assim: [1], [2], [3]...
+Cada mensagem em uma linha separada após o número.
+Sem explicações, sem aspas, sem markdown extra.`;
+
+      userPrompt = `Crie ${safeQuantity} variações de ${typeDesc} com tom ${toneDesc}.
+
+BRIEFING DO CLIENTE:
+${prompt}
+
+IMPORTANTE: Retorne EXATAMENTE ${safeQuantity} mensagens numeradas de [1] a [${safeQuantity}].`;
+    }
+
+    console.log('Generating copy with prompt:', { type, tone, includeVariables, quantity: safeQuantity, promptLength: prompt.length });
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -103,8 +148,8 @@ Lembre-se: retorne APENAS a mensagem, nada mais.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.8,
-        max_tokens: 600,
+        temperature: 0.85,
+        max_tokens: safeQuantity > 1 ? 1500 : 600,
       }),
     });
 
@@ -144,10 +189,46 @@ Lembre-se: retorne APENAS a mensagem, nada mais.`;
 
     console.log('Generated copy successfully, length:', content.length);
 
-    return new Response(
-      JSON.stringify({ content }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    if (safeQuantity === 1) {
+      // Single message - return as before for backwards compatibility
+      return new Response(
+        JSON.stringify({ content, messages: [content] }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      // Multiple messages - parse the numbered format
+      const messageRegex = /\[(\d+)\]\s*([\s\S]*?)(?=\[\d+\]|$)/g;
+      const messages: string[] = [];
+      let match;
+      
+      while ((match = messageRegex.exec(content)) !== null) {
+        const messageText = match[2].trim();
+        if (messageText) {
+          messages.push(messageText);
+        }
+      }
+
+      // Fallback: if regex didn't work, try splitting by [number]
+      if (messages.length === 0) {
+        const parts = content.split(/\[\d+\]/).filter((p: string) => p.trim());
+        messages.push(...parts.map((p: string) => p.trim()));
+      }
+
+      // If still no messages, return the whole content as single message
+      if (messages.length === 0) {
+        messages.push(content);
+      }
+
+      console.log(`Parsed ${messages.length} messages from AI response`);
+
+      return new Response(
+        JSON.stringify({ 
+          content: messages[0], // First message for backwards compatibility
+          messages 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
   } catch (error) {
     console.error('Error in generate-copy:', error);
