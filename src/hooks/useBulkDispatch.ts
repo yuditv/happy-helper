@@ -42,6 +42,7 @@ export interface DispatchConfig {
   businessHoursEnd: string;
   allowedDays: number[];
   verifyNumbers: boolean;
+  autoArchive: boolean;
 }
 
 export interface DispatchProgress {
@@ -76,6 +77,7 @@ const DEFAULT_CONFIG: DispatchConfig = {
   businessHoursEnd: '18:00',
   allowedDays: [1, 2, 3, 4, 5, 6, 7],
   verifyNumbers: true,
+  autoArchive: true,
 };
 
 export function useBulkDispatch() {
@@ -289,7 +291,7 @@ export function useBulkDispatch() {
         const requestBody: Record<string, any> = {
           instanceKey: instance.instance_key,
           phone,
-          autoArchive: true, // Auto archive after sending
+          autoArchive: config.autoArchive, // Use config setting
         };
 
         if (selectedMessage.mediaType && selectedMessage.mediaType !== 'none' && selectedMessage.mediaUrl) {

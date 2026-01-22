@@ -259,6 +259,7 @@ export function useDispatchConfigs() {
       businessHoursEnd: saved.business_hours_end,
       allowedDays: saved.allowed_days,
       verifyNumbers: saved.verify_numbers,
+      autoArchive: saved.auto_archive ?? true,
     };
   }, []);
 

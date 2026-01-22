@@ -184,20 +184,19 @@ export function TimingConfig({
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 opacity-50">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
               <div className="flex items-center gap-3">
-                <Archive className="w-5 h-5 text-muted-foreground" />
+                <Archive className="w-5 h-5 text-primary" />
                 <div>
                   <Label className="text-sm cursor-pointer">Arquivar Chats</Label>
                   <p className="text-xs text-muted-foreground">
-                    Em breve
+                    Arquiva após enviar
                   </p>
                 </div>
               </div>
               <Switch
                 checked={autoArchive}
                 onCheckedChange={(v) => onConfigChange({ autoArchive: v })}
-                disabled
               />
             </div>
 
