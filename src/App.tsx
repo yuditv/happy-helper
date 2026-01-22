@@ -14,6 +14,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const InboxSettings = lazy(() => import("./pages/InboxSettings"));
 
 const Install = lazy(() => import("./pages/Install"));
 const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
