@@ -386,6 +386,10 @@ export function useBulkDispatch() {
     setConfig(prev => ({ ...prev, ...updates }));
   }, []);
 
+  const loadConfig = useCallback((newConfig: DispatchConfig) => {
+    setConfig(newConfig);
+  }, []);
+
   const resetConfig = useCallback(() => {
     setConfig(DEFAULT_CONFIG);
     setContacts([]);
@@ -406,6 +410,7 @@ export function useBulkDispatch() {
     progress,
     setContacts,
     updateConfig,
+    loadConfig,
     resetConfig,
     startDispatch,
     pauseDispatch,
