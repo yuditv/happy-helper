@@ -9,15 +9,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   MessageSquare, Plus, Trash2, Bold, Italic, 
-  Sparkles, Copy, Info, RefreshCw 
+  Sparkles, Copy, Info, RefreshCw,
+  Image, Video, FileAudio, FileText, Type
 } from 'lucide-react';
 import { generatePreview, validateSpintax, SPINTAX_SUGGESTIONS } from '@/lib/spintaxParser';
 import { cn } from '@/lib/utils';
+import { MediaUploader, MediaType } from './MediaUploader';
 
 interface Message {
   id: string;
   content: string;
   variations?: string[];
+  mediaType?: MediaType;
+  mediaUrl?: string;
+  fileName?: string;
+  mimetype?: string;
 }
 
 interface MessageComposerProps {
@@ -52,7 +58,11 @@ export function MessageComposer({
     const newMessage: Message = {
       id: crypto.randomUUID(),
       content: '',
-      variations: []
+      variations: [],
+      mediaType: 'none',
+      mediaUrl: undefined,
+      fileName: undefined,
+      mimetype: undefined
     };
     onMessagesChange([...messages, newMessage]);
     setActiveMessageId(newMessage.id);
@@ -163,6 +173,39 @@ export function MessageComposer({
       currentMessage.content.slice(end);
     
     updateMessage(activeMessageId, newContent);
+  };
+
+  const updateMediaType = (messageId: string, mediaType: MediaType) => {
+    onMessagesChange(
+      messages.map(m => m.id === messageId ? { 
+        ...m, 
+        mediaType,
+        // Clear media if switching back to none
+        ...(mediaType === 'none' ? { mediaUrl: undefined, fileName: undefined, mimetype: undefined } : {})
+      } : m)
+    );
+  };
+
+  const handleMediaUpload = (messageId: string, url: string, filename: string, mimetype: string) => {
+    onMessagesChange(
+      messages.map(m => m.id === messageId ? { 
+        ...m, 
+        mediaUrl: url,
+        fileName: filename,
+        mimetype
+      } : m)
+    );
+  };
+
+  const handleMediaRemove = (messageId: string) => {
+    onMessagesChange(
+      messages.map(m => m.id === messageId ? { 
+        ...m, 
+        mediaUrl: undefined,
+        fileName: undefined,
+        mimetype: undefined
+      } : m)
+    );
   };
 
   const activeMessage = messages.find(m => m.id === activeMessageId);
@@ -280,7 +323,45 @@ export function MessageComposer({
 
         {/* Active Message Editor */}
         {activeMessage && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Media Type Selector */}
+            <div className="space-y-2">
+              <Label className="text-sm">Tipo de Conteúdo</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { type: 'none' as MediaType, icon: Type, label: 'Texto' },
+                  { type: 'image' as MediaType, icon: Image, label: 'Imagem' },
+                  { type: 'video' as MediaType, icon: Video, label: 'Vídeo' },
+                  { type: 'audio' as MediaType, icon: FileAudio, label: 'Áudio' },
+                  { type: 'document' as MediaType, icon: FileText, label: 'Documento' },
+                ].map(({ type, icon: Icon, label }) => (
+                  <Button
+                    key={type}
+                    variant={(activeMessage.mediaType || 'none') === type ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => updateMediaType(activeMessage.id, type)}
+                    className="gap-2"
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Media Uploader (if media type selected) */}
+            {activeMessage.mediaType && activeMessage.mediaType !== 'none' && (
+              <MediaUploader
+                type={activeMessage.mediaType}
+                currentUrl={activeMessage.mediaUrl}
+                currentFilename={activeMessage.fileName}
+                onUpload={(url, filename, mimetype) => 
+                  handleMediaUpload(activeMessage.id, url, filename, mimetype)
+                }
+                onRemove={() => handleMediaRemove(activeMessage.id)}
+              />
+            )}
+
             {/* Formatting Toolbar */}
             <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/30 w-fit">
               <Button
@@ -303,16 +384,24 @@ export function MessageComposer({
               </Button>
             </div>
 
-            {/* Main Message */}
+            {/* Main Message / Caption */}
             <div className="space-y-2">
-              <Label className="text-sm">Mensagem Principal</Label>
+              <Label className="text-sm">
+                {activeMessage.mediaType && activeMessage.mediaType !== 'none' 
+                  ? 'Legenda (opcional)' 
+                  : 'Mensagem Principal'}
+              </Label>
               <Textarea
                 data-message-id={activeMessage.id}
                 value={activeMessage.content}
                 onChange={(e) => updateMessage(activeMessage.id, e.target.value)}
                 onFocus={() => setActiveMessageId(activeMessage.id)}
-                placeholder="Digite sua mensagem aqui... Use {nome} para variáveis e {{ key : opção1 | opção2 }} para Spintax"
-                className="min-h-[150px] font-mono text-sm"
+                placeholder={
+                  activeMessage.mediaType && activeMessage.mediaType !== 'none'
+                    ? "Digite uma legenda para a mídia..."
+                    : "Digite sua mensagem aqui... Use {nome} para variáveis e {{ key : opção1 | opção2 }} para Spintax"
+                }
+                className="min-h-[120px] font-mono text-sm"
               />
               {!validation.valid && (
                 <div className="text-sm text-destructive">

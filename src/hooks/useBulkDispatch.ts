@@ -18,6 +18,11 @@ export interface DispatchMessage {
   id: string;
   content: string;
   variations?: string[];
+  // Media fields
+  mediaType?: 'none' | 'image' | 'video' | 'audio' | 'document';
+  mediaUrl?: string;
+  fileName?: string;
+  mimetype?: string;
 }
 
 export interface DispatchConfig {
@@ -130,9 +135,9 @@ export function useBulkDispatch() {
     return connectedInstances[randomIndex];
   }, [config.balancingMode]);
 
-  const selectRandomMessage = useCallback((): string => {
+  const selectRandomMessage = useCallback((): DispatchMessage => {
     const { messages, randomizeOrder } = config;
-    if (messages.length === 0) return '';
+    if (messages.length === 0) return { id: '', content: '' };
 
     let selectedMessage: DispatchMessage;
     
@@ -142,13 +147,17 @@ export function useBulkDispatch() {
       selectedMessage = messages[0];
     }
 
-    // If message has variations, pick one randomly
+    // If message has variations, pick content randomly
+    let content = selectedMessage.content;
     if (selectedMessage.variations && selectedMessage.variations.length > 0) {
       const allOptions = [selectedMessage.content, ...selectedMessage.variations];
-      return allOptions[Math.floor(Math.random() * allOptions.length)];
+      content = allOptions[Math.floor(Math.random() * allOptions.length)];
     }
 
-    return selectedMessage.content;
+    return {
+      ...selectedMessage,
+      content
+    };
   }, [config.messages, config.randomizeOrder]);
 
   const isWithinBusinessHours = useCallback(() => {
@@ -260,8 +269,8 @@ export function useBulkDispatch() {
       }
 
       // Select and process message
-      const rawMessage = selectRandomMessage();
-      const processedMessage = processMessage(rawMessage, contact);
+      const selectedMessage = selectRandomMessage();
+      const processedMessage = processMessage(selectedMessage.content, contact);
 
       // Format phone number
       let phone = contact.phone.replace(/\D/g, '');
@@ -275,12 +284,23 @@ export function useBulkDispatch() {
       }));
 
       try {
+        // Build request body based on media type
+        const requestBody: Record<string, any> = {
+          instanceKey: instance.instance_key,
+          phone,
+        };
+
+        if (selectedMessage.mediaType && selectedMessage.mediaType !== 'none' && selectedMessage.mediaUrl) {
+          requestBody.mediaType = selectedMessage.mediaType;
+          requestBody.mediaUrl = selectedMessage.mediaUrl;
+          requestBody.fileName = selectedMessage.fileName;
+          requestBody.caption = processedMessage;
+        } else {
+          requestBody.message = processedMessage;
+        }
+
         const { data, error } = await supabase.functions.invoke('send-whatsapp-uazapi', {
-          body: {
-            instanceKey: instance.instance_key,
-            phone,
-            message: processedMessage
-          }
+          body: requestBody
         });
 
         if (error) throw error;
