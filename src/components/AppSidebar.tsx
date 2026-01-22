@@ -1,4 +1,4 @@
-import { Users, Shield, Tv, Package, Contact, Search, Bot, Flame, Crown, Headset } from "lucide-react";
+import { Users, Shield, Tv, Contact, Search, Bot, Flame, Crown, Headset } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -117,14 +117,6 @@ const menuItems: MenuItem[] = [
     color: "text-orange-500",
     activeColor: "bg-orange-500 text-white hover:bg-orange-600",
     permissionKey: "can_view_warming",
-  },
-  {
-    id: "revenda",
-    title: "Área de Revenda",
-    icon: Package,
-    color: "text-amber-500",
-    activeColor: "bg-amber-500 text-white hover:bg-amber-600",
-    permissionKey: "can_view_reseller",
   },
   {
     id: "vpn",

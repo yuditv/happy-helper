@@ -6,7 +6,7 @@ import { AnimatedBackground } from "@/components/AnimatedBackground";
 
 // Lazy load heavy components
 const Index = lazy(() => import("@/pages/Index"));
-const ResellerArea = lazy(() => import("@/pages/ResellerArea"));
+
 const Contacts = lazy(() => import("@/pages/Contacts"));
 const WhatsApp = lazy(() => import("@/pages/WhatsApp"));
 const FilterNumbers = lazy(() => import("@/pages/FilterNumbers"));
@@ -39,8 +39,6 @@ export function MainLayout() {
         return <WarmChips />;
       case "atendimento":
         return <Atendimento />;
-      case "revenda":
-        return <ResellerArea />;
       case "vpn":
         return (
           <ExternalFrame
