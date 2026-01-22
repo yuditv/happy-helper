@@ -42,9 +42,11 @@ import {
   User,
   Lock,
   Ban,
-  ShieldCheck
+  ShieldCheck,
+  Settings
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { UserPermissionsDialog } from "@/components/UserPermissionsDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -78,11 +80,13 @@ export default function AdminPanel() {
     updateUserRole, 
     blockUser,
     unblockUser,
-    deleteUser 
+    deleteUser,
+    updatePermissions
   } = useAdminUsers();
   const [isChecking, setIsChecking] = useState(true);
   const [blockReason, setBlockReason] = useState("");
   const [userToBlock, setUserToBlock] = useState<string | null>(null);
+  const [permissionsUser, setPermissionsUser] = useState<typeof users[0] | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -350,6 +354,18 @@ export default function AdminPanel() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {/* Permissions Button */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-primary hover:text-primary/80 hover:bg-primary/10"
+                              disabled={isCurrentUser || u.role === 'admin'}
+                              title="Gerenciar permissões"
+                              onClick={() => setPermissionsUser(u)}
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+
                             {/* Block/Unblock Button */}
                             {u.is_blocked ? (
                               <AlertDialog>
@@ -491,6 +507,14 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Permissions Dialog */}
+      <UserPermissionsDialog
+        user={permissionsUser}
+        open={!!permissionsUser}
+        onOpenChange={(open) => !open && setPermissionsUser(null)}
+        onSave={updatePermissions}
+      />
     </div>
   );
 }

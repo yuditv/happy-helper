@@ -3,10 +3,7 @@ import logoFuturistic from '@/assets/logo-red-futuristic.png';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { useReferralNotifications } from '@/hooks/useReferralNotifications';
-import { useReferral } from '@/hooks/useReferral';
 import { useClientTags } from '@/hooks/useClientTags';
-import LevelUpCelebration from '@/components/LevelUpCelebration';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientTable } from '@/components/ClientTable';
@@ -16,7 +13,6 @@ import { ClientStats } from '@/components/ClientStats';
 import { RetentionMetrics } from '@/components/RetentionMetrics';
 import { ClientCharts } from '@/components/ClientCharts';
 import { FinancialReport } from '@/components/FinancialReport';
-import { ReferralCard } from '@/components/ReferralCard';
 import { SearchBar } from '@/components/SearchBar';
 import { PlanFilter } from '@/components/PlanFilter';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
@@ -40,7 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Gift, Trophy, Smartphone, Package, Upload } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Smartphone, Package, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -56,11 +52,8 @@ const Index = () => {
   const { profile } = useProfile();
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, importClients, expiringClients, expiredClients } = useClients();
-  const { pendingReferrals, currentLevel, levelUpTriggered, clearLevelUp } = useReferral();
   const { tags, createTag, updateTag, deleteTag, assignTag, removeTag, getClientTags, getClientsByTag } = useClientTags();
   
-  // Check for referral notifications
-  useReferralNotifications();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -339,11 +332,6 @@ const Index = () => {
 
   return (
     <>
-      {/* Level Up Celebration */}
-      {levelUpTriggered && (
-        <LevelUpCelebration level={currentLevel} onComplete={clearLevelUp} />
-      )}
-      
       <div className="min-h-screen bg-background cyber-grid">
       {/* Header */}
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
@@ -366,13 +354,6 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* Pending Referrals Indicator */}
-              {pendingReferrals > 0 && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30">
-                  <Gift className="h-4 w-4 text-yellow-500" />
-                  <span className="text-sm font-medium text-yellow-500">{pendingReferrals} pendente{pendingReferrals > 1 ? 's' : ''}</span>
-                </div>
-              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="hidden sm:flex glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300">
@@ -447,10 +428,6 @@ const Index = () => {
                   <DropdownMenuItem onClick={() => navigate('/dashboard')} className="hover:bg-primary/10">
                     <BarChart3 className="h-4 w-4 mr-2 text-accent" />
                     Dashboard Geral
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/leaderboard')} className="hover:bg-primary/10">
-                    <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
-                    Ranking
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-border/50" />
                   <DropdownMenuItem onClick={() => navigate('/install')} className="hover:bg-primary/10">
@@ -755,14 +732,9 @@ const Index = () => {
           <ClientCharts clients={clients} />
         </div>
 
-        {/* Financial Report & Referral */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-          <div className="lg:col-span-2">
-            <FinancialReport clients={clients} />
-          </div>
-          <div>
-            <ReferralCard />
-          </div>
+        {/* Financial Report */}
+        <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <FinancialReport clients={clients} />
         </div>
       </main>
 

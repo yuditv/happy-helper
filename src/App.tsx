@@ -14,7 +14,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Leaderboard = lazy(() => import("./pages/Leaderboard"));
+
 const Install = lazy(() => import("./pages/Install"));
 const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
 const ResellerArea = lazy(() => import("./pages/ResellerArea"));
@@ -104,11 +104,6 @@ const AppRoutes = () => (
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Dashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/leaderboard" element={
-        <ProtectedRoute>
-          <Leaderboard />
         </ProtectedRoute>
       } />
       <Route path="/my-dashboard" element={
