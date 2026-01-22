@@ -3,13 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { CircularProgress } from '@/components/ui/circular-progress';
 import { 
   Play, Pause, Square, BarChart3, 
   CheckCircle2, XCircle, Clock, User, Archive 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface DispatchProgressProps {
   progress: {
@@ -145,22 +144,30 @@ export function DispatchProgress({
           )}
         </div>
 
-        {/* Progress Bar */}
+        {/* Circular Progress - Shown during dispatch */}
         {(progress.isRunning || progress.sent > 0 || progress.failed > 0) && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Progresso</span>
-              <span className="font-medium">{percentage}%</span>
-            </div>
-            <Progress value={percentage} className="h-3" />
+          <div className="flex flex-col items-center gap-4">
+            <CircularProgress 
+              value={percentage} 
+              size={140}
+              strokeWidth={10}
+              animated={progress.isRunning && !progress.isPaused}
+            />
+            
+            {/* Current Contact */}
+            {progress.currentContact && progress.isRunning && !progress.isPaused && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                <User className="w-4 h-4" />
+                <span>Enviando para: {progress.currentContact}</span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Current Contact */}
-        {progress.currentContact && progress.isRunning && !progress.isPaused && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
-            <User className="w-4 h-4" />
-            <span>Enviando para: {progress.currentContact}</span>
+        {/* Linear Progress Bar - Compact alternative below circular */}
+        {(progress.isRunning || progress.sent > 0 || progress.failed > 0) && (
+          <div className="space-y-1">
+            <Progress value={percentage} className="h-2" />
           </div>
         )}
 
