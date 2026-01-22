@@ -70,9 +70,9 @@ export function useInboxMacros() {
       .insert({
         user_id: user.id,
         name: data.name,
-        actions: data.actions as unknown as Record<string, unknown>[],
+        actions: JSON.parse(JSON.stringify(data.actions)),
         visibility: data.visibility || "personal",
-      })
+      } as never)
       .select()
       .single();
 
@@ -96,14 +96,14 @@ export function useInboxMacros() {
     actions?: MacroAction[];
     visibility?: "personal" | "global";
   }) => {
-    const updateData = {
-      ...data,
-      actions: data.actions ? (data.actions as unknown as Record<string, unknown>[]) : undefined,
-    };
+    const updateData: Record<string, unknown> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.visibility !== undefined) updateData.visibility = data.visibility;
+    if (data.actions !== undefined) updateData.actions = JSON.parse(JSON.stringify(data.actions));
     
     const { data: updated, error } = await supabase
       .from('inbox_macros')
-      .update(updateData)
+      .update(updateData as never)
       .eq('id', id)
       .select()
       .single();
