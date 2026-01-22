@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Send, Database, CloudOff, Cloud, RefreshCw, ArrowRightLeft, Pencil, Search, Phone, Mail } from "lucide-react";
+import { Plus, Trash2, FileText, Users, Download, Upload, FileSpreadsheet, Database, CloudOff, Cloud, RefreshCw, ArrowRightLeft, Pencil, Search, Phone, Mail, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useContactsSupabase, type Contact, type ImportProgress } from "@/hooks/useContactsSupabase";
+import { useSentContacts } from "@/hooks/useSentContacts";
 import { ContactForm } from "@/components/ContactForm";
+import { SentContactsList } from "@/components/SentContactsList";
 import { exportContactsAsVCard } from "@/lib/exportVCard";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +31,7 @@ import * as XLSX from "xlsx";
 
 export default function Contacts() {
   const { contacts, isLoading, userId, isConfigured, importProgress, addContact, updateContact, deleteContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
+  const { sentContacts, getSentContactCount } = useSentContacts();
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Contact | null>(null);
@@ -36,7 +40,9 @@ export default function Contacts() {
   const [localStorageCount, setLocalStorageCount] = useState(0);
   const [isMigrating, setIsMigrating] = useState(false);
   const [contactCount, setContactCount] = useState(0);
+  const [sentContactCount, setSentContactCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("contacts");
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -113,12 +119,13 @@ export default function Contacts() {
     }
   };
 
-  // Fetch count separately for performance
+  // Fetch counts separately for performance
   useEffect(() => {
     if (userId) {
       getContactCount().then(setContactCount);
+      getSentContactCount().then(setSentContactCount);
     }
-  }, [userId, contacts.length, getContactCount]);
+  }, [userId, contacts.length, sentContacts.length, getContactCount, getSentContactCount]);
 
   const handleSubmit = (data: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
     if (editingContact) {
@@ -383,199 +390,227 @@ export default function Contacts() {
         </Card>
       )}
 
-      {/* Summary Card */}
-      <Card className="border-2">
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-4">
-            <div className="p-4 rounded-full bg-primary/10">
-              <Database className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-3xl font-bold">{contactCount.toLocaleString()}</CardTitle>
-              <CardDescription className="text-base">
-                {contactCount === 1 ? "Contato no banco de dados" : "Contatos no banco de dados"}
-              </CardDescription>
-              {contacts.length !== contactCount && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Exibindo {contacts.length.toLocaleString()} na tela
-                </p>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-6">
-            Seus contatos estão salvos no banco de dados e prontos para uso no disparo em massa. 
-            Importe planilhas ou adicione manualmente.
-          </p>
-          
-          <div className="flex flex-wrap gap-3">
-            {/* Migrate from localStorage */}
-            {localStorageCount > 0 && (
-              <Button 
-                onClick={() => setMigrateConfirm(true)} 
-                variant="default"
-                className="gap-2 bg-amber-600 hover:bg-amber-700"
-              >
-                <ArrowRightLeft className="h-4 w-4" />
-                Migrar {localStorageCount} do localStorage
-              </Button>
-            )}
+      {/* Tabs for contacts and sent contacts */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="contacts" className="gap-2">
+            <Database className="h-4 w-4" />
+            Meus Contatos
+            <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full">
+              {contactCount.toLocaleString()}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="sent" className="gap-2">
+            <Send className="h-4 w-4" />
+            Contatos Enviados
+            <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full">
+              {sentContactCount.toLocaleString()}
+            </span>
+          </TabsTrigger>
+        </TabsList>
 
-            {/* Add Contact */}
-            <Button onClick={() => setFormOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Adicionar Contato
-            </Button>
+        {/* Meus Contatos Tab */}
+        <TabsContent value="contacts" className="space-y-6">
+          {/* Summary Card */}
+          <Card className="border-2">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-4">
+                <div className="p-4 rounded-full bg-primary/10">
+                  <Database className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-3xl font-bold">{contactCount.toLocaleString()}</CardTitle>
+                  <CardDescription className="text-base">
+                    {contactCount === 1 ? "Contato disponível para disparo" : "Contatos disponíveis para disparo"}
+                  </CardDescription>
+                  {contacts.length !== contactCount && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Exibindo {contacts.length.toLocaleString()} na tela
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-6">
+                Seus contatos estão salvos no banco de dados e prontos para uso no disparo em massa. 
+                Após enviar mensagens, eles serão movidos para "Contatos Enviados".
+              </p>
+              
+              <div className="flex flex-wrap gap-3">
+                {/* Migrate from localStorage */}
+                {localStorageCount > 0 && (
+                  <Button 
+                    onClick={() => setMigrateConfirm(true)} 
+                    variant="default"
+                    className="gap-2 bg-amber-600 hover:bg-amber-700"
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Migrar {localStorageCount} do localStorage
+                  </Button>
+                )}
 
-            {/* Import Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Upload className="h-4 w-4" />
-                  Importar
+                {/* Add Contact */}
+                <Button onClick={() => setFormOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Adicionar Contato
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => excelInputRef.current?.click()}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Excel / CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => jsonInputRef.current?.click()}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  JSON (Backup)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
 
-            {contacts.length > 0 && (
-              <>
-                {/* Export Dropdown */}
+                {/* Import Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Exportar
+                      <Upload className="h-4 w-4" />
+                      Importar
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={handleExportJSON}>
+                    <DropdownMenuItem onClick={() => excelInputRef.current?.click()}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Excel / CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => jsonInputRef.current?.click()}>
                       <FileText className="h-4 w-4 mr-2" />
                       JSON (Backup)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportVCard}>
-                      <Users className="h-4 w-4 mr-2" />
-                      vCard
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Clear All */}
-                <Button 
-                  variant="destructive" 
-                  className="gap-2"
-                  onClick={() => setClearAllConfirm(true)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Limpar Lista
-                </Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                {contacts.length > 0 && (
+                  <>
+                    {/* Export Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="gap-2">
+                          <Download className="h-4 w-4" />
+                          Exportar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={handleExportJSON}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          JSON (Backup)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleExportVCard}>
+                          <Users className="h-4 w-4 mr-2" />
+                          vCard
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
-      {/* Contacts List */}
-      {contacts.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <CardTitle className="text-lg">Seus Contatos</CardTitle>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Buscar contatos..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-background"
-                />
+                    {/* Clear All */}
+                    <Button 
+                      variant="destructive" 
+                      className="gap-2"
+                      onClick={() => setClearAllConfirm(true)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Limpar Lista
+                    </Button>
+                  </>
+                )}
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {filteredContacts.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  Nenhum contato encontrado para "{searchQuery}"
-                </p>
-              ) : (
-                filteredContacts.slice(0, 100).map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{contact.name}</p>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {contact.phone}
-                        </span>
-                        {contact.email && (
-                          <span className="flex items-center gap-1 truncate">
-                            <Mail className="h-3 w-3" />
-                            {contact.email}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditContact(contact)}
-                        className="h-8 w-8"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteConfirm(contact)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-              {filteredContacts.length > 100 && (
-                <p className="text-center text-sm text-muted-foreground py-2">
-                  Mostrando 100 de {filteredContacts.length} contatos. Use a busca para filtrar.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
 
-      {/* Empty State Info */}
-      {contacts.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-1">
-              Lista vazia
-            </h3>
-            <p className="text-muted-foreground text-sm max-w-md">
-              Importe uma planilha Excel/CSV com colunas "nome" e "telefone", 
-              ou adicione contatos manualmente para começar.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          {/* Contacts List */}
+          {contacts.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <CardTitle className="text-lg">Seus Contatos</CardTitle>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Buscar contatos..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-background"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {filteredContacts.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">
+                      Nenhum contato encontrado para "{searchQuery}"
+                    </p>
+                  ) : (
+                    filteredContacts.slice(0, 100).map((contact) => (
+                      <div
+                        key={contact.id}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground truncate">{contact.name}</p>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {contact.phone}
+                            </span>
+                            {contact.email && (
+                              <span className="flex items-center gap-1 truncate">
+                                <Mail className="h-3 w-3" />
+                                {contact.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 ml-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditContact(contact)}
+                            className="h-8 w-8"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteConfirm(contact)}
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {filteredContacts.length > 100 && (
+                    <p className="text-center text-sm text-muted-foreground py-2">
+                      Mostrando 100 de {filteredContacts.length} contatos. Use a busca para filtrar.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Empty State Info */}
+          {contacts.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-1">
+                  Lista vazia
+                </h3>
+                <p className="text-muted-foreground text-sm max-w-md">
+                  Importe uma planilha Excel/CSV com colunas "nome" e "telefone", 
+                  ou adicione contatos manualmente para começar.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Contatos Enviados Tab */}
+        <TabsContent value="sent">
+          <SentContactsList />
+        </TabsContent>
+      </Tabs>
 
       {/* Contact Form Dialog */}
       <ContactForm

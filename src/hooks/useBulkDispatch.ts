@@ -12,6 +12,7 @@ export interface DispatchContact {
   link?: string;
   email?: string;
   variables?: Record<string, string>;
+  originalId?: string; // ID do contato original se veio de "Meus Contatos"
 }
 
 export interface DispatchMessage {
@@ -307,6 +308,31 @@ export function useBulkDispatch() {
 
         sentCount++;
         addLog('success', `✓ ${contact.name || phone}`);
+
+        // Move contact to sent_contacts if it came from saved contacts
+        if (contact.originalId) {
+          try {
+            // Insert into sent_contacts
+            await (supabase as any).from('sent_contacts').insert({
+              user_id: user.id,
+              name: contact.name || phone,
+              phone: phone,
+              email: contact.email || null,
+              original_contact_id: contact.originalId,
+              dispatch_history_id: historyRecord?.id || null,
+              sent_at: new Date().toISOString(),
+            });
+
+            // Delete from contacts
+            await (supabase as any)
+              .from('contacts')
+              .delete()
+              .eq('id', contact.originalId)
+              .eq('user_id', user.id);
+          } catch (moveErr) {
+            console.error('Error moving contact to sent:', moveErr);
+          }
+        }
 
         // Log to notification history
         await supabase.from('notification_history').insert({

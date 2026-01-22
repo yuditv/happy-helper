@@ -106,7 +106,8 @@ export function BulkDispatcher() {
       expires_at: c.expires_at,
       link: c.link,
       email: c.email,
-      variables: c.variables
+      variables: c.variables,
+      originalId: c.originalId // Pass originalId to track saved contacts
     })));
   }, [setContacts]);
 
@@ -188,9 +189,11 @@ export function BulkDispatcher() {
     contacts.length > 0 &&
     !progress.isRunning;
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const selectedInstances = instances.filter(i => config.instanceIds.includes(i.id));
-    startDispatch(selectedInstances);
+    await startDispatch(selectedInstances);
+    // Refresh saved contacts after dispatch to reflect moved contacts
+    refreshSavedContacts();
   };
 
   // Config management handlers
