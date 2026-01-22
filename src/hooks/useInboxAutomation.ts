@@ -78,10 +78,10 @@ export function useInboxAutomation() {
         name: data.name,
         description: data.description || null,
         event_type: data.event_type,
-        conditions: (data.conditions || {}) as Record<string, unknown>,
-        actions: data.actions as unknown as Record<string, unknown>[],
+        conditions: JSON.parse(JSON.stringify(data.conditions || {})),
+        actions: JSON.parse(JSON.stringify(data.actions)),
         is_active: data.is_active ?? true,
-      })
+      } as never)
       .select()
       .single();
 
@@ -108,15 +108,17 @@ export function useInboxAutomation() {
     actions?: AutomationAction[];
     is_active?: boolean;
   }) => {
-    const updateData = {
-      ...data,
-      conditions: data.conditions as Record<string, unknown> | undefined,
-      actions: data.actions ? (data.actions as unknown as Record<string, unknown>[]) : undefined,
-    };
+    const updateData: Record<string, unknown> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.event_type !== undefined) updateData.event_type = data.event_type;
+    if (data.is_active !== undefined) updateData.is_active = data.is_active;
+    if (data.conditions !== undefined) updateData.conditions = JSON.parse(JSON.stringify(data.conditions));
+    if (data.actions !== undefined) updateData.actions = JSON.parse(JSON.stringify(data.actions));
     
     const { data: updated, error } = await supabase
       .from('inbox_automation_rules')
-      .update(updateData)
+      .update(updateData as never)
       .eq('id', id)
       .select()
       .single();
