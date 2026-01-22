@@ -34,6 +34,7 @@ import {
 import { WhatsAppInstance } from '@/hooks/useWhatsAppInstances';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { MediaUploader, MediaType as UploaderMediaType } from '@/components/BulkDispatcher/MediaUploader';
 
 interface WhatsAppStatusProps {
   instances: WhatsAppInstance[];
@@ -76,12 +77,17 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
   const [balanceMode, setBalanceMode] = useState<BalanceMode>('manual');
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(new Set());
   const [isSending, setIsSending] = useState(false);
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaFilename, setMediaFilename] = useState('');
+  const [mediaMimetype, setMediaMimetype] = useState('');
   const [batchList, setBatchList] = useState<Array<{
     id: string;
     type: StatusType;
     text: string;
     backgroundColor: string;
     fontStyle: number;
+    mediaUrl?: string;
+    mediaFilename?: string;
   }>>([]);
 
   const connectedInstances = useMemo(() => 
@@ -120,6 +126,12 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
       return;
     }
 
+    if ((statusType === 'image' || statusType === 'video' || statusType === 'audio') && !mediaUrl) {
+      const mediaLabel = statusType === 'image' ? 'uma imagem' : statusType === 'video' ? 'um vídeo' : 'um áudio';
+      toast.error(`Selecione ${mediaLabel}`);
+      return;
+    }
+
     setIsSending(true);
     
     // Simulate sending - in real implementation, call Supabase edge function
@@ -129,9 +141,34 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
     setIsSending(false);
   };
 
+  const handleStatusTypeChange = (newType: StatusType) => {
+    setStatusType(newType);
+    setMediaUrl('');
+    setMediaFilename('');
+    setMediaMimetype('');
+  };
+
+  const handleMediaUpload = (url: string, filename: string, mimetype: string) => {
+    setMediaUrl(url);
+    setMediaFilename(filename);
+    setMediaMimetype(mimetype);
+  };
+
+  const handleMediaRemove = () => {
+    setMediaUrl('');
+    setMediaFilename('');
+    setMediaMimetype('');
+  };
+
   const handleAddToBatch = () => {
     if (statusType === 'text' && !text.trim()) {
       toast.error('Digite o texto do status');
+      return;
+    }
+
+    if ((statusType === 'image' || statusType === 'video' || statusType === 'audio') && !mediaUrl) {
+      const mediaLabel = statusType === 'image' ? 'uma imagem' : statusType === 'video' ? 'um vídeo' : 'um áudio';
+      toast.error(`Selecione ${mediaLabel}`);
       return;
     }
 
@@ -141,9 +178,12 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
       text,
       backgroundColor,
       fontStyle,
+      mediaUrl,
+      mediaFilename,
     }]);
 
     setText('');
+    handleMediaRemove();
     toast.success('Adicionado à lista de lote!');
   };
 
@@ -289,7 +329,7 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
                     ].map((type) => (
                       <button
                         key={type.id}
-                        onClick={() => setStatusType(type.id as StatusType)}
+                        onClick={() => handleStatusTypeChange(type.id as StatusType)}
                         className={cn(
                           "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all text-center",
                           statusType === type.id
@@ -334,11 +374,13 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
 
                   {statusType === 'image' && (
                     <div className="space-y-4">
-                      <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                        <Image className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-2">Arraste uma imagem ou clique para selecionar</p>
-                        <Button variant="outline">Selecionar Imagem</Button>
-                      </div>
+                      <MediaUploader
+                        type="image"
+                        currentUrl={mediaUrl}
+                        currentFilename={mediaFilename}
+                        onUpload={handleMediaUpload}
+                        onRemove={handleMediaRemove}
+                      />
                       <div className="space-y-2">
                         <Label>Legenda (opcional)</Label>
                         <Textarea
@@ -353,11 +395,13 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
 
                   {statusType === 'video' && (
                     <div className="space-y-4">
-                      <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                        <Video className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-2">Arraste um vídeo ou clique para selecionar</p>
-                        <Button variant="outline">Selecionar Vídeo</Button>
-                      </div>
+                      <MediaUploader
+                        type="video"
+                        currentUrl={mediaUrl}
+                        currentFilename={mediaFilename}
+                        onUpload={handleMediaUpload}
+                        onRemove={handleMediaRemove}
+                      />
                       <div className="space-y-2">
                         <Label>Legenda (opcional)</Label>
                         <Textarea
@@ -372,11 +416,13 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
 
                   {statusType === 'audio' && (
                     <div className="space-y-4">
-                      <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                        <Mic className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-2">Arraste um áudio ou clique para selecionar</p>
-                        <Button variant="outline">Selecionar Áudio</Button>
-                      </div>
+                      <MediaUploader
+                        type="audio"
+                        currentUrl={mediaUrl}
+                        currentFilename={mediaFilename}
+                        onUpload={handleMediaUpload}
+                        onRemove={handleMediaRemove}
+                      />
                     </div>
                   )}
                 </CardContent>
@@ -493,7 +539,7 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
                 <CardContent>
                   <div className="flex justify-center">
                     <div 
-                      className="w-64 h-[400px] rounded-2xl flex items-center justify-center p-6 text-center shadow-lg"
+                      className="w-64 h-[400px] rounded-2xl flex items-center justify-center p-6 text-center shadow-lg overflow-hidden"
                       style={{ backgroundColor: statusType === 'text' ? backgroundColor : '#6B7280' }}
                     >
                       {statusType === 'text' ? (
@@ -501,20 +547,35 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
                           {text || 'Seu texto aparecerá aqui...'}
                         </p>
                       ) : statusType === 'image' ? (
-                        <div className="flex flex-col items-center gap-4 text-white/60">
-                          <Image className="h-16 w-16" />
-                          <span>Preview da imagem</span>
-                        </div>
+                        mediaUrl ? (
+                          <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="flex flex-col items-center gap-4 text-white/60">
+                            <Image className="h-16 w-16" />
+                            <span>Preview da imagem</span>
+                          </div>
+                        )
                       ) : statusType === 'video' ? (
-                        <div className="flex flex-col items-center gap-4 text-white/60">
-                          <Video className="h-16 w-16" />
-                          <span>Preview do vídeo</span>
-                        </div>
+                        mediaUrl ? (
+                          <video src={mediaUrl} className="w-full h-full object-cover" controls />
+                        ) : (
+                          <div className="flex flex-col items-center gap-4 text-white/60">
+                            <Video className="h-16 w-16" />
+                            <span>Preview do vídeo</span>
+                          </div>
+                        )
                       ) : (
-                        <div className="flex flex-col items-center gap-4 text-white/60">
-                          <Mic className="h-16 w-16" />
-                          <span>Preview do áudio</span>
-                        </div>
+                        mediaUrl ? (
+                          <div className="flex flex-col items-center gap-4 text-white w-full">
+                            <Mic className="h-16 w-16" />
+                            <audio src={mediaUrl} controls className="w-full" />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-4 text-white/60">
+                            <Mic className="h-16 w-16" />
+                            <span>Preview do áudio</span>
+                          </div>
+                        )
                       )}
                     </div>
                   </div>
