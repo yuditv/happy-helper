@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.warming-worker]
 verify_jwt = false
+
+[functions.scheduled-dispatcher]
+verify_jwt = false
+
+[functions.renewal-reminder-scheduler]
+verify_jwt = false

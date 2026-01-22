@@ -488,6 +488,98 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // CHECK-NUMBER - Verify if numbers have WhatsApp
+    if (action === "check-number" && entityId) {
+      const phones = body.phones as string[];
+      const fetchName = body.fetchName as boolean ?? false;
+      
+      if (!phones || !Array.isArray(phones) || phones.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "Lista de telefones é obrigatória" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: instance, error } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("id", entityId)
+        .single();
+
+      if (error || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instance not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância não inicializada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (instance.status !== "connected") {
+        return new Response(
+          JSON.stringify({ error: "Instância não está conectada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const results = [];
+      
+      for (const phone of phones) {
+        try {
+          // Format phone number
+          let formattedPhone = phone.replace(/[^\d]/g, '');
+          if (!formattedPhone.startsWith('55') && formattedPhone.length <= 11) {
+            formattedPhone = '55' + formattedPhone;
+          }
+
+          console.log(`Checking number: ${formattedPhone}`);
+          
+          // Call UAZAPI checkNumber endpoint
+          const checkResponse = await fetch(`${uazapiUrl}/chat/checkNumber`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "token": instance.instance_key,
+            },
+            body: JSON.stringify({ 
+              number: formattedPhone 
+            }),
+          });
+
+          const checkData = await checkResponse.json();
+          console.log(`Check result for ${formattedPhone}:`, JSON.stringify(checkData));
+
+          const exists = checkData.exists === true || checkData.isRegistered === true || checkData.numberExists === true;
+          
+          results.push({
+            phone: formattedPhone,
+            exists,
+            whatsappName: fetchName && exists ? (checkData.name || checkData.pushName || checkData.verifiedName || null) : null,
+          });
+
+          // Small delay between requests to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (e) {
+          console.error(`Error checking ${phone}:`, e);
+          results.push({
+            phone,
+            exists: false,
+            error: String(e),
+          });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, results }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
