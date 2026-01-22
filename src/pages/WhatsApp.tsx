@@ -71,7 +71,6 @@ import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
 import { WhatsAppAgents } from '@/components/WhatsAppAgents';
-import { WhatsAppNumberFilter } from '@/components/WhatsAppNumberFilter';
 import { WhatsAppWarming } from '@/components/WhatsAppWarming';
 
 interface DispatchResult {
@@ -523,10 +522,6 @@ export default function WhatsApp() {
             <CircleDot className="h-4 w-4" />
             <span className="hidden sm:inline">Status</span>
           </TabsTrigger>
-          <TabsTrigger value="filter" className="gap-2">
-            <Search className="h-4 w-4" />
-            <span className="hidden sm:inline">Filtro</span>
-          </TabsTrigger>
           <TabsTrigger value="agents" className="gap-2">
             <Bot className="h-4 w-4" />
             <span className="hidden sm:inline">Agente IA</span>
@@ -699,11 +694,6 @@ export default function WhatsApp() {
               )}
             </div>
           </div>
-        </TabsContent>
-
-        {/* Filter Tab */}
-        <TabsContent value="filter" className="space-y-4">
-          <WhatsAppNumberFilter />
         </TabsContent>
 
         {/* Agents Tab */}
