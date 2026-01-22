@@ -70,7 +70,6 @@ import { CreateCampaignDialog } from '@/components/CreateCampaignDialog';
 import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
-import { WhatsAppAgents } from '@/components/WhatsAppAgents';
 import { WhatsAppWarming } from '@/components/WhatsAppWarming';
 
 interface DispatchResult {
@@ -522,10 +521,6 @@ export default function WhatsApp() {
             <CircleDot className="h-4 w-4" />
             <span className="hidden sm:inline">Status</span>
           </TabsTrigger>
-          <TabsTrigger value="agents" className="gap-2">
-            <Bot className="h-4 w-4" />
-            <span className="hidden sm:inline">Agente IA</span>
-          </TabsTrigger>
           <TabsTrigger value="instances" className="gap-2">
             <Smartphone className="h-4 w-4" />
             <span className="hidden sm:inline">Instâncias</span>
@@ -696,10 +691,7 @@ export default function WhatsApp() {
           </div>
         </TabsContent>
 
-        {/* Agents Tab */}
-        <TabsContent value="agents" className="space-y-4">
-          <WhatsAppAgents />
-        </TabsContent>
+        {/* Instances Tab */}
 
         {/* Instances Tab */}
         <TabsContent value="instances" className="space-y-4">

@@ -10,6 +10,7 @@ const ResellerArea = lazy(() => import("@/pages/ResellerArea"));
 const Contacts = lazy(() => import("@/pages/Contacts"));
 const WhatsApp = lazy(() => import("@/pages/WhatsApp"));
 const FilterNumbers = lazy(() => import("@/pages/FilterNumbers"));
+const AIAgent = lazy(() => import("@/pages/AIAgent"));
 
 const ContentLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
@@ -30,6 +31,8 @@ export function MainLayout() {
         return <WhatsApp />;
       case "filter-numbers":
         return <FilterNumbers />;
+      case "ai-agent":
+        return <AIAgent />;
       case "revenda":
         return <ResellerArea />;
       case "vpn":
