@@ -242,6 +242,19 @@ export function useInboxConversations() {
     toast({ title: enabled ? 'IA ativada' : 'IA desativada' });
   };
 
+  const snoozeConversation = async (conversationId: string, until: Date) => {
+    await updateConversation(conversationId, { 
+      status: 'snoozed',
+      snoozed_until: until.toISOString()
+    });
+    toast({ title: 'Conversa adiada' });
+  };
+
+  const setPriority = async (conversationId: string, priority: 'low' | 'medium' | 'high' | 'urgent') => {
+    await updateConversation(conversationId, { priority });
+    toast({ title: 'Prioridade atualizada' });
+  };
+
   const markAsRead = async (conversationId: string) => {
     await updateConversation(conversationId, { unread_count: 0 });
     
@@ -318,6 +331,8 @@ export function useInboxConversations() {
     resolveConversation,
     reopenConversation,
     toggleAI,
-    markAsRead
+    markAsRead,
+    snoozeConversation,
+    setPriority
   };
 }

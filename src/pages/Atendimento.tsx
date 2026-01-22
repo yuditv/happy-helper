@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, RefreshCw, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useInboxConversations, Conversation } from "@/hooks/useInboxConversations";
-import { useInboxMessages } from "@/hooks/useInboxMessages";
+import { useInboxMessages, ChatMessage } from "@/hooks/useInboxMessages";
 import { useAgentStatus } from "@/hooks/useAgentStatus";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
+import { useAutomationTriggers } from "@/hooks/useAutomationTriggers";
 import { InboxSidebar } from "@/components/Inbox/InboxSidebar";
 import { ConversationList } from "@/components/Inbox/ConversationList";
 import { ChatPanel } from "@/components/Inbox/ChatPanel";
@@ -18,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Atendimento() {
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ export default function Atendimento() {
   const [activeTab, setActiveTab] = useState<'conversations' | 'dashboard'>('conversations');
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [lastProcessedMessageId, setLastProcessedMessageId] = useState<string | null>(null);
 
   const { instances } = useWhatsAppInstances();
   const { agents, myStatus, updateStatus } = useAgentStatus();
@@ -44,7 +47,9 @@ export default function Atendimento() {
     resolveConversation,
     reopenConversation,
     toggleAI,
-    markAsRead
+    markAsRead,
+    snoozeConversation,
+    setPriority
   } = useInboxConversations();
 
   const {
@@ -54,7 +59,91 @@ export default function Atendimento() {
     sendMessage
   } = useInboxMessages(selectedConversation?.id || null);
 
-  // Apply search filter
+  // Automation triggers callbacks
+  const automationCallbacks = {
+    onSendMessage: useCallback(async (conversationId: string, content: string, isPrivate?: boolean) => {
+      // Implementation for sending message to specific conversation
+      const { error } = await supabase
+        .from('chat_inbox_messages')
+        .insert({
+          conversation_id: conversationId,
+          content,
+          sender_type: isPrivate ? 'agent' : 'agent',
+          is_private: isPrivate || false,
+        });
+      return !error;
+    }, []),
+    onAssignLabel: useCallback(async (conversationId: string, labelId: string) => {
+      await supabase
+        .from('conversation_labels')
+        .insert({ conversation_id: conversationId, label_id: labelId });
+    }, []),
+    onResolve: useCallback(async (conversationId: string) => {
+      await supabase
+        .from('conversations')
+        .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+        .eq('id', conversationId);
+    }, []),
+    onToggleAI: useCallback(async (conversationId: string, enabled: boolean) => {
+      await supabase
+        .from('conversations')
+        .update({ ai_enabled: enabled })
+        .eq('id', conversationId);
+    }, []),
+    onSnooze: useCallback(async (conversationId: string, until: Date) => {
+      await supabase
+        .from('conversations')
+        .update({ status: 'snoozed', snoozed_until: until.toISOString() })
+        .eq('id', conversationId);
+    }, []),
+    onSetPriority: useCallback(async (conversationId: string, priority: string) => {
+      await supabase
+        .from('conversations')
+        .update({ priority })
+        .eq('id', conversationId);
+    }, []),
+  };
+
+  const { triggerMessageCreated, triggerConversationCreated } = useAutomationTriggers(automationCallbacks);
+
+  // Real-time message listener for automation triggers
+  useEffect(() => {
+    const channel = supabase
+      .channel('automation-triggers')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_inbox_messages' },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage;
+          
+          // Only trigger for incoming messages from contacts
+          if (newMessage.sender_type === 'contact' && newMessage.id !== lastProcessedMessageId) {
+            setLastProcessedMessageId(newMessage.id);
+            
+            // Find the conversation for this message
+            const conversation = conversations.find(c => c.id === newMessage.conversation_id);
+            if (conversation) {
+              console.log('[Automation] New message received, checking triggers...');
+              triggerMessageCreated(conversation, newMessage);
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'conversations' },
+        (payload) => {
+          const newConversation = payload.new as Conversation;
+          console.log('[Automation] New conversation created, checking triggers...');
+          triggerConversationCreated(newConversation);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversations, triggerMessageCreated, triggerConversationCreated, lastProcessedMessageId]);
   useEffect(() => {
     const timer = setTimeout(() => {
       setFilter(prev => ({ ...prev, search: searchQuery || undefined }));

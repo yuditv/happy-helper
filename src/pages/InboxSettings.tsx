@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Settings, Users, UserPlus, Tag, MessageSquare, Zap, Play, ScrollText } from "lucide-react";
+import { ArrowLeft, Settings, Users, UserPlus, Tag, MessageSquare, Zap, Play, ScrollText, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +12,7 @@ import { TeamsSettings } from "@/components/Inbox/Settings/TeamsSettings";
 import { MacrosSettings } from "@/components/Inbox/Settings/MacrosSettings";
 import { AutomationSettings } from "@/components/Inbox/Settings/AutomationSettings";
 import { AuditLogsSettings } from "@/components/Inbox/Settings/AuditLogsSettings";
+import { BusinessHoursSettings } from "@/components/Inbox/Settings/BusinessHoursSettings";
 
 type SettingsSection = 
   | "canned-responses"
@@ -19,6 +20,7 @@ type SettingsSection =
   | "teams"
   | "macros"
   | "automation"
+  | "business-hours"
   | "audit-logs";
 
 interface MenuItem {
@@ -56,8 +58,14 @@ const menuItems: MenuItem[] = [
   {
     id: "automation",
     title: "Automação",
-    description: "Regras automáticas de atribuição",
+    description: "Regras baseadas em eventos",
     icon: Zap,
+  },
+  {
+    id: "business-hours",
+    title: "Horário Comercial",
+    description: "Expediente por instância",
+    icon: Clock,
   },
   {
     id: "audit-logs",
@@ -83,6 +91,8 @@ export default function InboxSettings() {
         return <MacrosSettings />;
       case "automation":
         return <AutomationSettings />;
+      case "business-hours":
+        return <BusinessHoursSettings />;
       case "audit-logs":
         return <AuditLogsSettings />;
       default:
