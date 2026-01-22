@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Send, RotateCcw } from 'lucide-react';
 import { InstanceSelector } from './InstanceSelector';
 import { MessageComposer } from './MessageComposer';
-import { ContactsManager, Contact } from './ContactsManager';
+import { ContactsManager, Contact, SavedContact } from './ContactsManager';
 import { TimingConfig } from './TimingConfig';
 import { SendingWindow } from './SendingWindow';
 import { DispatchProgress } from './DispatchProgress';
@@ -12,6 +12,7 @@ import { ConfigManager } from './ConfigManager';
 import { useBulkDispatch, DispatchMessage } from '@/hooks/useBulkDispatch';
 import { useDispatchConfigs } from '@/hooks/useDispatchConfigs';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
+import { useContactsSupabase } from '@/hooks/useContactsSupabase';
 import { useToast } from '@/hooks/use-toast';
 
 export function BulkDispatcher() {
@@ -39,6 +40,26 @@ export function BulkDispatcher() {
     deleteConfig,
     configToDispatchConfig,
   } = useDispatchConfigs();
+
+  // Saved contacts from database
+  const {
+    contacts: savedContactsRaw,
+    isLoading: savedContactsLoading,
+    refetch: refreshSavedContacts
+  } = useContactsSupabase();
+
+  // Map saved contacts to the expected format
+  const [savedContacts, setSavedContacts] = useState<SavedContact[]>([]);
+  
+  useEffect(() => {
+    setSavedContacts(savedContactsRaw.map(c => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email || undefined,
+      notes: c.notes || undefined
+    })));
+  }, [savedContactsRaw]);
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
@@ -217,6 +238,9 @@ export function BulkDispatcher() {
             onVerifyChange={(verify) => updateConfig({ verifyNumbers: verify })}
             isVerifying={isVerifying}
             verificationProgress={verificationProgress}
+            savedContacts={savedContacts}
+            isLoadingSaved={savedContactsLoading}
+            onRefreshSaved={refreshSavedContacts}
           />
 
           {/* Verify Button */}
