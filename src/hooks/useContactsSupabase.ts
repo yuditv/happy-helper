@@ -46,7 +46,7 @@ export interface ImportProgress {
 
 export function useContactsSupabase() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isConfigured] = useState(true);
   const [importProgress, setImportProgress] = useState<ImportProgress>({
@@ -54,6 +54,15 @@ export function useContactsSupabase() {
     total: 0,
     isImporting: false,
   });
+  
+  // Pagination state for lazy loading
+  const [pagination, setPagination] = useState({
+    page: 0,
+    pageSize: 100,
+    hasMore: true,
+    totalCount: 0,
+  });
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
   // Get current user
   useEffect(() => {
@@ -70,7 +79,26 @@ export function useContactsSupabase() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch contacts - paginate through all results to bypass 1000 limit
+  // Fetch a single page of contacts
+  const fetchContactsPage = useCallback(async (page: number, pageSize: number, reset = false) => {
+    if (!userId) return { data: [], hasMore: false };
+
+    const { data, error } = await (supabase as any)
+      .from("contacts")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) throw error;
+    
+    const mappedData = (data || []).map(mapDbToContact);
+    const hasMore = data?.length === pageSize;
+    
+    return { data: mappedData, hasMore };
+  }, [userId]);
+
+  // Initial load - just get the first page (lazy loading)
   const fetchContacts = useCallback(async () => {
     if (!userId) {
       setContacts([]);
@@ -81,47 +109,86 @@ export function useContactsSupabase() {
     try {
       setIsLoading(true);
       
-      // Fetch all contacts using pagination to bypass Supabase 1000 row limit
-      const allContacts: DbContact[] = [];
-      const pageSize = 1000;
-      let page = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await (supabase as any)
-          .from("contacts")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .range(page * pageSize, (page + 1) * pageSize - 1);
-
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          allContacts.push(...data);
-          page++;
-          hasMore = data.length === pageSize;
-        } else {
-          hasMore = false;
-        }
-      }
+      // Get total count first
+      const { count, error: countError } = await (supabase as any)
+        .from("contacts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId);
       
-      setContacts(allContacts.map(mapDbToContact));
+      if (countError) throw countError;
+      
+      // Fetch first page only
+      const { data, hasMore } = await fetchContactsPage(0, pagination.pageSize, true);
+      
+      setContacts(data);
+      setPagination(prev => ({
+        ...prev,
+        page: 0,
+        hasMore,
+        totalCount: count || 0,
+      }));
+      setHasInitialLoad(true);
     } catch (error) {
       console.error("Error fetching contacts:", error);
       toast.error("Erro ao carregar contatos do banco de dados");
     } finally {
       setIsLoading(false);
     }
+  }, [userId, fetchContactsPage, pagination.pageSize]);
+
+  // Load more contacts (pagination)
+  const loadMoreContacts = useCallback(async () => {
+    if (!userId || isLoading || !pagination.hasMore) return;
+
+    try {
+      setIsLoading(true);
+      const nextPage = pagination.page + 1;
+      const { data, hasMore } = await fetchContactsPage(nextPage, pagination.pageSize);
+      
+      setContacts(prev => [...prev, ...data]);
+      setPagination(prev => ({
+        ...prev,
+        page: nextPage,
+        hasMore,
+      }));
+    } catch (error) {
+      console.error("Error loading more contacts:", error);
+      toast.error("Erro ao carregar mais contatos");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, isLoading, pagination.page, pagination.pageSize, pagination.hasMore, fetchContactsPage]);
+
+  // Search contacts on the server (for large datasets)
+  const searchContactsRemote = useCallback(async (query: string, limit = 100): Promise<Contact[]> => {
+    if (!userId || !query.trim()) return [];
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from("contacts")
+        .select("*")
+        .eq("user_id", userId)
+        .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(mapDbToContact);
+    } catch (error) {
+      console.error("Error searching contacts:", error);
+      return [];
+    }
   }, [userId]);
 
-  useEffect(() => {
-    fetchContacts();
-  }, [fetchContacts]);
+  // Don't auto-load on mount - wait for explicit call
+  // This prevents the freeze when navigating to pages with this hook
 
   // Get total count
   const getContactCount = useCallback(async (): Promise<number> => {
     if (!userId) return 0;
+    
+    // Return cached count if available
+    if (pagination.totalCount > 0) return pagination.totalCount;
     
     const { count, error } = await (supabase as any)
       .from("contacts")
@@ -134,7 +201,7 @@ export function useContactsSupabase() {
     }
     
     return count || 0;
-  }, [userId, contacts.length]);
+  }, [userId, contacts.length, pagination.totalCount]);
 
   const addContact = async (data: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
     if (!userId) {
@@ -360,14 +427,18 @@ export function useContactsSupabase() {
     userId,
     isConfigured,
     importProgress,
+    pagination,
+    hasInitialLoad,
     addContact,
     updateContact,
     deleteContact,
     searchContacts,
+    searchContactsRemote,
     importContacts,
     clearAllContacts,
     getContactCount,
     getAllPhoneNumbers,
+    loadMoreContacts,
     refetch: fetchContacts,
   };
 }
