@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_status: {
+        Row: {
+          auto_offline: boolean | null
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_offline?: boolean | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_offline?: boolean | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_agents: {
         Row: {
           color: string | null
@@ -352,6 +382,59 @@ export type Database = {
           },
         ]
       }
+      chat_inbox_messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          is_private: boolean | null
+          is_read: boolean | null
+          media_type: string | null
+          media_url: string | null
+          metadata: Json | null
+          sender_id: string | null
+          sender_type: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_private?: boolean | null
+          is_read?: boolean | null
+          media_type?: string | null
+          media_url?: string | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_private?: boolean | null
+          is_read?: boolean | null
+          media_type?: string | null
+          media_url?: string | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_inbox_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_tag_assignments: {
         Row: {
           client_id: string
@@ -502,6 +585,105 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_labels: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          label_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          label_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          label_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_labels_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_labels_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_labels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          ai_enabled: boolean | null
+          assigned_to: string | null
+          contact_avatar: string | null
+          contact_name: string | null
+          created_at: string
+          first_reply_at: string | null
+          id: string
+          instance_id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          phone: string
+          priority: string | null
+          resolved_at: string | null
+          snoozed_until: string | null
+          status: string
+          unread_count: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_enabled?: boolean | null
+          assigned_to?: string | null
+          contact_avatar?: string | null
+          contact_name?: string | null
+          created_at?: string
+          first_reply_at?: string | null
+          id?: string
+          instance_id: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          phone: string
+          priority?: string | null
+          resolved_at?: string | null
+          snoozed_until?: string | null
+          status?: string
+          unread_count?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_enabled?: boolean | null
+          assigned_to?: string | null
+          contact_avatar?: string | null
+          contact_name?: string | null
+          created_at?: string
+          first_reply_at?: string | null
+          id?: string
+          instance_id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          phone?: string
+          priority?: string | null
+          resolved_at?: string | null
+          snoozed_until?: string | null
+          status?: string
+          unread_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dispatch_configs: {
         Row: {
           ai_personalization: boolean | null
@@ -577,6 +759,36 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           verify_numbers?: boolean | null
+        }
+        Relationships: []
+      }
+      inbox_labels: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -900,6 +1112,7 @@ export type Database = {
           can_manage_campaigns: boolean | null
           can_manage_clients: boolean | null
           can_manage_contacts: boolean | null
+          can_manage_inbox: boolean | null
           can_manage_warming: boolean | null
           can_manage_whatsapp: boolean | null
           can_send_dispatches: boolean | null
@@ -909,6 +1122,7 @@ export type Database = {
           can_view_contacts: boolean | null
           can_view_dashboard: boolean | null
           can_view_dispatches: boolean | null
+          can_view_inbox: boolean | null
           can_view_reports: boolean | null
           can_view_reseller: boolean | null
           can_view_settings: boolean | null
@@ -923,6 +1137,7 @@ export type Database = {
           can_manage_campaigns?: boolean | null
           can_manage_clients?: boolean | null
           can_manage_contacts?: boolean | null
+          can_manage_inbox?: boolean | null
           can_manage_warming?: boolean | null
           can_manage_whatsapp?: boolean | null
           can_send_dispatches?: boolean | null
@@ -932,6 +1147,7 @@ export type Database = {
           can_view_contacts?: boolean | null
           can_view_dashboard?: boolean | null
           can_view_dispatches?: boolean | null
+          can_view_inbox?: boolean | null
           can_view_reports?: boolean | null
           can_view_reseller?: boolean | null
           can_view_settings?: boolean | null
@@ -946,6 +1162,7 @@ export type Database = {
           can_manage_campaigns?: boolean | null
           can_manage_clients?: boolean | null
           can_manage_contacts?: boolean | null
+          can_manage_inbox?: boolean | null
           can_manage_warming?: boolean | null
           can_manage_whatsapp?: boolean | null
           can_send_dispatches?: boolean | null
@@ -955,6 +1172,7 @@ export type Database = {
           can_view_contacts?: boolean | null
           can_view_dashboard?: boolean | null
           can_view_dispatches?: boolean | null
+          can_view_inbox?: boolean | null
           can_view_reports?: boolean | null
           can_view_reseller?: boolean | null
           can_view_settings?: boolean | null
