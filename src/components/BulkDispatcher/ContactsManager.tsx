@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,12 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, Upload, FileSpreadsheet, Trash2, 
-  Check, X, Loader2, Download, AlertCircle 
+  Check, X, Loader2, Download, AlertCircle,
+  Database, Search, Plus
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export interface Contact {
   phone: string;
@@ -27,6 +31,14 @@ export interface Contact {
   whatsappName?: string;
 }
 
+export interface SavedContact {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+}
+
 interface ContactsManagerProps {
   contacts: Contact[];
   verifyNumbers: boolean;
@@ -35,6 +47,9 @@ interface ContactsManagerProps {
   onVerifyContacts?: (contacts: Contact[]) => Promise<Contact[]>;
   isVerifying?: boolean;
   verificationProgress?: number;
+  savedContacts?: SavedContact[];
+  isLoadingSaved?: boolean;
+  onRefreshSaved?: () => void;
 }
 
 export function ContactsManager({
@@ -44,12 +59,19 @@ export function ContactsManager({
   onVerifyChange,
   onVerifyContacts,
   isVerifying = false,
-  verificationProgress = 0
+  verificationProgress = 0,
+  savedContacts = [],
+  isLoadingSaved = false,
+  onRefreshSaved
 }: ContactsManagerProps) {
   const [manualInput, setManualInput] = useState('');
   const [activeTab, setActiveTab] = useState('manual');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // State for saved contacts tab
+  const [savedSearch, setSavedSearch] = useState('');
+  const [selectedSavedIds, setSelectedSavedIds] = useState<Set<string>>(new Set());
 
   const parseManualInput = useCallback((text: string): Contact[] => {
     const lines = text.split('\n').filter(line => line.trim());
@@ -180,6 +202,67 @@ export function ContactsManager({
     URL.revokeObjectURL(url);
   };
 
+  // Filter saved contacts by search
+  const filteredSavedContacts = useMemo(() => {
+    if (!savedSearch.trim()) return savedContacts;
+    const search = savedSearch.toLowerCase();
+    return savedContacts.filter(c => 
+      c.name.toLowerCase().includes(search) ||
+      c.phone.includes(search)
+    );
+  }, [savedContacts, savedSearch]);
+
+  // Toggle contact selection
+  const toggleSavedContact = useCallback((id: string) => {
+    setSelectedSavedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Select all visible contacts
+  const selectAllSaved = useCallback(() => {
+    if (selectedSavedIds.size === filteredSavedContacts.length) {
+      setSelectedSavedIds(new Set());
+    } else {
+      setSelectedSavedIds(new Set(filteredSavedContacts.map(c => c.id)));
+    }
+  }, [filteredSavedContacts, selectedSavedIds.size]);
+
+  // Add selected saved contacts to dispatch list
+  const handleAddSavedContacts = useCallback(() => {
+    const existingPhones = new Set(contacts.map(c => c.phone));
+    const selectedContacts = savedContacts.filter(c => selectedSavedIds.has(c.id));
+    
+    const newContacts = selectedContacts.filter(c => !existingPhones.has(c.phone));
+    const duplicates = selectedContacts.length - newContacts.length;
+    
+    if (newContacts.length === 0) {
+      toast.info('Todos os contatos selecionados já estão na lista');
+      return;
+    }
+    
+    const formatted: Contact[] = newContacts.map(c => ({
+      phone: c.phone,
+      name: c.name,
+      email: c.email
+    }));
+    
+    onContactsChange([...contacts, ...formatted]);
+    setSelectedSavedIds(new Set());
+    
+    if (duplicates > 0) {
+      toast.success(`${newContacts.length} contato(s) adicionado(s). ${duplicates} duplicado(s) ignorado(s)`);
+    } else {
+      toast.success(`${newContacts.length} contato(s) adicionado(s) ao disparo`);
+    }
+  }, [contacts, savedContacts, selectedSavedIds, onContactsChange]);
+
   const validCount = contacts.filter(c => c.isValid === true).length;
   const invalidCount = contacts.filter(c => c.isValid === false).length;
   const uncheckedCount = contacts.filter(c => c.isValid === undefined).length;
@@ -231,14 +314,18 @@ export function ContactsManager({
       </CardHeader>
       <CardContent className="space-y-4">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full">
-            <TabsTrigger value="manual" className="flex-1">
+          <TabsList className="w-full grid grid-cols-4">
+            <TabsTrigger value="manual">
               Manual
             </TabsTrigger>
-            <TabsTrigger value="upload" className="flex-1">
+            <TabsTrigger value="upload">
               Upload
             </TabsTrigger>
-            <TabsTrigger value="preview" className="flex-1">
+            <TabsTrigger value="saved" className="gap-1">
+              <Database className="w-3 h-3" />
+              Meus
+            </TabsTrigger>
+            <TabsTrigger value="preview">
               Preview
             </TabsTrigger>
           </TabsList>
@@ -283,6 +370,101 @@ Exemplo:
                 Selecionar Arquivo
               </Button>
             </div>
+          </TabsContent>
+
+          <TabsContent value="saved" className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou telefone..."
+                  value={savedSearch}
+                  onChange={(e) => setSavedSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              {onRefreshSaved && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onRefreshSaved}
+                  disabled={isLoadingSaved}
+                >
+                  <Loader2 className={cn("w-4 h-4", isLoadingSaved && "animate-spin")} />
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {savedContacts.length} contato(s) salvos
+              </span>
+              {filteredSavedContacts.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={selectAllSaved}
+                >
+                  {selectedSavedIds.size === filteredSavedContacts.length
+                    ? 'Desmarcar Todos'
+                    : 'Selecionar Todos'}
+                </Button>
+              )}
+            </div>
+
+            {isLoadingSaved ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredSavedContacts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Database className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>{savedSearch ? 'Nenhum contato encontrado' : 'Nenhum contato salvo'}</p>
+                <p className="text-xs mt-1">
+                  Adicione contatos na página "Contatos"
+                </p>
+              </div>
+            ) : (
+              <ScrollArea className="h-[200px] rounded-lg border border-border/50">
+                <div className="p-2 space-y-1">
+                  {filteredSavedContacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      onClick={() => toggleSavedContact(contact.id)}
+                      className={cn(
+                        "flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-colors",
+                        selectedSavedIds.has(contact.id)
+                          ? "bg-primary/10 border border-primary/30"
+                          : "hover:bg-muted/50"
+                      )}
+                    >
+                      <Checkbox
+                        checked={selectedSavedIds.has(contact.id)}
+                        onCheckedChange={() => toggleSavedContact(contact.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {contact.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {contact.phone}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+
+            {selectedSavedIds.size > 0 && (
+              <Button
+                className="w-full"
+                onClick={handleAddSavedContacts}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar {selectedSavedIds.size} Contato(s) ao Disparo
+              </Button>
+            )}
           </TabsContent>
 
           <TabsContent value="preview" className="space-y-3">
