@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar, AppSection } from "@/components/AppSidebar";
-import { ExternalFrame } from "@/components/ExternalFrame";
+
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 
 // Lazy load heavy components
@@ -37,18 +37,6 @@ export function MainLayout() {
         return <AIAgent />;
       case "warm-chips":
         return <WarmChips />;
-      case "atendimento":
-        return <Atendimento />;
-      case "vpn":
-        return (
-          <ExternalFrame
-            url="https://servex.ws/dashboard"
-            title="VPN Dashboard"
-          />
-        );
-      case "iptv":
-        // IPTV opens in new tab via AppSidebar
-        return <Index />;
       default:
         return <Index />;
     }

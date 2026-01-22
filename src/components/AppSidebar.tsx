@@ -1,4 +1,4 @@
-import { Users, Shield, Tv, Contact, Search, Bot, Flame, Crown, Headset } from "lucide-react";
+import { Users, Contact, Search, Bot, Flame, Crown, Headset } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -117,21 +117,6 @@ const menuItems: MenuItem[] = [
     color: "text-orange-500",
     activeColor: "bg-orange-500 text-white hover:bg-orange-600",
     permissionKey: "can_view_warming",
-  },
-  {
-    id: "vpn",
-    title: "Internet Ilimitada",
-    icon: Shield,
-    color: "text-emerald-500",
-    activeColor: "bg-emerald-500 text-white hover:bg-emerald-600",
-  },
-  {
-    id: "iptv",
-    title: "StreamingTV",
-    icon: Tv,
-    color: "text-rose-500",
-    activeColor: "bg-rose-500 text-white hover:bg-rose-600",
-    externalUrl: "https://bommesmo.site/#/sign-in",
   },
 ];
 
