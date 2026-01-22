@@ -1,4 +1,4 @@
-// WhatsApp Instances Edge Function v7 - Schema Aligned
+// WhatsApp Instances Edge Function v8 - Full Schema Support
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -9,42 +9,23 @@ const corsHeaders = {
 
 serve(async (req: Request): Promise<Response> => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] === WhatsApp Instances Function v7 ===`);
+  console.log(`[${timestamp}] === WhatsApp Instances Function v8 ===`);
   console.log(`[${timestamp}] Method:`, req.method);
-  console.log(`[${timestamp}] URL:`, req.url);
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    console.log(`[${timestamp}] Handling CORS preflight`);
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
-    // Get environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const uazapiUrl = Deno.env.get("UAZAPI_URL") || "https://zynk2.uazapi.com";
     const uazapiToken = Deno.env.get("UAZAPI_TOKEN") || "";
 
-    console.log("Supabase URL:", supabaseUrl);
-    console.log("UAZAPI URL:", uazapiUrl);
-    console.log("UAZAPI Token exists:", !!uazapiToken);
-
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error("Missing Supabase configuration");
     }
-
-    // Parse URL path (for backwards compatibility)
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    let action = pathParts[1] || "";
-    let entityId = pathParts[2] || "";
-
-    console.log("Path action:", action);
-    console.log("Path entity ID:", entityId);
 
     // Get auth header
     const authHeader = req.headers.get("Authorization");
@@ -55,15 +36,12 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Get user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error("Auth error:", userError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -72,42 +50,35 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("User ID:", user.id);
 
-    // Parse request body
+    // Parse request
+    let action = "";
+    let entityId = "";
     let body: Record<string, unknown> = {};
+
     if (req.method !== "GET") {
       try {
         body = await req.json();
-        console.log("Request body:", JSON.stringify(body));
-        
-        // Get action and entityId from body if provided (preferred method)
-        if (body.action) {
-          action = body.action as string;
-        }
-        if (body.instanceId) {
-          entityId = body.instanceId as string;
-        }
+        action = (body.action as string) || "";
+        entityId = (body.instanceId as string) || "";
       } catch {
         console.log("No body or invalid JSON");
       }
     }
 
-    console.log("Final action:", action);
-    console.log("Final entity ID:", entityId);
+    console.log("Action:", action, "Entity:", entityId);
 
-    // Handle actions
+    // CREATE - with new columns support
     if (action === "create") {
-      console.log("Creating instance...");
-      
       const instanceName = (body.name as string) || `instance_${Date.now()}`;
-      
-      // Save to database using correct column names from schema
-      // Schema has: id, user_id, instance_name, status, last_connected_at, created_at, updated_at
+      const dailyLimit = (body.dailyLimit as number) || 200;
+
       const { data: instance, error: dbError } = await supabase
         .from("whatsapp_instances")
         .insert({
           user_id: user.id,
-          instance_name: instanceName,  // Correct column name
+          instance_name: instanceName,
           status: "disconnected",
+          daily_limit: dailyLimit,
         })
         .select()
         .single();
@@ -125,9 +96,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // QRCODE - with UAZAPI integration
     if (action === "qrcode" && entityId) {
-      console.log("Getting QR code for:", entityId);
-
       const { data: instance, error } = await supabase
         .from("whatsapp_instances")
         .select("*")
@@ -141,17 +111,87 @@ serve(async (req: Request): Promise<Response> => {
         );
       }
 
-      // For now, return a placeholder - UAZAPI integration would need instance_key column
+      // If no instance_key, we need to init the instance first via UAZAPI
+      if (!instance.instance_key && uazapiToken) {
+        try {
+          console.log("Initializing instance via UAZAPI...");
+          const initResponse = await fetch(`${uazapiUrl}/instance/init`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${uazapiToken}`,
+            },
+            body: JSON.stringify({ name: instance.instance_name }),
+          });
+
+          if (initResponse.ok) {
+            const initData = await initResponse.json();
+            console.log("UAZAPI init response:", initData);
+
+            // Save the instance_key
+            if (initData.key || initData.instance_key) {
+              await supabase
+                .from("whatsapp_instances")
+                .update({ instance_key: initData.key || initData.instance_key })
+                .eq("id", entityId);
+            }
+          }
+        } catch (e) {
+          console.error("UAZAPI init error:", e);
+        }
+      }
+
+      // Fetch fresh instance data
+      const { data: updatedInstance } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("id", entityId)
+        .single();
+
+      // Get QR code from UAZAPI if we have instance_key
+      if (updatedInstance?.instance_key && uazapiToken) {
+        try {
+          const qrResponse = await fetch(`${uazapiUrl}/instance/qrcode`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${updatedInstance.instance_key}`,
+            },
+          });
+
+          if (qrResponse.ok) {
+            const qrData = await qrResponse.json();
+            console.log("QR code received");
+
+            // Save QR code to DB
+            if (qrData.qrcode || qrData.qr) {
+              const qrCode = qrData.qrcode || qrData.qr;
+              await supabase
+                .from("whatsapp_instances")
+                .update({ qr_code: qrCode })
+                .eq("id", entityId);
+
+              return new Response(
+                JSON.stringify({ success: true, qrcode: qrCode }),
+                { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
+        } catch (e) {
+          console.error("UAZAPI QR error:", e);
+        }
+      }
+
       return new Response(
         JSON.stringify({ 
-          success: true, 
-          message: "QR code feature requires additional columns (instance_key). Please run a migration to add them.",
-          instance 
+          success: false, 
+          error: "Could not retrieve QR code. Check UAZAPI configuration.",
+          instance: updatedInstance 
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // STATUS - check instance status
     if (action === "status" && entityId) {
       const { data: instance, error } = await supabase
         .from("whatsapp_instances")
@@ -166,16 +206,68 @@ serve(async (req: Request): Promise<Response> => {
         );
       }
 
+      // Check UAZAPI status if we have instance_key
+      if (instance.instance_key) {
+        try {
+          const statusResponse = await fetch(`${uazapiUrl}/instance/status`, {
+            headers: { "Authorization": `Bearer ${instance.instance_key}` },
+          });
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            const newStatus = statusData.connected ? "connected" : "disconnected";
+            
+            // Update DB if status changed
+            if (newStatus !== instance.status) {
+              await supabase
+                .from("whatsapp_instances")
+                .update({ 
+                  status: newStatus,
+                  phone_connected: statusData.phone || null,
+                  last_connected_at: newStatus === "connected" ? new Date().toISOString() : null
+                })
+                .eq("id", entityId);
+            }
+
+            return new Response(
+              JSON.stringify({ success: true, status: newStatus, phone: statusData.phone }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        } catch (e) {
+          console.error("UAZAPI status error:", e);
+        }
+      }
+
       return new Response(
         JSON.stringify({ success: true, status: instance.status, instance }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // DISCONNECT
     if (action === "disconnect" && entityId) {
+      const { data: instance } = await supabase
+        .from("whatsapp_instances")
+        .select("instance_key")
+        .eq("id", entityId)
+        .single();
+
+      // Disconnect from UAZAPI if we have instance_key
+      if (instance?.instance_key) {
+        try {
+          await fetch(`${uazapiUrl}/instance/logout`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${instance.instance_key}` },
+          });
+        } catch (e) {
+          console.error("UAZAPI disconnect error:", e);
+        }
+      }
+
       const { error } = await supabase
         .from("whatsapp_instances")
-        .update({ status: "disconnected", last_connected_at: null })
+        .update({ status: "disconnected", last_connected_at: null, qr_code: null })
         .eq("id", entityId);
 
       if (error) {
@@ -191,7 +283,26 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // DELETE
     if (action === "delete" && entityId) {
+      const { data: instance } = await supabase
+        .from("whatsapp_instances")
+        .select("instance_key")
+        .eq("id", entityId)
+        .single();
+
+      // Delete from UAZAPI if we have instance_key
+      if (instance?.instance_key) {
+        try {
+          await fetch(`${uazapiUrl}/instance/delete`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${instance.instance_key}` },
+          });
+        } catch (e) {
+          console.error("UAZAPI delete error:", e);
+        }
+      }
+
       const { error } = await supabase
         .from("whatsapp_instances")
         .delete()
@@ -210,7 +321,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // List instances
+    // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
         .from("whatsapp_instances")

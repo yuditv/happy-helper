@@ -698,28 +698,46 @@ export type Database = {
       }
       whatsapp_instances: {
         Row: {
+          business_hours_end: string | null
+          business_hours_start: string | null
           created_at: string
+          daily_limit: number | null
           id: string
+          instance_key: string | null
           instance_name: string
           last_connected_at: string | null
+          phone_connected: string | null
+          qr_code: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          business_hours_end?: string | null
+          business_hours_start?: string | null
           created_at?: string
+          daily_limit?: number | null
           id?: string
+          instance_key?: string | null
           instance_name: string
           last_connected_at?: string | null
+          phone_connected?: string | null
+          qr_code?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          business_hours_end?: string | null
+          business_hours_start?: string | null
           created_at?: string
+          daily_limit?: number | null
           id?: string
+          instance_key?: string | null
           instance_name?: string
           last_connected_at?: string | null
+          phone_connected?: string | null
+          qr_code?: string | null
           status?: string
           updated_at?: string
           user_id?: string
