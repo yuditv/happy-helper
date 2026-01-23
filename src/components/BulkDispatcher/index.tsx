@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Send, RotateCcw, Users, MessageSquare,
-  Play, Pause, Square, Sparkles, Clock, Zap
+  Play, Pause, Square, Sparkles, Clock, Zap, Bell, Volume2
 } from 'lucide-react';
 import { InstanceSidebar } from './InstanceSidebar';
 import { ComposerStudio } from './ComposerStudio';
@@ -27,7 +27,27 @@ import confetti from 'canvas-confetti';
 export function BulkDispatcher() {
   const { toast } = useToast();
   const { permission, requestPermission, showLocalNotification, isSupported } = usePushNotifications();
-  const { playDispatchComplete } = useSoundEffects();
+  const { playDispatchComplete, playDispatchFailure } = useSoundEffects();
+  
+  // Dispatch notification preferences
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    const stored = localStorage.getItem('dispatch-notifications-enabled');
+    return stored !== 'false';
+  });
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const stored = localStorage.getItem('dispatch-sound-enabled');
+    return stored !== 'false';
+  });
+  
+  // Persist preferences
+  useEffect(() => {
+    localStorage.setItem('dispatch-notifications-enabled', String(notificationsEnabled));
+  }, [notificationsEnabled]);
+  
+  useEffect(() => {
+    localStorage.setItem('dispatch-sound-enabled', String(soundEnabled));
+  }, [soundEnabled]);
+  
   const { instances, isLoading: instancesLoading, refetch: fetchInstances, checkNumbers, refreshAllStatus } = useWhatsAppInstances();
   const {
     config,
@@ -287,54 +307,74 @@ export function BulkDispatcher() {
     return () => clearInterval(interval);
   }, [progress.isRunning, progress.sent]);
   
-  // Fire confetti and show notification when dispatch completes successfully
+  // Fire confetti and show notification when dispatch completes
   useEffect(() => {
     const wasRunning = prevProgressRef.current.isRunning;
     const justCompleted = wasRunning && !progress.isRunning && progress.sent > 0;
     
     if (justCompleted) {
+      const total = progress.sent + progress.failed;
+      const failureRate = total > 0 ? (progress.failed / total) * 100 : 0;
+      const hasHighFailures = failureRate >= 30; // 30% or more failures
+      
       // Show browser notification (works even in background)
-      if (permission === 'granted') {
-        showLocalNotification('🎉 Disparo Concluído!', {
-          body: `✅ ${progress.sent} enviados • ❌ ${progress.failed} falharam`,
-          tag: 'dispatch-complete',
-          requireInteraction: true,
-        });
+      if (notificationsEnabled && permission === 'granted') {
+        if (hasHighFailures) {
+          showLocalNotification('⚠️ Disparo com Falhas', {
+            body: `❌ ${progress.failed} falharam (${failureRate.toFixed(0)}%) • ✅ ${progress.sent} enviados`,
+            tag: 'dispatch-complete',
+            requireInteraction: true,
+          });
+        } else {
+          showLocalNotification('🎉 Disparo Concluído!', {
+            body: `✅ ${progress.sent} enviados • ❌ ${progress.failed} falharam`,
+            tag: 'dispatch-complete',
+            requireInteraction: true,
+          });
+        }
       }
 
-      // Play completion sound
-      playDispatchComplete();
-
-      // Fire multiple bursts of confetti
-      const duration = 3000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
-
-      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-      const interval = setInterval(() => {
-        const timeLeft = animationEnd - Date.now();
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
+      // Play appropriate sound
+      if (soundEnabled) {
+        if (hasHighFailures) {
+          playDispatchFailure();
+        } else {
+          playDispatchComplete();
         }
+      }
 
-        const particleCount = 50 * (timeLeft / duration);
-        
-        confetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-        });
-        confetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-        });
-      }, 250);
+      // Fire confetti only on success (low failure rate)
+      if (!hasHighFailures) {
+        const duration = 3000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+        const interval = setInterval(() => {
+          const timeLeft = animationEnd - Date.now();
+          if (timeLeft <= 0) {
+            return clearInterval(interval);
+          }
+
+          const particleCount = 50 * (timeLeft / duration);
+          
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+          });
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+          });
+        }, 250);
+      }
     }
 
     prevProgressRef.current = { isRunning: progress.isRunning, sent: progress.sent };
-  }, [progress.isRunning, progress.sent, progress.failed, permission, showLocalNotification]);
+  }, [progress.isRunning, progress.sent, progress.failed, permission, showLocalNotification, notificationsEnabled, soundEnabled, playDispatchComplete, playDispatchFailure]);
 
   // Request notification permission when dispatch starts (if not granted)
   useEffect(() => {
@@ -430,6 +470,46 @@ export function BulkDispatcher() {
                 <MessageSquare className="w-4 h-4 text-accent" />
                 <span className="text-sm">{totalMessages} mensagens</span>
               </motion.div>
+              
+              {/* Notification & Sound Toggles */}
+              <div className="flex items-center gap-1 ml-2 border-l border-border/50 pl-2">
+                <motion.button
+                  onClick={() => {
+                    if (permission === 'default' && isSupported) {
+                      requestPermission().then(granted => {
+                        if (granted) setNotificationsEnabled(true);
+                      });
+                    } else {
+                      setNotificationsEnabled(!notificationsEnabled);
+                    }
+                  }}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    notificationsEnabled && permission === 'granted'
+                      ? "bg-primary/20 text-primary" 
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title={notificationsEnabled ? "Desativar notificações" : "Ativar notificações"}
+                >
+                  <Bell className="w-4 h-4" />
+                </motion.button>
+                <motion.button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    soundEnabled 
+                      ? "bg-primary/20 text-primary" 
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title={soundEnabled ? "Desativar som" : "Ativar som"}
+                >
+                  <Volume2 className="w-4 h-4" />
+                </motion.button>
+              </div>
             </div>
           </div>
           
