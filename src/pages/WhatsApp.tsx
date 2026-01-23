@@ -40,6 +40,7 @@ import {
   Link,
   User,
   Settings,
+  TestTube2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WhatsAppTemplateManager } from '@/components/WhatsAppTemplateManager';
@@ -67,6 +68,7 @@ export default function WhatsApp() {
     deleteInstance, 
     getPairingCode,
     configureWebhook,
+    testWebhook,
     refetch: refetchInstances 
   } = useWhatsAppInstances();
   const { 
@@ -96,6 +98,7 @@ export default function WhatsApp() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [configuringWebhook, setConfiguringWebhook] = useState<string | null>(null);
+  const [testingWebhook, setTestingWebhook] = useState<string | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState<WhatsAppInstance | null>(null);
 
@@ -137,6 +140,17 @@ export default function WhatsApp() {
       toast.error("Erro ao sincronizar webhook");
     } finally {
       setConfiguringWebhook(null);
+    }
+  };
+
+  const handleTestWebhook = async (instanceId: string) => {
+    setTestingWebhook(instanceId);
+    try {
+      await testWebhook(instanceId);
+    } catch (error) {
+      toast.error("Erro ao testar webhook");
+    } finally {
+      setTestingWebhook(null);
     }
   };
 
@@ -469,17 +483,30 @@ export default function WhatsApp() {
                           Status
                         </Button>
                         {instance.status === 'connected' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleConfigureWebhook(instance.id)}
-                            disabled={configuringWebhook === instance.id}
-                            className="gap-1.5"
-                            title="Sincronizar webhook para receber mensagens"
-                          >
-                            <Link className={`w-4 h-4 ${configuringWebhook === instance.id ? 'animate-pulse' : ''}`} />
-                            Webhook
-                          </Button>
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleConfigureWebhook(instance.id)}
+                              disabled={configuringWebhook === instance.id}
+                              className="gap-1.5"
+                              title="Sincronizar webhook para receber mensagens"
+                            >
+                              <Link className={`w-4 h-4 ${configuringWebhook === instance.id ? 'animate-pulse' : ''}`} />
+                              Webhook
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleTestWebhook(instance.id)}
+                              disabled={testingWebhook === instance.id}
+                              className="gap-1.5 text-primary hover:text-primary"
+                              title="Enviar mensagem de teste para verificar se o webhook está funcionando"
+                            >
+                              <TestTube2 className={`w-4 h-4 ${testingWebhook === instance.id ? 'animate-spin' : ''}`} />
+                              Testar
+                            </Button>
+                          </>
                          )}
                         <Button 
                           variant="outline" 

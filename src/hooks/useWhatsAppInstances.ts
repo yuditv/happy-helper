@@ -183,9 +183,60 @@ export function useWhatsAppInstances() {
     } catch (error: any) {
       console.error('Configure webhook error:', error);
       toast.error(error.message || 'Erro ao configurar webhook');
+    return null;
+    }
+  };
+
+  const testWebhook = async (instanceId: string) => {
+    try {
+      // Find the instance to get its details
+      const instance = instances.find(i => i.id === instanceId);
+      if (!instance) throw new Error('Instância não encontrada');
+
+      // Create a test message payload simulating UAZAPI format
+      const testPayload = {
+        event: 'messages.upsert',
+        token: instance.instance_key,
+        instance: instance.instance_name,
+        data: {
+          key: {
+            remoteJid: `5511${Date.now().toString().slice(-8)}@s.whatsapp.net`,
+            fromMe: false,
+            id: `test-webhook-${Date.now()}`
+          },
+          pushName: '🧪 Teste de Webhook',
+          message: {
+            conversation: `✅ Mensagem de teste enviada às ${new Date().toLocaleTimeString('pt-BR')}. Se você está vendo isso na Central de Atendimento, o webhook está funcionando corretamente!`
+          },
+          messageTimestamp: Math.floor(Date.now() / 1000)
+        }
+      };
+
+      // Call the webhook directly
+      const response = await fetch(
+        `https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/whatsapp-inbox-webhook`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testPayload)
+        }
+      );
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Teste enviado! Verifique a Central de Atendimento.');
+        return result;
+      } else {
+        throw new Error(result.error || 'Falha no teste');
+      }
+    } catch (error: any) {
+      console.error('Test webhook error:', error);
+      toast.error(error.message || 'Erro ao testar webhook');
       return null;
     }
   };
+
   // Refresh all instances status from UAZAPI
   const refreshAllStatus = useCallback(async () => {
     if (!user) return;
@@ -232,6 +283,7 @@ export function useWhatsAppInstances() {
     getPairingCode,
     checkNumbers,
     configureWebhook,
+    testWebhook,
     refetch: fetchInstances,
     refreshAllStatus,
   };
