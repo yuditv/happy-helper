@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminUsers, AdminUser } from "@/hooks/useAdminUsers";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Shield, 
@@ -44,13 +45,28 @@ import {
   Ban,
   ShieldCheck,
   Settings,
-  UserPlus
+  UserPlus,
+  CreditCard
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { UserPermissionsDialog } from "@/components/UserPermissionsDialog";
 import { CreateUserDialog } from "@/components/CreateUserDialog";
+import { AdminSubscriptionManager } from "@/components/AdminSubscriptionManager";
+import { supabase } from "@/integrations/supabase/client";
+import { SubscriptionPlan } from "@/types/subscription";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+interface UserSubscriptionData {
+  id: string;
+  user_id: string;
+  status: 'trial' | 'active' | 'expired' | 'cancelled';
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  plan?: SubscriptionPlan;
+  user_email?: string;
+  user_name?: string;
+}
 
 const roleConfig = {
   admin: { 
@@ -91,6 +107,48 @@ export default function AdminPanel() {
   const [userToBlock, setUserToBlock] = useState<string | null>(null);
   const [permissionsUser, setPermissionsUser] = useState<typeof users[0] | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<UserSubscriptionData[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(false);
+
+  const fetchSubscriptions = useCallback(async () => {
+    setIsLoadingSubscriptions(true);
+    
+    // Fetch plans
+    const { data: plansData } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('duration_months', { ascending: true });
+
+    if (plansData) {
+      setPlans(plansData as SubscriptionPlan[]);
+    }
+
+    // Fetch subscriptions with user info
+    const { data: subsData } = await supabase
+      .from('user_subscriptions')
+      .select(`
+        *,
+        plan:subscription_plans(*)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (subsData) {
+      // Map user info from users list
+      const subsWithUserInfo = subsData.map((sub: any) => {
+        const userInfo = users.find(u => u.id === sub.user_id);
+        return {
+          ...sub,
+          user_email: userInfo?.email,
+          user_name: userInfo?.profile?.display_name,
+        };
+      });
+      setSubscriptions(subsWithUserInfo as UserSubscriptionData[]);
+    }
+
+    setIsLoadingSubscriptions(false);
+  }, [users]);
 
   useEffect(() => {
     const init = async () => {
@@ -103,6 +161,12 @@ export default function AdminPanel() {
     };
     init();
   }, [checkAdminStatus, fetchUsers]);
+
+  useEffect(() => {
+    if (users.length > 0) {
+      fetchSubscriptions();
+    }
+  }, [users, fetchSubscriptions]);
 
   if (isChecking) {
     return (
@@ -184,76 +248,90 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="glass-card glow-border">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-blue-500/20">
-                  <Users className="h-6 w-6 text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{users.length}</p>
-                  <p className="text-sm text-muted-foreground">Total de Usuários</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card glow-border">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-red-500/20">
-                  <Crown className="h-6 w-6 text-red-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
-                    {users.filter(u => u.role === 'admin').length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Administradores</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card glow-border">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-amber-500/20">
-                  <UserCog className="h-6 w-6 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
-                    {users.filter(u => u.role === 'moderator').length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Moderadores</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card glow-border">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-orange-500/20">
-                  <Ban className="h-6 w-6 text-orange-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
-                    {users.filter(u => u.is_blocked).length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Bloqueados</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Tabs */}
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="bg-background/50 border border-border/50">
+            <TabsTrigger value="users" className="data-[state=active]:bg-primary/20">
+              <Users className="h-4 w-4 mr-2" />
+              Usuários
+            </TabsTrigger>
+            <TabsTrigger value="subscriptions" className="data-[state=active]:bg-primary/20">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Assinaturas
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Users Table */}
-        <Card className="glass-card glow-border overflow-hidden">
-          <CardHeader className="border-b border-primary/10">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Usuários Registrados
-            </CardTitle>
-          </CardHeader>
+          <TabsContent value="users" className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="glass-card glow-border">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-blue-500/20">
+                      <Users className="h-6 w-6 text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{users.length}</p>
+                      <p className="text-sm text-muted-foreground">Total de Usuários</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card glow-border">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-red-500/20">
+                      <Crown className="h-6 w-6 text-red-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">
+                        {users.filter(u => u.role === 'admin').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Administradores</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card glow-border">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-amber-500/20">
+                      <UserCog className="h-6 w-6 text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">
+                        {users.filter(u => u.role === 'moderator').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Moderadores</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card glow-border">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-orange-500/20">
+                      <Ban className="h-6 w-6 text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">
+                        {users.filter(u => u.is_blocked).length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Bloqueados</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Users Table */}
+            <Card className="glass-card glow-border overflow-hidden">
+              <CardHeader className="border-b border-primary/10">
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  Usuários Registrados
+                </CardTitle>
+              </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
@@ -518,6 +596,17 @@ export default function AdminPanel() {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="subscriptions">
+            <AdminSubscriptionManager
+              subscriptions={subscriptions}
+              plans={plans}
+              onRefresh={fetchSubscriptions}
+              isLoading={isLoadingSubscriptions}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Permissions Dialog */}
