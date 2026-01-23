@@ -437,6 +437,17 @@ export default function WhatsApp() {
                         <span className="text-muted-foreground">Limite diário:</span>
                         <span className="font-semibold">{instance.daily_limit || 500} msgs</span>
                       </div>
+                      {instance.status === 'connected' && (
+                        <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                          <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                            <span>Webhook ativo - pronto para receber mensagens</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Clique em "Webhook" para re-sincronizar se não estiver recebendo mensagens
+                          </p>
+                        </div>
+                      )}
                       <div className="flex gap-2 flex-wrap">
                         <Button 
                           variant="outline" 

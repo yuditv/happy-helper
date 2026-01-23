@@ -125,9 +125,21 @@ function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; messag
 }
 
 serve(async (req: Request) => {
+  const requestTimestamp = new Date().toISOString();
+  console.log(`[Inbox Webhook] ========== REQUEST RECEIVED at ${requestTimestamp} ==========`);
+  
   if (req.method === 'OPTIONS') {
+    console.log("[Inbox Webhook] Handling OPTIONS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Log request details for debugging
+  const requestHeaders: Record<string, string> = {};
+  req.headers.forEach((value, key) => {
+    requestHeaders[key] = value;
+  });
+  console.log("[Inbox Webhook] Method:", req.method);
+  console.log("[Inbox Webhook] Headers:", JSON.stringify(requestHeaders));
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -137,17 +149,38 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const body = await req.json();
-    console.log("[Inbox Webhook] Received payload:", JSON.stringify(body));
+    const rawBody = await req.text();
+    console.log("[Inbox Webhook] Raw body:", rawBody);
+    
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error("[Inbox Webhook] Failed to parse JSON body:", parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body', received: rawBody.substring(0, 500) }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log("[Inbox Webhook] Parsed payload:", JSON.stringify(body));
+    console.log("[Inbox Webhook] Event type:", body.event || 'not specified');
+    console.log("[Inbox Webhook] Instance/Token:", body.instance || body.token || 'not specified');
 
     // Check if this is a non-message event (status, qrcode, etc.)
-    if (body.event && body.event !== 'messages' && body.event !== 'message') {
-      console.log(`[Inbox Webhook] Ignoring event type: ${body.event}`);
+    // Accept multiple event names for messages
+    const messageEvents = ['messages', 'message', 'messages.upsert', 'MESSAGES_UPSERT'];
+    const isMessageEvent = !body.event || messageEvents.includes(body.event);
+    
+    if (!isMessageEvent) {
+      console.log(`[Inbox Webhook] Ignoring non-message event type: ${body.event}`);
       return new Response(
-        JSON.stringify({ success: true, ignored: true, event: body.event }),
+        JSON.stringify({ success: true, ignored: true, event: body.event, timestamp: requestTimestamp }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`[Inbox Webhook] Processing message event: ${body.event || 'default'}`);
 
     // Extract message data from various formats
     const extractedData = extractMessageData(body);
