@@ -485,16 +485,18 @@ serve(async (req: Request): Promise<Response> => {
             // Extract phone from owner field (format: 559180910280)
             const phoneConnected = statusData.instance?.owner || statusData.phone || null;
             const profileName = statusData.instance?.profileName || null;
+            const profilePictureUrl = statusData.instance?.profilePicUrl || statusData.instance?.profilePictureUrl || null;
             
-            console.log("Mapped status:", newStatus, "Phone:", phoneConnected, "Profile:", profileName);
+            console.log("Mapped status:", newStatus, "Phone:", phoneConnected, "Profile:", profileName, "Picture:", profilePictureUrl);
             
-            // Update DB if status changed
-            if (newStatus !== instance.status || phoneConnected !== instance.phone_connected) {
+            // Update DB if status changed or new profile info
+            if (newStatus !== instance.status || phoneConnected !== instance.phone_connected || profilePictureUrl !== instance.profile_picture_url) {
               await supabase
                 .from("whatsapp_instances")
                 .update({ 
                   status: newStatus,
                   phone_connected: phoneConnected,
+                  profile_picture_url: profilePictureUrl,
                   last_connected_at: newStatus === "connected" ? new Date().toISOString() : instance.last_connected_at
                 })
                 .eq("id", entityId);
@@ -534,7 +536,8 @@ serve(async (req: Request): Promise<Response> => {
                 success: true, 
                 status: newStatus, 
                 phone: phoneConnected,
-                profileName: profileName 
+                profileName: profileName,
+                profilePictureUrl: profilePictureUrl
               }),
               { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
