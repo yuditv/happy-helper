@@ -1,31 +1,49 @@
 import { WhatsAppWarming } from "@/components/WhatsAppWarming";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Flame } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function WarmChips() {
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Flame className="h-8 w-8 text-orange-500" />
-          Aquecer Chips
-        </h1>
-        <p className="text-muted-foreground">
-          Simule conversas naturais entre instâncias para reduzir risco de banimento
-        </p>
-      </div>
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      {/* Premium Header */}
+      <motion.div 
+        className="flex items-center gap-4"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="page-header-icon" style={{ 
+          background: 'linear-gradient(135deg, hsl(25 95% 55%) 0%, hsl(15 90% 50%) 100%)',
+          boxShadow: '0 8px 32px hsl(25 95% 55% / 0.35), 0 0 0 1px hsl(25 95% 55% / 0.2)'
+        }}>
+          <Flame className="h-7 w-7 text-white" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gradient">Aquecer Chips</h1>
+          <p className="text-muted-foreground">
+            Simule conversas naturais entre instâncias para reduzir risco de banimento
+          </p>
+        </div>
+      </motion.div>
 
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Sistema de Aquecimento</CardTitle>
-          <CardDescription>
-            Configure sessões de aquecimento para manter suas instâncias saudáveis
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <WhatsAppWarming />
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Sistema de Aquecimento</CardTitle>
+            <CardDescription>
+              Configure sessões de aquecimento para manter suas instâncias saudáveis
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WhatsAppWarming />
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }
