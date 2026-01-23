@@ -382,22 +382,41 @@ export default function WhatsApp() {
                   <Card className="glass-card group">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                            {instance.name}
-                          </CardTitle>
-                          <CardDescription className="flex flex-col gap-0.5">
-                            {instance.phone_connected ? (
-                              <>
-                                <span className="flex items-center gap-1">
-                                  <Smartphone className="w-3 h-3" />
-                                  {instance.phone_connected}
-                                </span>
-                              </>
+                        <div className="flex items-start gap-3">
+                          {/* Profile Picture */}
+                          <div className="relative shrink-0">
+                            {instance.profile_picture_url ? (
+                              <img 
+                                src={instance.profile_picture_url} 
+                                alt={instance.name}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
+                              />
                             ) : (
-                              <span>Não conectado</span>
+                              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border-2 border-muted-foreground/20">
+                                <User className="w-6 h-6 text-muted-foreground" />
+                              </div>
                             )}
-                          </CardDescription>
+                            {instance.status === 'connected' && (
+                              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                              {instance.name}
+                            </CardTitle>
+                            <CardDescription className="flex flex-col gap-0.5">
+                              {instance.phone_connected ? (
+                                <>
+                                  <span className="flex items-center gap-1">
+                                    <Smartphone className="w-3 h-3" />
+                                    {instance.phone_connected}
+                                  </span>
+                                </>
+                              ) : (
+                                <span>Não conectado</span>
+                              )}
+                            </CardDescription>
+                          </div>
                         </div>
                         {getInstanceStatusBadge(instance.status)}
                       </div>
