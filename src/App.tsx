@@ -23,6 +23,7 @@ const ResellerArea = lazy(() => import("./pages/ResellerArea"));
 const Contacts = lazy(() => import("./pages/Contacts"));
 const WhatsApp = lazy(() => import("./pages/WhatsApp"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -141,6 +142,11 @@ const AppRoutes = () => (
       <Route path="/inbox-settings" element={
         <ProtectedRoute>
           <InboxSettings />
+        </ProtectedRoute>
+      } />
+      <Route path="/payment-history" element={
+        <ProtectedRoute>
+          <PaymentHistory />
         </ProtectedRoute>
       } />
       <Route path="/install" element={<Install />} />
