@@ -9,6 +9,81 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Send WhatsApp notification to user
+async function sendPaymentConfirmationWhatsApp(
+  supabase: any,
+  userId: string,
+  planName: string,
+  amount: number,
+  periodEnd: Date
+) {
+  try {
+    // Get user's WhatsApp from profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("whatsapp, display_name")
+      .eq("user_id", userId)
+      .single();
+
+    if (!profile?.whatsapp) {
+      console.log("[mercado-pago-webhook] User has no WhatsApp configured");
+      return;
+    }
+
+    const userName = profile.display_name || "Cliente";
+    const formattedAmount = new Intl.NumberFormat('pt-BR', { 
+      style: 'currency', 
+      currency: 'BRL' 
+    }).format(amount);
+    const formattedDate = periodEnd.toLocaleDateString('pt-BR');
+
+    const message = `✅ *Pagamento Confirmado!*\n\nOlá ${userName}!\n\nSeu pagamento de ${formattedAmount} para o plano *${planName}* foi confirmado com sucesso!\n\n📅 Válido até: ${formattedDate}\n\nObrigado por renovar conosco! 🚀`;
+
+    // Get user's default WhatsApp instance
+    const { data: instance } = await supabase
+      .from("whatsapp_instances")
+      .select("instance_key")
+      .eq("user_id", userId)
+      .eq("status", "connected")
+      .limit(1)
+      .single();
+
+    const UAZAPI_URL = Deno.env.get("UAZAPI_URL");
+    const UAZAPI_TOKEN = instance?.instance_key || Deno.env.get("UAZAPI_TOKEN");
+
+    if (!UAZAPI_URL || !UAZAPI_TOKEN) {
+      console.log("[mercado-pago-webhook] UAZAPI not configured, skipping WhatsApp notification");
+      return;
+    }
+
+    // Format phone number
+    let phone = profile.whatsapp.replace(/\D/g, '');
+    if (!phone.startsWith('55')) {
+      phone = '55' + phone;
+    }
+
+    const response = await fetch(`${UAZAPI_URL}/sendText`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "token": UAZAPI_TOKEN,
+      },
+      body: JSON.stringify({
+        phone,
+        message,
+      }),
+    });
+
+    if (response.ok) {
+      console.log("[mercado-pago-webhook] WhatsApp notification sent successfully");
+    } else {
+      console.error("[mercado-pago-webhook] Failed to send WhatsApp:", await response.text());
+    }
+  } catch (error) {
+    console.error("[mercado-pago-webhook] Error sending WhatsApp notification:", error);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -74,10 +149,10 @@ serve(async (req) => {
     if (mpData.status === "approved" && payment.status !== "paid") {
       console.log("[mercado-pago-webhook] Payment approved, activating subscription");
 
-      // Buscar plano para saber a duração
+      // Buscar plano para saber a duração e nome
       const { data: plan } = await supabase
         .from("subscription_plans")
-        .select("duration_months")
+        .select("duration_months, name")
         .eq("id", payment.plan_id)
         .single();
 
@@ -108,6 +183,15 @@ serve(async (req) => {
         .eq("id", payment.subscription_id);
 
       console.log("[mercado-pago-webhook] Subscription activated successfully");
+
+      // Send WhatsApp notification
+      await sendPaymentConfirmationWhatsApp(
+        supabase,
+        payment.subscription.user_id,
+        plan?.name || "Premium",
+        mpData.transaction_amount || payment.amount,
+        periodEnd
+      );
     }
 
     return new Response(
