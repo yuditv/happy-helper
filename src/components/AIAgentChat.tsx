@@ -141,9 +141,9 @@ export function AIAgentChat() {
   }
 
   return (
-    <Card className="bg-card/50 backdrop-blur-sm border-border/50 flex flex-col h-[600px]">
+    <Card className="glass-card flex flex-col h-[600px]">
       {/* Header */}
-      <CardHeader className="border-b border-border/50 pb-4">
+      <CardHeader className="border-b border-border/30 pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <DropdownMenu>
@@ -259,19 +259,16 @@ export function AIAgentChat() {
                 <div className="flex flex-col">
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-2.5",
+                      "max-w-[80%] rounded-2xl px-4 py-2.5 backdrop-blur-sm",
                       message.role === 'user'
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted rounded-bl-md"
+                        ? "chat-bubble-glass user"
+                        : "chat-bubble-glass assistant"
                     )}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     <p 
                       className={cn(
-                        "text-xs mt-1",
-                        message.role === 'user' 
-                          ? "text-primary-foreground/70" 
-                          : "text-muted-foreground"
+                        "text-xs mt-1 opacity-70"
                       )}
                     >
                       {new Date(message.created_at).toLocaleTimeString('pt-BR', {
@@ -357,7 +354,7 @@ export function AIAgentChat() {
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-4 border-t border-border/50">
+      <div className="p-4 border-t border-border/30 bg-background/30">
         <div className="flex gap-2">
           <Input
             ref={inputRef}
@@ -366,7 +363,7 @@ export function AIAgentChat() {
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyPress}
             disabled={sendMessage.isPending}
-            className="bg-background/50 border-border/50 focus:border-primary"
+            className="bg-background/50 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
           <Button
             onClick={handleSendMessage}

@@ -79,17 +79,21 @@ export function InstanceSelector({
   };
 
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-      <CardHeader className="pb-3">
+    <Card className="glass-card">
+      <CardHeader className="pb-3 border-b border-border/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <div className="stats-icon-container primary">
               <Smartphone className="w-5 h-5 text-primary" />
-              Seleção de Instâncias
-            </CardTitle>
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-              WhatsApp API
-            </Badge>
+            </div>
+            <div>
+              <CardTitle className="text-lg">
+                Seleção de Instâncias
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Escolha as instâncias para disparo
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {isLoading && (
@@ -111,12 +115,14 @@ export function InstanceSelector({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-4">
         {instances.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Smartphone className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Nenhuma instância encontrada</p>
-            <p className="text-sm">Crie uma instância na aba "Instâncias"</p>
+          <div className="empty-state py-10">
+            <div className="empty-state-icon mb-4">
+              <Smartphone className="h-10 w-10" />
+            </div>
+            <p className="font-medium text-foreground mb-1">Nenhuma instância encontrada</p>
+            <p className="text-sm text-muted-foreground">Crie uma instância na aba "Instâncias"</p>
           </div>
         ) : (
           <>
@@ -130,44 +136,40 @@ export function InstanceSelector({
                     key={instance.id}
                     onClick={() => isConnected && handleToggle(instance.id)}
                     className={cn(
-                      "relative p-4 rounded-lg border-2 transition-all cursor-pointer",
-                      isSelected 
-                        ? "border-primary bg-primary/10" 
-                        : "border-border/50 bg-background/50 hover:border-border",
+                      "instance-select-card",
+                      isSelected && "selected",
                       !isConnected && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={isSelected}
-                        disabled={!isConnected}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium truncate">
-                            {instance.instance_name}
-                          </span>
-                          {getStatusBadge(instance.status)}
-                        </div>
-                        {instance.phone_connected && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            📱 {instance.phone_connected}
-                          </p>
-                        )}
-                        {instance.daily_limit && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Limite: {instance.daily_limit} msgs/dia
-                          </p>
-                        )}
+                    <Checkbox
+                      checked={isSelected}
+                      disabled={!isConnected}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium truncate">
+                          {instance.instance_name}
+                        </span>
+                        {getStatusBadge(instance.status)}
                       </div>
+                      {instance.phone_connected && (
+                        <p className="text-sm text-muted-foreground">
+                          📱 {instance.phone_connected}
+                        </p>
+                      )}
+                      {instance.daily_limit && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Limite: {instance.daily_limit} msgs/dia
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-border/50">
+            <div className="flex items-center justify-between pt-4 border-t border-border/30">
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">Modo de balanceamento:</span>
                 <Select value={balancingMode} onValueChange={(v) => onBalancingModeChange(v as any)}>
