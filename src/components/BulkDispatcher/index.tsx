@@ -367,45 +367,6 @@ export function BulkDispatcher() {
               <RotateCcw className="w-4 h-4" />
               Resetar
             </Button>
-            
-            <div className="flex-1" />
-            
-            {/* Main Control Buttons */}
-            {!progress.isRunning ? (
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button 
-                  onClick={handleStart} 
-                  disabled={!canStart}
-                  className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-lg shadow-primary/25"
-                  size="lg"
-                >
-                  <Play className="w-5 h-5" />
-                  Iniciar Disparo
-                  {contacts.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 bg-white/20 text-white">
-                      {contacts.length}
-                    </Badge>
-                  )}
-                </Button>
-              </motion.div>
-            ) : (
-              <div className="flex items-center gap-2">
-                {progress.isPaused ? (
-                  <Button onClick={resumeDispatch} className="gap-2" size="lg">
-                    <Play className="w-5 h-5" />
-                    Retomar
-                  </Button>
-                ) : (
-                  <Button onClick={pauseDispatch} variant="secondary" className="gap-2" size="lg">
-                    <Pause className="w-5 h-5" />
-                    Pausar
-                  </Button>
-                )}
-                <Button onClick={cancelDispatch} variant="destructive" size="lg">
-                  <Square className="w-5 h-5" />
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </motion.div>
@@ -537,6 +498,74 @@ export function BulkDispatcher() {
           />
         </motion.div>
       )}
+
+      {/* Action Bar - Fixed at Bottom */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="sticky bottom-4 z-10"
+      >
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-background via-background to-primary/5 border border-border/50 backdrop-blur-xl p-4">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5" />
+          
+          <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Status Summary */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  connectedInstances > 0 ? "bg-emerald-500 animate-pulse" : "bg-destructive"
+                )} />
+                <span>{connectedInstances} instâncias</span>
+              </div>
+              <div className="h-4 w-px bg-border" />
+              <span className="text-sm text-muted-foreground">
+                {contacts.length} contatos • {totalMessages} mensagens
+              </span>
+            </div>
+            
+            {/* Control Buttons */}
+            <div className="flex items-center gap-3">
+              {!progress.isRunning ? (
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button 
+                    onClick={handleStart} 
+                    disabled={!canStart}
+                    className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-lg shadow-primary/25 px-8"
+                    size="lg"
+                  >
+                    <Play className="w-5 h-5" />
+                    Iniciar Disparo
+                    {contacts.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 bg-white/20 text-white">
+                        {contacts.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </motion.div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {progress.isPaused ? (
+                    <Button onClick={resumeDispatch} className="gap-2" size="lg">
+                      <Play className="w-5 h-5" />
+                      Retomar
+                    </Button>
+                  ) : (
+                    <Button onClick={pauseDispatch} variant="secondary" className="gap-2" size="lg">
+                      <Pause className="w-5 h-5" />
+                      Pausar
+                    </Button>
+                  )}
+                  <Button onClick={cancelDispatch} variant="destructive" size="lg">
+                    <Square className="w-5 h-5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
