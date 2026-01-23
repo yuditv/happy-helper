@@ -148,6 +148,60 @@ const playDispatchCompleteSound = (isMuted: boolean) => {
   }
 };
 
+// Generate a dispatch failure/warning sound (descending dissonant)
+const playDispatchFailureSound = (isMuted: boolean) => {
+  if (isMuted) return;
+  
+  try {
+    const ctx = getAudioContext();
+    
+    // Play a descending warning melody
+    const notes = [
+      { freq: 440, time: 0 },      // A4
+      { freq: 349.23, time: 0.15 }, // F4
+      { freq: 293.66, time: 0.30 }, // D4
+    ];
+    
+    notes.forEach(({ freq, time }) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.type = "sawtooth";
+      oscillator.frequency.setValueAtTime(freq, ctx.currentTime + time);
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime + time);
+      gainNode.gain.linearRampToValueAtTime(0.1, ctx.currentTime + time + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + time + 0.2);
+      
+      oscillator.start(ctx.currentTime + time);
+      oscillator.stop(ctx.currentTime + time + 0.25);
+    });
+    
+    // Add a low warning tone
+    setTimeout(() => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(196, ctx.currentTime); // G3
+      
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    }, 400);
+  } catch (e) {
+    // Silently fail
+  }
+};
+
 export function useSoundEffects() {
   const [isMuted, setIsMuted] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -178,6 +232,10 @@ export function useSoundEffects() {
     playDispatchCompleteSound(isMuted);
   }, [isMuted]);
 
+  const playDispatchFailure = useCallback(() => {
+    playDispatchFailureSound(isMuted);
+  }, [isMuted]);
+
   return {
     isMuted,
     toggleMute,
@@ -185,6 +243,7 @@ export function useSoundEffects() {
     playHover,
     playSuccess,
     playDispatchComplete,
+    playDispatchFailure,
   };
 }
 
