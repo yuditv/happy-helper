@@ -16,31 +16,39 @@ import {
   QrCode, 
   RefreshCw,
   AlertCircle,
-  CheckCircle2 
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { SubscriptionPlan, SubscriptionPayment, formatCurrencyBRL } from '@/types/subscription';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PIXPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  plan: SubscriptionPlan | null;
-  payment: SubscriptionPayment | null;
-  onRefreshStatus: () => void;
-  onSimulatePayment?: () => void; // Para testes
+  plan: SubscriptionPlan;
 }
 
 export function PIXPaymentDialog({
   open,
   onOpenChange,
   plan,
-  payment,
-  onRefreshStatus,
-  onSimulatePayment,
 }: PIXPaymentDialogProps) {
-  const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutos em segundos
+  const { user } = useAuth();
+  const [payment, setPayment] = useState<SubscriptionPayment | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30 * 60);
   const [copied, setCopied] = useState(false);
+
+  // Criar pagamento quando abre o dialog
+  useEffect(() => {
+    if (open && !payment && !isCreating) {
+      createPayment();
+    }
+  }, [open]);
 
   // Timer de expiração
   useEffect(() => {
@@ -59,15 +67,80 @@ export function PIXPaymentDialog({
     return () => clearInterval(interval);
   }, [open, payment?.status]);
 
-  // Reset timer quando abre
+  // Reset timer quando recebe expires_at
   useEffect(() => {
-    if (open && payment?.expires_at) {
+    if (payment?.expires_at) {
       const expiresAt = new Date(payment.expires_at);
       const now = new Date();
       const diff = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
       setTimeLeft(diff);
     }
-  }, [open, payment?.expires_at]);
+  }, [payment?.expires_at]);
+
+  const createPayment = async () => {
+    if (!user) return;
+    
+    setIsCreating(true);
+    try {
+      // Chama a edge function para criar o pagamento PIX
+      const { data, error } = await supabase.functions.invoke('mercado-pago-pix', {
+        body: {
+          action: 'create',
+          planId: plan.id,
+          amount: plan.price,
+          description: `Assinatura ${plan.name} - GerenciadorPro`
+        }
+      });
+
+      if (error) throw error;
+
+      setPayment(data.payment);
+      setTimeLeft(30 * 60);
+    } catch (error) {
+      console.error('Erro ao criar pagamento:', error);
+      toast({
+        title: 'Erro ao gerar PIX',
+        description: 'Não foi possível gerar o código PIX. Tente novamente.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const checkPaymentStatus = async () => {
+    if (!payment?.id) return;
+    
+    setIsChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mercado-pago-pix', {
+        body: {
+          action: 'check',
+          paymentId: payment.id
+        }
+      });
+
+      if (error) throw error;
+
+      setPayment(data.payment);
+      
+      if (data.payment.status === 'paid') {
+        toast({
+          title: 'Pagamento confirmado!',
+          description: 'Sua assinatura foi ativada com sucesso.',
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar pagamento:', error);
+      toast({
+        title: 'Erro ao verificar',
+        description: 'Não foi possível verificar o status do pagamento.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -76,7 +149,9 @@ export function PIXPaymentDialog({
   };
 
   const handleCopyCode = () => {
-    const pixCode = payment?.pix_code || 'PIX_CODE_PLACEHOLDER_' + payment?.id?.slice(0, 8);
+    const pixCode = payment?.pix_code || '';
+    if (!pixCode) return;
+    
     navigator.clipboard.writeText(pixCode);
     setCopied(true);
     toast({
@@ -86,13 +161,16 @@ export function PIXPaymentDialog({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!plan || !payment) return null;
+  const handleClose = () => {
+    setPayment(null);
+    onOpenChange(false);
+  };
 
-  const isPaid = payment.status === 'paid';
-  const isExpired = timeLeft === 0 || payment.status === 'expired';
+  const isPaid = payment?.status === 'paid';
+  const isExpired = timeLeft === 0 || payment?.status === 'expired';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md glass-card border-primary/20">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-center">
@@ -107,7 +185,13 @@ export function PIXPaymentDialog({
         </DialogHeader>
 
         <div className="py-6 space-y-6">
-          {isPaid ? (
+          {isCreating ? (
+            // Estado de carregamento
+            <div className="flex flex-col items-center gap-4 py-8">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-muted-foreground">Gerando código PIX...</p>
+            </div>
+          ) : isPaid ? (
             // Estado de sucesso
             <motion.div
               initial={{ scale: 0 }}
@@ -120,7 +204,7 @@ export function PIXPaymentDialog({
               <p className="text-center text-muted-foreground">
                 Aproveite todos os recursos do sistema!
               </p>
-              <Button onClick={() => onOpenChange(false)} className="w-full">
+              <Button onClick={handleClose} className="w-full">
                 Continuar
               </Button>
             </motion.div>
@@ -134,13 +218,21 @@ export function PIXPaymentDialog({
                 O código PIX expirou. Gere um novo código para continuar.
               </p>
               <Button 
-                onClick={() => onOpenChange(false)} 
+                onClick={createPayment} 
                 className="w-full"
+                disabled={isCreating}
               >
-                Tentar Novamente
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  'Gerar Novo Código'
+                )}
               </Button>
             </div>
-          ) : (
+          ) : payment ? (
             // Estado de aguardando pagamento
             <>
               {/* Timer */}
@@ -160,14 +252,14 @@ export function PIXPaymentDialog({
                 </Badge>
               </div>
 
-              {/* QR Code placeholder */}
+              {/* QR Code */}
               <div className="flex justify-center">
                 <div className="w-48 h-48 bg-white rounded-xl p-4 flex items-center justify-center">
                   {payment.pix_qr_code ? (
                     <img 
                       src={payment.pix_qr_code} 
                       alt="QR Code PIX" 
-                      className="w-full h-full"
+                      className="w-full h-full object-contain"
                     />
                   ) : (
                     <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
@@ -178,55 +270,58 @@ export function PIXPaymentDialog({
               </div>
 
               {/* Código copia e cola */}
-              <div className="space-y-2">
-                <p className="text-sm text-center text-muted-foreground">
-                  Ou copie o código PIX:
-                </p>
-                <div className="relative">
-                  <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all text-center">
-                    {payment.pix_code || `PIX_${payment.id?.slice(0, 20)}...`}
+              {payment.pix_code && (
+                <div className="space-y-2">
+                  <p className="text-sm text-center text-muted-foreground">
+                    Ou copie o código PIX:
+                  </p>
+                  <div className="relative">
+                    <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all text-center pr-16">
+                      {payment.pix_code.length > 50 
+                        ? `${payment.pix_code.slice(0, 50)}...` 
+                        : payment.pix_code}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={handleCopyCode}
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleCopyCode}
-                    className="absolute right-2 top-1/2 -translate-y-1/2"
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
-              </div>
+              )}
 
-              {/* Botões de ação */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={onRefreshStatus}
-                  className="flex-1"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Verificar Pagamento
-                </Button>
-                {onSimulatePayment && (
-                  <Button
-                    onClick={onSimulatePayment}
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Simular Pago
-                  </Button>
+              {/* Botão de verificar */}
+              <Button
+                variant="outline"
+                onClick={checkPaymentStatus}
+                className="w-full"
+                disabled={isChecking}
+              >
+                {isChecking ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Verificar Pagamento
+                  </>
                 )}
-              </div>
+              </Button>
 
               <p className="text-xs text-center text-muted-foreground">
                 O pagamento é processado automaticamente. Aguarde a confirmação.
               </p>
             </>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

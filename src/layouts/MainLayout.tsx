@@ -88,7 +88,7 @@ export function MainLayout() {
 
       {/* Main Content - with left padding for floating sidebar */}
       <motion.main 
-        className="flex-1 ml-20 p-6 overflow-auto"
+        className="flex-1 ml-20 p-6 overflow-auto pt-20"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
