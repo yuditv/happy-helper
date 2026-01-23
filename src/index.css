@@ -563,3 +563,254 @@
     display: none;
   }
 }
+
+/* ============================================
+   PREMIUM PAGE COMPONENTS
+   ============================================ */
+
+/* Page Header with Glow Icon */
+.page-header-icon {
+  @apply h-14 w-14 rounded-2xl flex items-center justify-center;
+  @apply transition-all duration-300;
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.7) 100%);
+  box-shadow: 0 8px 32px hsl(var(--primary) / 0.35), 0 0 0 1px hsl(var(--primary) / 0.2);
+}
+
+.page-header-icon:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 40px hsl(var(--primary) / 0.45), 0 0 0 1px hsl(var(--primary) / 0.3);
+}
+
+.page-header-icon svg {
+  @apply h-7 w-7 text-primary-foreground;
+  filter: drop-shadow(0 2px 4px hsl(0 0% 0% / 0.2));
+}
+
+/* Glowing Search Input */
+.search-glow {
+  @apply relative rounded-xl;
+  @apply transition-all duration-300;
+}
+
+.search-glow:focus-within {
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2), 0 0 24px hsl(var(--primary) / 0.15);
+}
+
+/* Premium Instance/Contact Card */
+.instance-card {
+  @apply relative overflow-hidden rounded-2xl p-5;
+  @apply transition-all duration-300 ease-out;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+}
+
+.instance-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl), 0 0 40px hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.25);
+}
+
+.instance-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg, 
+    hsl(0 0% 100% / 0.05) 0%, 
+    transparent 50%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Conversation Card in Inbox */
+.conversation-card {
+  @apply relative p-4 rounded-xl;
+  @apply transition-all duration-200 ease-out;
+  @apply cursor-pointer;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.conversation-card:hover {
+  background: hsl(var(--primary) / 0.05);
+  border-color: hsl(var(--primary) / 0.1);
+}
+
+.conversation-card.selected {
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.2);
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.08);
+}
+
+/* Message Bubble Glass */
+.message-bubble {
+  @apply relative rounded-2xl p-3 max-w-[85%];
+  @apply transition-all duration-200;
+}
+
+.message-bubble.sent {
+  @apply ml-auto;
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.85) 100%);
+  color: hsl(var(--primary-foreground));
+  border-radius: 1rem 1rem 0.25rem 1rem;
+}
+
+.message-bubble.received {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  border-radius: 1rem 1rem 1rem 0.25rem;
+}
+
+/* Status Indicator with Pulse */
+.status-indicator {
+  @apply relative h-3 w-3 rounded-full;
+}
+
+.status-indicator.online {
+  @apply bg-green-500;
+  box-shadow: 0 0 8px hsl(142 76% 50% / 0.6);
+}
+
+.status-indicator.online::after {
+  content: '';
+  @apply absolute inset-0 rounded-full bg-green-500;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.status-indicator.pending {
+  @apply bg-yellow-500;
+  box-shadow: 0 0 8px hsl(45 93% 50% / 0.6);
+}
+
+.status-indicator.offline {
+  @apply bg-gray-400;
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* KPI Card with Color Variants */
+.kpi-card {
+  @apply relative overflow-hidden rounded-2xl p-6;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.kpi-card:hover::before {
+  opacity: 1;
+}
+
+.kpi-card.success::before {
+  background: linear-gradient(90deg, hsl(142 76% 45%), hsl(142 70% 55%));
+  opacity: 1;
+}
+
+.kpi-card.warning::before {
+  background: linear-gradient(90deg, hsl(45 93% 50%), hsl(35 95% 55%));
+  opacity: 1;
+}
+
+.kpi-card.danger::before {
+  background: linear-gradient(90deg, hsl(0 84% 55%), hsl(350 90% 60%));
+  opacity: 1;
+}
+
+/* Empty State Premium */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-16 px-8;
+  @apply text-center;
+}
+
+.empty-state-icon {
+  @apply h-20 w-20 rounded-3xl flex items-center justify-center mb-6;
+  background: hsl(var(--muted));
+}
+
+.empty-state-icon svg {
+  @apply h-10 w-10 text-muted-foreground;
+}
+
+/* Floating Action Button */
+.fab-premium {
+  @apply fixed bottom-6 right-6 z-50;
+  @apply h-14 w-14 rounded-2xl;
+  @apply flex items-center justify-center;
+  @apply transition-all duration-300;
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 8px 32px hsl(var(--primary) / 0.4);
+}
+
+.fab-premium:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 40px hsl(var(--primary) / 0.5);
+}
+
+/* Progress Bar Premium */
+.progress-premium {
+  @apply relative h-2 w-full overflow-hidden rounded-full;
+  background: hsl(var(--muted));
+}
+
+.progress-premium-bar {
+  @apply h-full rounded-full;
+  background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.4);
+}
+
+/* Success color utility */
+.bg-success {
+  background-color: hsl(142 76% 45%);
+}
+
+.text-success {
+  color: hsl(142 76% 45%);
+}
+
+.border-success {
+  border-color: hsl(142 76% 45%);
+}
+
+/* Warning color utility */
+.bg-warning {
+  background-color: hsl(45 93% 50%);
+}
+
+.text-warning {
+  color: hsl(45 93% 50%);
+}
+
+.border-warning {
+  border-color: hsl(45 93% 50%);
+}

@@ -28,6 +28,7 @@ import { exportContactsAsVCard } from "@/lib/exportVCard";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+import { motion } from "framer-motion";
 
 export default function Contacts() {
   const { contacts, isLoading, userId, isConfigured, importProgress, addContact, updateContact, deleteContact, importContacts, clearAllContacts, getContactCount, refetch } = useContactsSupabase();
@@ -347,16 +348,27 @@ export default function Contacts() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      {/* Premium Header */}
+      <motion.div 
+        className="flex items-center gap-4"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="page-header-icon" style={{
+          background: 'linear-gradient(135deg, hsl(210 85% 55%) 0%, hsl(200 80% 50%) 100%)',
+          boxShadow: '0 8px 32px hsl(210 85% 55% / 0.35), 0 0 0 1px hsl(210 85% 55% / 0.2)'
+        }}>
+          <Database className="h-7 w-7 text-white" />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Lista de Contatos</h1>
+          <h1 className="text-3xl font-bold text-gradient">Lista de Contatos</h1>
           <p className="text-muted-foreground">
             Gerencie sua lista para disparos em massa
           </p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Hidden file inputs */}
       <input
@@ -419,15 +431,15 @@ export default function Contacts() {
         {/* Meus Contatos Tab */}
         <TabsContent value="contacts" className="space-y-6">
           {/* Summary Card */}
-          <Card className="border-2">
+          <Card className="glass-card">
             <CardHeader className="pb-4">
-              <div className="flex items-center gap-4">
-                <div className="p-4 rounded-full bg-primary/10">
+              <div className="flex items-center gap-5">
+                <div className="h-16 w-16 rounded-2xl bg-primary/15 flex items-center justify-center">
                   <Database className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-3xl font-bold">{contactCount.toLocaleString()}</CardTitle>
-                  <CardDescription className="text-base">
+                  <CardTitle className="text-4xl font-bold text-gradient">{contactCount.toLocaleString()}</CardTitle>
+                  <CardDescription className="text-base mt-1">
                     {contactCount === 1 ? "Contato disponível para disparo" : "Contatos disponíveis para disparo"}
                   </CardDescription>
                   {contacts.length !== contactCount && (
@@ -522,55 +534,58 @@ export default function Contacts() {
 
           {/* Contacts List */}
           {contacts.length > 0 && (
-            <Card>
+            <Card className="glass-card">
               <CardHeader className="pb-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <CardTitle className="text-lg">Seus Contatos</CardTitle>
-                  <div className="relative w-full sm:w-64">
+                  <div className="relative w-full sm:w-64 search-glow">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type="text"
                       placeholder="Buscar contatos..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-background"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm border border-white/10 rounded-xl bg-background/50 backdrop-blur-sm focus:outline-none focus:border-primary/30 transition-all"
                     />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                   {filteredContacts.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-4">
+                    <p className="text-center text-muted-foreground py-8">
                       Nenhum contato encontrado para "{searchQuery}"
                     </p>
                   ) : (
-                    filteredContacts.slice(0, 100).map((contact) => (
-                      <div
+                    filteredContacts.slice(0, 100).map((contact, index) => (
+                      <motion.div
                         key={contact.id}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: index * 0.02 }}
+                        className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-background/30 hover:bg-primary/5 hover:border-primary/15 transition-all group"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground truncate">{contact.name}</p>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
+                          <p className="font-medium text-foreground truncate group-hover:text-primary transition-colors">{contact.name}</p>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1.5">
+                              <Phone className="h-3.5 w-3.5" />
                               {contact.phone}
                             </span>
                             {contact.email && (
-                              <span className="flex items-center gap-1 truncate">
-                                <Mail className="h-3 w-3" />
+                              <span className="flex items-center gap-1.5 truncate">
+                                <Mail className="h-3.5 w-3.5" />
                                 {contact.email}
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 ml-2">
+                        <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditContact(contact)}
-                            className="h-8 w-8"
+                            className="h-9 w-9 rounded-lg"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -578,16 +593,16 @@ export default function Contacts() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setDeleteConfirm(contact)}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="h-9 w-9 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                      </div>
+                      </motion.div>
                     ))
                   )}
                   {filteredContacts.length > 100 && (
-                    <p className="text-center text-sm text-muted-foreground py-2">
+                    <p className="text-center text-sm text-muted-foreground py-3">
                       Mostrando 100 de {filteredContacts.length} contatos. Use a busca para filtrar.
                     </p>
                   )}
@@ -596,15 +611,15 @@ export default function Contacts() {
             </Card>
           )}
 
-          {/* Empty State Info */}
+          {/* Empty State */}
           {contacts.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-1">
-                  Lista vazia
-                </h3>
-                <p className="text-muted-foreground text-sm max-w-md">
+            <Card className="glass-card">
+              <CardContent className="empty-state">
+                <div className="empty-state-icon">
+                  <Users />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Lista vazia</h3>
+                <p className="text-muted-foreground max-w-md">
                   Importe uma planilha Excel/CSV com colunas "nome" e "telefone", 
                   ou adicione contatos manualmente para começar.
                 </p>

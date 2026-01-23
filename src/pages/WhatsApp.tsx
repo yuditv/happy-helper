@@ -16,7 +16,6 @@ import {
   Users, 
   CheckCircle2, 
   XCircle, 
-  Loader2, 
   Clock,
   Zap,
   RefreshCw,
@@ -47,6 +46,7 @@ import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
 import { BulkDispatcher } from '@/components/BulkDispatcher';
+import { motion } from 'framer-motion';
 
 export default function WhatsApp() {
   const { 
@@ -132,11 +132,26 @@ export default function WhatsApp() {
   const getInstanceStatusBadge = (status: string) => {
     switch (status) {
       case 'connected':
-        return <Badge className="bg-success/20 text-success border-success/30"><Wifi className="w-3 h-3 mr-1" /> Conectado</Badge>;
+        return (
+          <Badge className="bg-green-500/15 text-green-500 border-green-500/30 gap-1.5">
+            <span className="status-indicator online h-2 w-2" />
+            Conectado
+          </Badge>
+        );
       case 'disconnected':
-        return <Badge variant="destructive"><WifiOff className="w-3 h-3 mr-1" /> Desconectado</Badge>;
+        return (
+          <Badge variant="destructive" className="gap-1.5">
+            <WifiOff className="w-3 h-3" />
+            Desconectado
+          </Badge>
+        );
       case 'pending':
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> Aguardando</Badge>;
+        return (
+          <Badge variant="secondary" className="gap-1.5">
+            <Clock className="w-3 h-3" />
+            Aguardando
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -145,36 +160,79 @@ export default function WhatsApp() {
   const getCampaignStatusBadge = (status: string) => {
     switch (status) {
       case 'running':
-        return <Badge className="bg-primary/20 text-primary border-primary/30"><Play className="w-3 h-3 mr-1" /> Em execução</Badge>;
+        return (
+          <Badge className="bg-primary/15 text-primary border-primary/30 gap-1.5">
+            <Play className="w-3 h-3" />
+            Em execução
+          </Badge>
+        );
       case 'paused':
-        return <Badge className="bg-warning/20 text-warning border-warning/30"><Pause className="w-3 h-3 mr-1" /> Pausada</Badge>;
+        return (
+          <Badge className="bg-yellow-500/15 text-yellow-500 border-yellow-500/30 gap-1.5">
+            <Pause className="w-3 h-3" />
+            Pausada
+          </Badge>
+        );
       case 'completed':
-        return <Badge className="bg-success/20 text-success border-success/30"><CheckCircle2 className="w-3 h-3 mr-1" /> Concluída</Badge>;
+        return (
+          <Badge className="bg-green-500/15 text-green-500 border-green-500/30 gap-1.5">
+            <CheckCircle2 className="w-3 h-3" />
+            Concluída
+          </Badge>
+        );
       case 'failed':
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Falhou</Badge>;
+        return (
+          <Badge variant="destructive" className="gap-1.5">
+            <XCircle className="w-3 h-3" />
+            Falhou
+          </Badge>
+        );
       case 'draft':
-        return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" /> Rascunho</Badge>;
+        return (
+          <Badge variant="secondary" className="gap-1.5">
+            <AlertCircle className="w-3 h-3" />
+            Rascunho
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-          <Send className="h-6 w-6 text-primary-foreground" />
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      {/* Premium Header */}
+      <motion.div 
+        className="flex items-center gap-4"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="page-header-icon">
+          <Send />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gradient">WhatsApp</h1>
-          <p className="text-sm text-muted-foreground">Gerencie instâncias, campanhas e disparos em massa</p>
+          <h1 className="text-3xl font-bold text-gradient">WhatsApp</h1>
+          <p className="text-muted-foreground">Gerencie instâncias, campanhas e disparos em massa</p>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Main Tabs */}
+      {/* Main Tabs with Premium Styling */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-7 w-full max-w-4xl">
+        <TabsList className="w-full max-w-4xl grid grid-cols-7">
           <TabsTrigger value="dispatch" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Disparo</span>
@@ -205,110 +263,130 @@ export default function WhatsApp() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Dispatch Tab - NEW BULK DISPATCHER */}
+        {/* Dispatch Tab */}
         <TabsContent value="dispatch" className="space-y-6">
           <BulkDispatcher />
         </TabsContent>
 
         {/* Instances Tab */}
-        <TabsContent value="instances" className="space-y-4">
+        <TabsContent value="instances" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Suas Instâncias WhatsApp</h2>
-            <Button onClick={() => setCreateInstanceDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
+            <div>
+              <h2 className="text-xl font-semibold">Suas Instâncias WhatsApp</h2>
+              <p className="text-sm text-muted-foreground">Gerencie suas conexões</p>
+            </div>
+            <Button onClick={() => setCreateInstanceDialogOpen(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
               Nova Instância
             </Button>
           </div>
 
           {instancesLoading ? (
             <div className="flex justify-center py-12">
-              <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+              <RefreshCw className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : instances.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Smartphone className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nenhuma instância cadastrada</h3>
-                <p className="text-muted-foreground text-center mb-4">
+            <Card className="glass-card">
+              <CardContent className="empty-state">
+                <div className="empty-state-icon">
+                  <Smartphone />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Nenhuma instância cadastrada</h3>
+                <p className="text-muted-foreground mb-6 max-w-md">
                   Crie sua primeira instância WhatsApp para começar a enviar campanhas
                 </p>
-                <Button onClick={() => setCreateInstanceDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
+                <Button onClick={() => setCreateInstanceDialogOpen(true)} className="gap-2">
+                  <Plus className="w-4 h-4" />
                   Criar Instância
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <motion.div 
+              className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
               {instances.map((instance) => (
-                <Card key={instance.id} className="relative">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{instance.name}</CardTitle>
-                        <CardDescription>
-                          {instance.phone_connected || "Não conectado"}
-                        </CardDescription>
+                <motion.div key={instance.id} variants={itemVariants}>
+                  <Card className="glass-card group">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                            {instance.name}
+                          </CardTitle>
+                          <CardDescription>
+                            {instance.phone_connected || "Não conectado"}
+                          </CardDescription>
+                        </div>
+                        {getInstanceStatusBadge(instance.status)}
                       </div>
-                      {getInstanceStatusBadge(instance.status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Limite diário:</span>
-                      <span className="font-medium">{instance.daily_limit || 500} msgs</span>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleShowQRCode(instance)}
-                      >
-                        <QrCode className="w-4 h-4 mr-1" />
-                        QR Code
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleCheckStatus(instance.id)}
-                        disabled={checkingStatus === instance.id}
-                      >
-                        <RefreshCw className={`w-4 h-4 mr-1 ${checkingStatus === instance.id ? 'animate-spin' : ''}`} />
-                        Status
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteInstance(instance.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Limite diário:</span>
+                        <span className="font-semibold">{instance.daily_limit || 500} msgs</span>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleShowQRCode(instance)}
+                          className="gap-1.5"
+                        >
+                          <QrCode className="w-4 h-4" />
+                          QR Code
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleCheckStatus(instance.id)}
+                          disabled={checkingStatus === instance.id}
+                          className="gap-1.5"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${checkingStatus === instance.id ? 'animate-spin' : ''}`} />
+                          Status
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteInstance(instance.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </TabsContent>
 
         {/* Campaigns Tab */}
-        <TabsContent value="campaigns" className="space-y-4">
+        <TabsContent value="campaigns" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Suas Campanhas</h2>
+            <div>
+              <h2 className="text-xl font-semibold">Suas Campanhas</h2>
+              <p className="text-sm text-muted-foreground">Gerencie campanhas de envio</p>
+            </div>
             <Button 
               onClick={() => setCreateCampaignDialogOpen(true)}
               disabled={instances.filter(i => i.status === 'connected').length === 0}
+              className="gap-2"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4" />
               Nova Campanha
             </Button>
           </div>
 
           {instances.filter(i => i.status === 'connected').length === 0 && (
-            <Card className="border-warning/30 bg-warning/5">
+            <Card className="border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="flex items-center gap-3 py-4">
-                <AlertCircle className="w-5 h-5 text-warning" />
+                <AlertCircle className="w-5 h-5 text-yellow-500" />
                 <p className="text-sm text-muted-foreground">
                   Conecte pelo menos uma instância WhatsApp para criar campanhas
                 </p>
@@ -318,105 +396,121 @@ export default function WhatsApp() {
 
           {campaignsLoading ? (
             <div className="flex justify-center py-12">
-              <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+              <RefreshCw className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : campaigns.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Megaphone className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nenhuma campanha criada</h3>
-                <p className="text-muted-foreground text-center mb-4">
+            <Card className="glass-card">
+              <CardContent className="empty-state">
+                <div className="empty-state-icon">
+                  <Megaphone />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Nenhuma campanha criada</h3>
+                <p className="text-muted-foreground mb-6 max-w-md">
                   Crie sua primeira campanha de envio em massa
                 </p>
                 <Button 
                   onClick={() => setCreateCampaignDialogOpen(true)}
                   disabled={instances.filter(i => i.status === 'connected').length === 0}
+                  className="gap-2"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-4 h-4" />
                   Criar Campanha
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
+            <motion.div 
+              className="grid gap-4"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
               {campaigns.map((campaign) => (
-                <Card key={campaign.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{campaign.name}</CardTitle>
-                        <CardDescription className="mt-1">
-                          Criada em {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
-                        </CardDescription>
+                <motion.div key={campaign.id} variants={itemVariants}>
+                  <Card className="glass-card">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{campaign.name}</CardTitle>
+                          <CardDescription>
+                            Criada em {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
+                          </CardDescription>
+                        </div>
+                        {getCampaignStatusBadge(campaign.status)}
                       </div>
-                      {getCampaignStatusBadge(campaign.status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Progresso</span>
-                        <span className="font-medium">{campaign.progress}%</span>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Progresso</span>
+                          <span className="font-semibold">{campaign.progress}%</span>
+                        </div>
+                        <div className="progress-premium">
+                          <div 
+                            className="progress-premium-bar" 
+                            style={{ width: `${campaign.progress}%` }}
+                          />
+                        </div>
                       </div>
-                      <Progress value={campaign.progress} className="h-2" />
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-2xl font-bold">{campaign.total_contacts}</p>
-                        <p className="text-xs text-muted-foreground">Total</p>
+                      
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className="kpi-card p-3">
+                          <p className="text-2xl font-bold">{campaign.total_contacts}</p>
+                          <p className="text-xs text-muted-foreground">Total</p>
+                        </div>
+                        <div className="kpi-card success p-3">
+                          <p className="text-2xl font-bold text-green-500">{campaign.sent_count}</p>
+                          <p className="text-xs text-muted-foreground">Enviados</p>
+                        </div>
+                        <div className="kpi-card danger p-3">
+                          <p className="text-2xl font-bold text-destructive">{campaign.failed_count}</p>
+                          <p className="text-xs text-muted-foreground">Falhas</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-2xl font-bold text-success">{campaign.sent_count}</p>
-                        <p className="text-xs text-muted-foreground">Enviados</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-destructive">{campaign.failed_count}</p>
-                        <p className="text-xs text-muted-foreground">Falhas</p>
-                      </div>
-                    </div>
 
-                    <div className="flex gap-2 flex-wrap">
-                      {campaign.status === 'draft' && campaign.total_contacts > 0 && (
-                        <Button size="sm" onClick={() => handleStartCampaign(campaign.id)}>
-                          <Play className="w-4 h-4 mr-1" />
-                          Iniciar
+                      <div className="flex gap-2 flex-wrap pt-2">
+                        {campaign.status === 'draft' && campaign.total_contacts > 0 && (
+                          <Button size="sm" onClick={() => handleStartCampaign(campaign.id)} className="gap-1.5">
+                            <Play className="w-4 h-4" />
+                            Iniciar
+                          </Button>
+                        )}
+                        {campaign.status === 'running' && (
+                          <Button size="sm" variant="outline" onClick={() => handlePauseCampaign(campaign.id)} className="gap-1.5">
+                            <Pause className="w-4 h-4" />
+                            Pausar
+                          </Button>
+                        )}
+                        {campaign.status === 'paused' && (
+                          <Button size="sm" onClick={() => handleStartCampaign(campaign.id)} className="gap-1.5">
+                            <Play className="w-4 h-4" />
+                            Retomar
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => handleShowLogs(campaign)} className="gap-1.5">
+                          <FileText className="w-4 h-4" />
+                          Logs
                         </Button>
-                      )}
-                      {campaign.status === 'running' && (
-                        <Button size="sm" variant="outline" onClick={() => handlePauseCampaign(campaign.id)}>
-                          <Pause className="w-4 h-4 mr-1" />
-                          Pausar
-                        </Button>
-                      )}
-                      {campaign.status === 'paused' && (
-                        <Button size="sm" onClick={() => handleStartCampaign(campaign.id)}>
-                          <Play className="w-4 h-4 mr-1" />
-                          Retomar
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => handleShowLogs(campaign)}>
-                        <FileText className="w-4 h-4 mr-1" />
-                        Logs
-                      </Button>
-                      {(campaign.status === 'draft' || campaign.status === 'paused') && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedCampaign(campaign);
-                            setImportDialogOpen(true);
-                          }}
-                        >
-                          <Users className="w-4 h-4 mr-1" />
-                          Contatos
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                        {(campaign.status === 'draft' || campaign.status === 'paused') && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedCampaign(campaign);
+                              setImportDialogOpen(true);
+                            }}
+                            className="gap-1.5"
+                          >
+                            <Users className="w-4 h-4" />
+                            Contatos
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </TabsContent>
 
@@ -427,30 +521,23 @@ export default function WhatsApp() {
 
         {/* Schedule Tab */}
         <TabsContent value="schedule" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ScheduleDispatch 
-              selectedClients={[]}
-              message=""
-              onMessageChange={() => {}}
-            />
-            <ScheduledDispatchList />
-          </div>
+          <ScheduledDispatchList />
         </TabsContent>
 
         {/* History Tab */}
-        <TabsContent value="history">
+        <TabsContent value="history" className="space-y-6">
           <DispatchHistoryPanel />
         </TabsContent>
 
         {/* Status Tab */}
-        <TabsContent value="status">
+        <TabsContent value="status" className="space-y-6">
           <WhatsAppStatus instances={instances} />
         </TabsContent>
       </Tabs>
 
       {/* Dialogs */}
-      <QRCodeDialog 
-        open={qrCodeDialogOpen} 
+      <QRCodeDialog
+        open={qrCodeDialogOpen}
         onOpenChange={setQrCodeDialogOpen}
         instance={selectedInstance}
         getQRCode={getQRCode}
@@ -460,7 +547,7 @@ export default function WhatsApp() {
       <CreateInstanceDialog
         open={createInstanceDialogOpen}
         onOpenChange={setCreateInstanceDialogOpen}
-        onCreateInstance={createInstance}
+        onCreateInstance={(name, dailyLimit) => createInstance(name)}
         onRefetch={refetchInstances}
       />
 
@@ -471,18 +558,21 @@ export default function WhatsApp() {
         onRefetch={refetchCampaigns}
       />
 
-      <CampaignLogsDialog
-        open={logsDialogOpen}
-        onOpenChange={setLogsDialogOpen}
-        campaign={selectedCampaign}
-      />
-
-      <ImportContactsDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        campaign={selectedCampaign}
-        onRefetch={refetchCampaigns}
-      />
+      {selectedCampaign && (
+        <>
+          <CampaignLogsDialog
+            open={logsDialogOpen}
+            onOpenChange={setLogsDialogOpen}
+            campaign={selectedCampaign}
+          />
+          <ImportContactsDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            campaign={selectedCampaign}
+            onRefetch={refetchCampaigns}
+          />
+        </>
+      )}
     </div>
   );
 }
