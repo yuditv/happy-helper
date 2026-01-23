@@ -1,4 +1,4 @@
-import type { Contact } from "@/hooks/useContacts";
+import type { Contact } from "@/hooks/useContactsSupabase";
 
 /**
  * Generates a vCard string for a single contact
