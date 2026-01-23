@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useClientTags } from '@/hooks/useClientTags';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientTable } from '@/components/ClientTable';
@@ -34,6 +35,7 @@ import { TagSelector } from '@/components/TagSelector';
 import { QuickKPIs } from '@/components/QuickKPIs';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { GlobalSearch } from '@/components/GlobalSearch';
+import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -43,7 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Smartphone, Package, Upload, Search, MessageSquare } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Smartphone, Package, Upload, Search, MessageSquare, Lock, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -61,6 +63,7 @@ const Index = () => {
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, importClients, expiringClients, expiredClients } = useClients();
   const { tags, createTag, updateTag, deleteTag, assignTag, removeTag, getClientTags, getClientsByTag } = useClientTags();
   const { instances } = useWhatsAppInstances();
+  const { isActive, canAccessFeature } = useSubscription();
   const { 
     notifications, 
     unreadConversations, 
@@ -70,6 +73,13 @@ const Index = () => {
     dismiss: dismissNotification, 
     refresh: refreshNotifications 
   } = useNotifications({ clients, instances });
+  
+  // Check if subscription is active for restricted actions
+  const isSubscriptionActive = isActive();
+  const canCreateClients = canAccessFeature('can_create_clients');
+  const canEditClients = canAccessFeature('can_edit_clients');
+  const canDeleteClients = canAccessFeature('can_delete_clients');
+  const canSendWhatsapp = canAccessFeature('can_send_whatsapp');
   
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -96,7 +106,78 @@ const Index = () => {
   const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
   const [whatsappClient, setWhatsappClient] = useState<Client | null>(null);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const clientsPerPage = viewMode === 'grid' ? 12 : 20;
+
+  // Show subscription dialog when trying to use blocked feature
+  const showSubscriptionRequired = () => {
+    toast.error('Assinatura necessária', {
+      description: 'Sua assinatura expirou. Renove para continuar usando.',
+      action: {
+        label: 'Assinar',
+        onClick: () => setSubscriptionDialogOpen(true),
+      },
+    });
+  };
+
+  // Wrapped action handlers with subscription check
+  const handleAddClientClick = () => {
+    if (!canCreateClients) {
+      showSubscriptionRequired();
+      return;
+    }
+    setEditingClient(null);
+    setFormOpen(true);
+  };
+
+  const handleEditClientClick = (client: Client) => {
+    if (!canEditClients) {
+      showSubscriptionRequired();
+      return;
+    }
+    setEditingClient(client);
+    setFormOpen(true);
+  };
+
+  const handleDeleteClientClick = (id: string) => {
+    if (!canDeleteClients) {
+      showSubscriptionRequired();
+      return;
+    }
+    const client = clients.find((c) => c.id === id);
+    if (client) {
+      setClientToDelete(client);
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  const handleSendWhatsappClick = (client: Client) => {
+    if (!canSendWhatsapp) {
+      showSubscriptionRequired();
+      return;
+    }
+    setWhatsappClient(client);
+    setWhatsappDialogOpen(true);
+  };
+
+  const handleRenewClientClick = async (clientId: string) => {
+    if (!canEditClients) {
+      showSubscriptionRequired();
+      return;
+    }
+    const result = await renewClient(clientId);
+    if (result) {
+      toast.success('Cliente renovado com sucesso!');
+    }
+  };
+
+  const handleImportClick = () => {
+    if (!canCreateClients) {
+      showSubscriptionRequired();
+      return;
+    }
+    setImportDialogOpen(true);
+  };
 
   // Global search keyboard shortcut (Ctrl+K)
   useEffect(() => {
@@ -419,9 +500,10 @@ const Index = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="glass-card border-border/50">
-                  <DropdownMenuItem onClick={() => setImportDialogOpen(true)} className="hover:bg-primary/10">
-                    <Upload className="h-4 w-4 mr-2 text-emerald-500" />
+                  <DropdownMenuItem onClick={handleImportClick} className="hover:bg-primary/10">
+                    <Upload className="h-4 w-4 mr-2 text-green-500" />
                     Importar Clientes (XLSX/CSV)
+                    {!canCreateClients && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-border/50" />
                   <DropdownMenuItem onClick={handleExportClients} className="hover:bg-primary/10">
@@ -479,6 +561,10 @@ const Index = () => {
                   <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
                     <User className="h-4 w-4 mr-2 text-primary" />
                     Meu Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/payment-history')} className="hover:bg-primary/10">
+                    <CreditCard className="h-4 w-4 mr-2 text-primary" />
+                    Histórico de Pagamentos
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/my-dashboard')} className="hover:bg-primary/10">
                     <BarChart3 className="h-4 w-4 mr-2 text-primary" />
@@ -657,7 +743,7 @@ const Index = () => {
                 : 'Tente ajustar os filtros de busca para encontrar o que procura.'}
             </p>
             {clients.length === 0 && (
-              <Button onClick={() => setFormOpen(true)} className="gap-2 btn-futuristic text-primary-foreground font-semibold px-8">
+              <Button onClick={handleAddClientClick} className="gap-2 btn-futuristic text-primary-foreground font-semibold px-8">
                 <Plus className="h-4 w-4" />
                 Adicionar Cliente
               </Button>
@@ -703,14 +789,14 @@ const Index = () => {
                     </button>
                     <ClientCard
                       client={client}
-                      onEdit={handleOpenEdit}
-                      onDelete={handleOpenDelete}
-                      onRenew={handleRenewClient}
+                      onEdit={handleEditClientClick}
+                      onDelete={handleDeleteClientClick}
+                      onRenew={handleRenewClientClick}
                       onViewHistory={handleViewHistory}
                       onChangePlan={handleOpenChangePlan}
                       onViewNotifications={handleViewNotifications}
                       onSendEmail={handleSendEmail}
-                      onSendWhatsApp={handleSendWhatsApp}
+                      onSendWhatsApp={handleSendWhatsappClick}
                       getPlanName={getPlanName}
                     />
                   </div>
@@ -719,9 +805,9 @@ const Index = () => {
             ) : (
               <ClientTable
                 clients={paginatedClients}
-                onEdit={handleOpenEdit}
-                onDelete={handleOpenDelete}
-                onRenew={handleRenewClient}
+                onEdit={handleEditClientClick}
+                onDelete={handleDeleteClientClick}
+                onRenew={handleRenewClientClick}
                 onViewHistory={handleViewHistory}
                 onChangePlan={handleOpenChangePlan}
                 onViewNotifications={handleViewNotifications}
@@ -867,6 +953,11 @@ const Index = () => {
         instances={instances}
         isOpen={globalSearchOpen}
         onOpenChange={setGlobalSearchOpen}
+      />
+      {/* Subscription Dialog */}
+      <SubscriptionPlansDialog
+        open={subscriptionDialogOpen}
+        onOpenChange={setSubscriptionDialogOpen}
       />
       </div>
     </>
