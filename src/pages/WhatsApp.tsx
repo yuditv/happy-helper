@@ -37,6 +37,8 @@ import {
   CircleDot,
   Lock,
   CreditCard,
+  Link,
+  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WhatsAppTemplateManager } from '@/components/WhatsAppTemplateManager';
@@ -62,6 +64,7 @@ export default function WhatsApp() {
     checkStatus, 
     deleteInstance, 
     getPairingCode,
+    configureWebhook,
     refetch: refetchInstances 
   } = useWhatsAppInstances();
   const { 
@@ -90,6 +93,7 @@ export default function WhatsApp() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
+  const [configuringWebhook, setConfiguringWebhook] = useState<string | null>(null);
 
   // Polling for campaign progress
   useEffect(() => {
@@ -118,6 +122,17 @@ export default function WhatsApp() {
       toast.error("Erro ao verificar status");
     } finally {
       setCheckingStatus(null);
+    }
+  };
+
+  const handleConfigureWebhook = async (instanceId: string) => {
+    setConfiguringWebhook(instanceId);
+    try {
+      await configureWebhook(instanceId);
+    } catch (error) {
+      toast.error("Erro ao sincronizar webhook");
+    } finally {
+      setConfiguringWebhook(null);
     }
   };
 
@@ -371,8 +386,17 @@ export default function WhatsApp() {
                           <CardTitle className="text-lg group-hover:text-primary transition-colors">
                             {instance.name}
                           </CardTitle>
-                          <CardDescription>
-                            {instance.phone_connected || "Não conectado"}
+                          <CardDescription className="flex flex-col gap-0.5">
+                            {instance.phone_connected ? (
+                              <>
+                                <span className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3" />
+                                  {instance.phone_connected}
+                                </span>
+                              </>
+                            ) : (
+                              <span>Não conectado</span>
+                            )}
                           </CardDescription>
                         </div>
                         {getInstanceStatusBadge(instance.status)}
@@ -403,6 +427,19 @@ export default function WhatsApp() {
                           <RefreshCw className={`w-4 h-4 ${checkingStatus === instance.id ? 'animate-spin' : ''}`} />
                           Status
                         </Button>
+                        {instance.status === 'connected' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleConfigureWebhook(instance.id)}
+                            disabled={configuringWebhook === instance.id}
+                            className="gap-1.5"
+                            title="Sincronizar webhook para receber mensagens"
+                          >
+                            <Link className={`w-4 h-4 ${configuringWebhook === instance.id ? 'animate-pulse' : ''}`} />
+                            Webhook
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
                           size="sm"
