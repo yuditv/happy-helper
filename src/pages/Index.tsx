@@ -4,6 +4,8 @@ import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useClientTags } from '@/hooks/useClientTags';
+import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientTable } from '@/components/ClientTable';
@@ -22,12 +24,16 @@ import { ChangePlanDialog } from '@/components/ChangePlanDialog';
 import { NotificationHistoryDialog } from '@/components/NotificationHistoryDialog';
 import { ImportClientsDialog } from '@/components/ImportClientsDialog';
 import { SendEmailDialog } from '@/components/SendEmailDialog';
+import { SendWhatsAppDialog } from '@/components/SendWhatsAppDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SoundToggle } from '@/components/SoundToggle';
 import { TagManager } from '@/components/TagManager';
 import { TagFilter } from '@/components/TagFilter';
 import { TagBadge } from '@/components/TagBadge';
 import { TagSelector } from '@/components/TagSelector';
+import { QuickKPIs } from '@/components/QuickKPIs';
+import { NotificationCenter } from '@/components/NotificationCenter';
+import { GlobalSearch } from '@/components/GlobalSearch';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -37,7 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Smartphone, Package, Upload } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Smartphone, Package, Upload, Search, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -54,6 +60,16 @@ const Index = () => {
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, importClients, expiringClients, expiredClients } = useClients();
   const { tags, createTag, updateTag, deleteTag, assignTag, removeTag, getClientTags, getClientsByTag } = useClientTags();
+  const { instances } = useWhatsAppInstances();
+  const { 
+    notifications, 
+    unreadConversations, 
+    pendingMessages, 
+    markAsRead, 
+    markAllAsRead, 
+    dismiss: dismissNotification, 
+    refresh: refreshNotifications 
+  } = useNotifications({ clients, instances });
   
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -77,7 +93,22 @@ const Index = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailClient, setEmailClient] = useState<Client | null>(null);
+  const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
+  const [whatsappClient, setWhatsappClient] = useState<Client | null>(null);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const clientsPerPage = viewMode === 'grid' ? 12 : 20;
+
+  // Global search keyboard shortcut (Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setGlobalSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const filteredAndSortedClients = useMemo(() => {
     const filtered = clients.filter((client) => {
@@ -264,6 +295,11 @@ const Index = () => {
     setEmailDialogOpen(true);
   };
 
+  const handleSendWhatsApp = (client: Client) => {
+    setWhatsappClient(client);
+    setWhatsappDialogOpen(true);
+  };
+
   const handleConfirmChangePlan = async (clientId: string, newPlan: PlanType, newExpiresAt: Date) => {
     const client = clients.find(c => c.id === clientId);
     if (!client) return;
@@ -355,6 +391,27 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Global Search Button */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setGlobalSearchOpen(true)}
+                className="hidden md:flex gap-2 glass-card border-border/50 hover:border-primary text-muted-foreground"
+              >
+                <Search className="h-4 w-4" />
+                <span>Buscar...</span>
+                <kbd className="ml-2 px-1.5 py-0.5 text-[10px] rounded bg-muted">⌘K</kbd>
+              </Button>
+
+              {/* Notification Center */}
+              <NotificationCenter
+                notifications={notifications}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+                onDismiss={dismissNotification}
+                onRefresh={refreshNotifications}
+              />
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="hidden sm:flex glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300">
@@ -363,7 +420,7 @@ const Index = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="glass-card border-border/50">
                   <DropdownMenuItem onClick={() => setImportDialogOpen(true)} className="hover:bg-primary/10">
-                    <Upload className="h-4 w-4 mr-2 text-green-500" />
+                    <Upload className="h-4 w-4 mr-2 text-emerald-500" />
                     Importar Clientes (XLSX/CSV)
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-border/50" />
@@ -452,6 +509,16 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Quick KPIs */}
+        <div className="animate-fade-in">
+          <QuickKPIs 
+            clients={clients} 
+            instances={instances} 
+            pendingMessages={pendingMessages}
+            unreadConversations={unreadConversations}
+          />
+        </div>
+
         {/* Expiring Alert */}
         <ExpiringClientsAlert 
           expiringClients={expiringClients}
@@ -643,6 +710,7 @@ const Index = () => {
                       onChangePlan={handleOpenChangePlan}
                       onViewNotifications={handleViewNotifications}
                       onSendEmail={handleSendEmail}
+                      onSendWhatsApp={handleSendWhatsApp}
                       getPlanName={getPlanName}
                     />
                   </div>
@@ -786,6 +854,19 @@ const Index = () => {
         open={emailDialogOpen}
         onOpenChange={setEmailDialogOpen}
         client={emailClient}
+      />
+      <SendWhatsAppDialog
+        client={whatsappClient}
+        instances={instances}
+        open={whatsappDialogOpen}
+        onOpenChange={setWhatsappDialogOpen}
+      />
+      {/* Global Search */}
+      <GlobalSearch
+        clients={clients}
+        instances={instances}
+        isOpen={globalSearchOpen}
+        onOpenChange={setGlobalSearchOpen}
       />
       </div>
     </>
