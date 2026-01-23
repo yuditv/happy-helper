@@ -20,10 +20,12 @@ import { useContactsSupabase } from '@/hooks/useContactsSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Contact, SavedContact } from './ContactsManager';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import confetti from 'canvas-confetti';
 
 export function BulkDispatcher() {
   const { toast } = useToast();
+  const { permission, requestPermission, showLocalNotification, isSupported } = usePushNotifications();
   const { instances, isLoading: instancesLoading, refetch: fetchInstances, checkNumbers, refreshAllStatus } = useWhatsAppInstances();
   const {
     config,
@@ -283,12 +285,21 @@ export function BulkDispatcher() {
     return () => clearInterval(interval);
   }, [progress.isRunning, progress.sent]);
   
-  // Fire confetti when dispatch completes successfully
+  // Fire confetti and show notification when dispatch completes successfully
   useEffect(() => {
     const wasRunning = prevProgressRef.current.isRunning;
     const justCompleted = wasRunning && !progress.isRunning && progress.sent > 0;
     
     if (justCompleted) {
+      // Show browser notification (works even in background)
+      if (permission === 'granted') {
+        showLocalNotification('🎉 Disparo Concluído!', {
+          body: `✅ ${progress.sent} enviados • ❌ ${progress.failed} falharam`,
+          tag: 'dispatch-complete',
+          requireInteraction: true,
+        });
+      }
+
       // Fire multiple bursts of confetti
       const duration = 3000;
       const animationEnd = Date.now() + duration;
@@ -318,7 +329,14 @@ export function BulkDispatcher() {
     }
 
     prevProgressRef.current = { isRunning: progress.isRunning, sent: progress.sent };
-  }, [progress.isRunning, progress.sent]);
+  }, [progress.isRunning, progress.sent, progress.failed, permission, showLocalNotification]);
+
+  // Request notification permission when dispatch starts (if not granted)
+  useEffect(() => {
+    if (progress.isRunning && permission === 'default' && isSupported) {
+      requestPermission();
+    }
+  }, [progress.isRunning, permission, isSupported, requestPermission]);
 
   // Format estimated time remaining
   const formatTimeRemaining = (seconds: number) => {
