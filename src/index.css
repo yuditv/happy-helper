@@ -1112,3 +1112,513 @@
   background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* ============================================
+   BULK DISPATCHER STUDIO - New Premium Layout
+   ============================================ */
+
+/* Phone Preview Container */
+.phone-preview-container {
+  @apply flex items-center justify-center;
+}
+
+.phone-frame {
+  @apply relative w-[280px] h-[560px] rounded-[3rem] overflow-hidden;
+  background: linear-gradient(145deg, hsl(240 10% 20%), hsl(240 10% 10%));
+  box-shadow: 
+    0 50px 100px -20px hsl(0 0% 0% / 0.5),
+    0 30px 60px -30px hsl(0 0% 0% / 0.6),
+    inset 0 0 0 3px hsl(240 10% 25%),
+    inset 0 0 0 4px hsl(240 10% 8%);
+}
+
+.phone-frame::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 2.6rem;
+  border: 1px solid hsl(240 10% 20%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.phone-notch {
+  @apply absolute top-2 left-1/2 -translate-x-1/2 w-24 h-6 rounded-full z-20;
+  background: hsl(240 10% 8%);
+}
+
+.phone-screen {
+  @apply absolute inset-2 rounded-[2.5rem] overflow-hidden flex flex-col;
+  background: hsl(var(--background));
+}
+
+/* WhatsApp Header */
+.whatsapp-header {
+  @apply flex items-center justify-between px-4 py-3;
+  background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--card) / 0.95));
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* WhatsApp Chat Area */
+.whatsapp-chat-area {
+  @apply flex-1 relative overflow-hidden;
+  background: hsl(var(--muted) / 0.3);
+}
+
+.whatsapp-pattern {
+  @apply absolute inset-0 opacity-5;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* WhatsApp Message */
+.whatsapp-message {
+  @apply relative max-w-[85%] px-3 py-2;
+}
+
+.whatsapp-message.sent {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.9));
+  color: hsl(var(--primary-foreground));
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
+}
+
+.whatsapp-message.sent::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+/* WhatsApp Input Area */
+.whatsapp-input-area {
+  @apply px-3 py-2;
+  background: hsl(var(--card));
+  border-top: 1px solid hsl(var(--border) / 0.3);
+}
+
+/* Dispatch Studio Layout */
+.dispatch-studio {
+  @apply grid gap-6;
+  grid-template-columns: 280px 1fr 300px;
+  grid-template-rows: auto 1fr auto;
+}
+
+@media (max-width: 1400px) {
+  .dispatch-studio {
+    grid-template-columns: 1fr 280px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dispatch-studio {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Instance Sidebar */
+.instance-sidebar {
+  @apply flex flex-col gap-2 p-3 rounded-2xl;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.instance-mini-card {
+  @apply relative flex items-center gap-3 p-3 rounded-xl cursor-pointer;
+  @apply transition-all duration-300;
+  background: hsl(var(--background) / 0.4);
+  border: 1px solid transparent;
+}
+
+.instance-mini-card:hover {
+  background: hsl(var(--primary) / 0.08);
+  border-color: hsl(var(--primary) / 0.2);
+}
+
+.instance-mini-card.selected {
+  background: hsl(var(--primary) / 0.15);
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
+}
+
+.instance-mini-card.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 50%;
+  background: hsl(var(--primary));
+  border-radius: 0 3px 3px 0;
+}
+
+.instance-avatar {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm;
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.1));
+  color: hsl(var(--primary));
+}
+
+/* Composer Studio Central */
+.composer-studio {
+  @apply relative rounded-2xl overflow-hidden;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+}
+
+.composer-header {
+  @apply flex items-center justify-between p-4;
+  background: linear-gradient(180deg, hsl(var(--background) / 0.8), transparent);
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+}
+
+.composer-content {
+  @apply p-4 space-y-4;
+}
+
+.composer-textarea {
+  @apply w-full min-h-[200px] p-4 rounded-xl text-base resize-none;
+  @apply transition-all duration-300;
+  background: hsl(var(--background) / 0.5);
+  border: 1px solid hsl(var(--border) / 0.3);
+}
+
+.composer-textarea:focus {
+  outline: none;
+  border-color: hsl(var(--primary) / 0.5);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1), 0 0 30px hsl(var(--primary) / 0.1);
+}
+
+/* Message Tabs Floating */
+.message-tabs-container {
+  @apply flex items-center gap-2 p-2 rounded-xl;
+  background: hsl(var(--muted) / 0.3);
+}
+
+.message-tab {
+  @apply relative px-4 py-2 rounded-lg text-sm font-medium cursor-pointer;
+  @apply transition-all duration-300;
+  color: hsl(var(--muted-foreground));
+}
+
+.message-tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background) / 0.5);
+}
+
+.message-tab.active {
+  color: hsl(var(--primary));
+  background: hsl(var(--background));
+  box-shadow: 0 2px 10px hsl(var(--primary) / 0.15);
+}
+
+.message-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background: hsl(var(--primary));
+  border-radius: 3px;
+}
+
+/* Variable Chip */
+.variable-chip {
+  @apply inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer;
+  @apply transition-all duration-200;
+  background: hsl(var(--background) / 0.6);
+  border: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground));
+}
+
+.variable-chip:hover {
+  background: hsl(var(--primary) / 0.15);
+  border-color: hsl(var(--primary) / 0.4);
+  color: hsl(var(--primary));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.15);
+}
+
+/* Bottom Panel Accordion */
+.bottom-panel {
+  @apply rounded-2xl overflow-hidden;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+}
+
+.panel-tabs {
+  @apply flex border-b border-border/30;
+}
+
+.panel-tab {
+  @apply flex-1 flex items-center justify-center gap-2 px-4 py-4 text-sm font-medium cursor-pointer;
+  @apply transition-all duration-200;
+  color: hsl(var(--muted-foreground));
+  border-bottom: 2px solid transparent;
+}
+
+.panel-tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted) / 0.3);
+}
+
+.panel-tab.active {
+  color: hsl(var(--primary));
+  border-bottom-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.05);
+}
+
+.panel-content {
+  @apply p-4;
+  min-height: 200px;
+}
+
+/* Contact Avatar Grid */
+.contact-grid {
+  @apply grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2;
+}
+
+.contact-avatar {
+  @apply relative w-10 h-10 rounded-full flex items-center justify-center cursor-pointer;
+  @apply transition-all duration-200;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.contact-avatar.valid {
+  background: hsl(142 76% 45% / 0.2);
+  color: hsl(142 76% 50%);
+  border: 2px solid hsl(142 76% 45% / 0.4);
+}
+
+.contact-avatar.invalid {
+  background: hsl(0 84% 55% / 0.2);
+  color: hsl(0 84% 60%);
+  border: 2px solid hsl(0 84% 55% / 0.4);
+}
+
+.contact-avatar.pending {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border: 2px solid hsl(var(--border));
+}
+
+.contact-avatar:hover {
+  transform: scale(1.15);
+  z-index: 10;
+}
+
+.contact-avatar.selected {
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.5);
+}
+
+/* Gauge Container */
+.gauge-container {
+  @apply relative w-32 h-32;
+}
+
+.gauge-background {
+  @apply absolute inset-0 rounded-full;
+  background: conic-gradient(
+    from 135deg,
+    hsl(var(--muted)) 0deg,
+    hsl(var(--muted)) 270deg,
+    transparent 270deg
+  );
+}
+
+.gauge-fill {
+  @apply absolute inset-0 rounded-full;
+  background: conic-gradient(
+    from 135deg,
+    hsl(var(--primary)) 0deg,
+    hsl(var(--accent)) var(--gauge-value, 0deg),
+    transparent var(--gauge-value, 0deg)
+  );
+  mask: radial-gradient(farthest-side, transparent 70%, white 71%);
+}
+
+.gauge-center {
+  @apply absolute inset-4 rounded-full flex flex-col items-center justify-center;
+  background: hsl(var(--background));
+}
+
+/* Mission Control Progress */
+.mission-progress {
+  @apply relative h-2 w-full rounded-full overflow-hidden;
+  background: hsl(var(--muted));
+}
+
+.mission-progress-bar {
+  @apply h-full rounded-full;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.mission-progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(0 0% 100% / 0.4) 50%,
+    transparent 100%
+  );
+  animation: shimmer-move 1.5s ease-in-out infinite;
+}
+
+/* Terminal Log */
+.terminal-log {
+  @apply rounded-xl overflow-hidden font-mono text-xs;
+  background: hsl(240 20% 4%);
+  border: 1px solid hsl(var(--primary) / 0.2);
+}
+
+.terminal-header {
+  @apply flex items-center gap-2 px-4 py-2;
+  background: hsl(240 15% 8%);
+  border-bottom: 1px solid hsl(var(--border) / 0.2);
+}
+
+.terminal-dot {
+  @apply w-3 h-3 rounded-full;
+}
+
+.terminal-body {
+  @apply p-3 max-h-48 overflow-y-auto;
+}
+
+.terminal-line {
+  @apply flex items-start gap-2 py-0.5;
+}
+
+.terminal-time {
+  color: hsl(var(--muted-foreground));
+}
+
+.terminal-line.success .terminal-message {
+  color: hsl(142 76% 55%);
+}
+
+.terminal-line.error .terminal-message {
+  color: hsl(0 84% 60%);
+}
+
+.terminal-line.warning .terminal-message {
+  color: hsl(45 93% 55%);
+}
+
+.terminal-line.info .terminal-message {
+  color: hsl(210 100% 60%);
+}
+
+/* Stats Cards Grid */
+.stats-grid {
+  @apply grid grid-cols-2 sm:grid-cols-4 gap-3;
+}
+
+.stat-card {
+  @apply relative p-4 rounded-xl text-center overflow-hidden;
+  @apply transition-all duration-300;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.stat-card.total {
+  background: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border) / 0.3);
+}
+
+.stat-card.success {
+  background: hsl(142 76% 45% / 0.1);
+  border: 1px solid hsl(142 76% 45% / 0.2);
+}
+
+.stat-card.success::before {
+  background: linear-gradient(90deg, hsl(142 76% 45%), hsl(142 70% 55%));
+}
+
+.stat-card.error {
+  background: hsl(0 84% 55% / 0.1);
+  border: 1px solid hsl(0 84% 55% / 0.2);
+}
+
+.stat-card.error::before {
+  background: linear-gradient(90deg, hsl(0 84% 55%), hsl(350 90% 60%));
+}
+
+.stat-card.pending {
+  background: hsl(45 93% 50% / 0.1);
+  border: 1px solid hsl(45 93% 50% / 0.2);
+}
+
+.stat-card.pending::before {
+  background: linear-gradient(90deg, hsl(45 93% 50%), hsl(35 95% 55%));
+}
+
+.stat-card-value {
+  @apply text-2xl font-bold;
+}
+
+.stat-card-label {
+  @apply text-xs text-muted-foreground mt-1;
+}
+
+/* Day Selector Circular */
+.day-selector {
+  @apply flex items-center justify-center gap-2;
+}
+
+.day-button {
+  @apply w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer;
+  @apply transition-all duration-200;
+  background: hsl(var(--muted) / 0.3);
+  border: 2px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--muted-foreground));
+}
+
+.day-button:hover {
+  border-color: hsl(var(--primary) / 0.5);
+  color: hsl(var(--foreground));
+}
+
+.day-button.selected {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 0 15px hsl(var(--primary) / 0.4);
+}
+
+/* Quick Action Button */
+.quick-action-btn {
+  @apply flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer;
+  @apply transition-all duration-200;
+  background: hsl(var(--background) / 0.5);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.quick-action-btn:hover {
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.3);
+  color: hsl(var(--primary));
+}

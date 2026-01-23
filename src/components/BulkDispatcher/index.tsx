@@ -1,20 +1,25 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Send, RotateCcw, Zap, Users, MessageSquare, Smartphone } from 'lucide-react';
-import { InstanceSelector } from './InstanceSelector';
-import { MessageComposer } from './MessageComposer';
-import { ContactsManager, Contact, SavedContact } from './ContactsManager';
-import { TimingConfig } from './TimingConfig';
-import { SendingWindow } from './SendingWindow';
-import { DispatchProgress } from './DispatchProgress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Send, RotateCcw, Zap, Users, MessageSquare, Smartphone,
+  Settings2, Clock, Calendar, BarChart3, Play, Pause, Square,
+  ChevronDown, Sparkles, CheckCircle2
+} from 'lucide-react';
+import { InstanceSidebar } from './InstanceSidebar';
+import { ComposerStudio } from './ComposerStudio';
+import { PhonePreview } from './PhonePreview';
+import { BottomPanel } from './BottomPanel';
 import { ConfigManager } from './ConfigManager';
 import { useBulkDispatch, DispatchMessage } from '@/hooks/useBulkDispatch';
 import { useDispatchConfigs } from '@/hooks/useDispatchConfigs';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
 import { useContactsSupabase } from '@/hooks/useContactsSupabase';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { Contact, SavedContact } from './ContactsManager';
 
 export function BulkDispatcher() {
   const { toast } = useToast();
@@ -42,7 +47,6 @@ export function BulkDispatcher() {
     configToDispatchConfig,
   } = useDispatchConfigs();
 
-  // Saved contacts from database - lazy load only when needed
   const {
     contacts: savedContactsRaw,
     isLoading: savedContactsLoading,
@@ -54,11 +58,10 @@ export function BulkDispatcher() {
     searchContactsRemote,
   } = useContactsSupabase();
 
-  // Map saved contacts to the expected format
   const [savedContacts, setSavedContacts] = useState<SavedContact[]>([]);
   const [shouldLoadSavedContacts, setShouldLoadSavedContacts] = useState(false);
+  const [activeBottomTab, setActiveBottomTab] = useState('contacts');
   
-  // Load saved contacts when tab is accessed
   useEffect(() => {
     if (shouldLoadSavedContacts && !savedContactsInitialized) {
       refreshSavedContacts();
@@ -76,8 +79,11 @@ export function BulkDispatcher() {
   }, [savedContactsRaw]);
 
   const [isSavingContacts, setIsSavingContacts] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationProgress, setVerificationProgress] = useState(0);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Save contacts to permanent list
   const handleSaveContacts = useCallback(async (contactsToSave: { name: string; phone: string; email?: string }[]) => {
     setIsSavingContacts(true);
     try {
@@ -95,12 +101,6 @@ export function BulkDispatcher() {
     }
   }, [importContacts]);
 
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationProgress, setVerificationProgress] = useState(0);
-  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-refresh instances status every 30 seconds
   useEffect(() => {
     const autoRefresh = async () => {
       if (!isRefreshingStatus && !progress.isRunning) {
@@ -113,10 +113,7 @@ export function BulkDispatcher() {
       }
     };
 
-    // Initial check
     autoRefresh();
-
-    // Set up interval
     refreshIntervalRef.current = setInterval(autoRefresh, 30000);
 
     return () => {
@@ -126,7 +123,6 @@ export function BulkDispatcher() {
     };
   }, [refreshAllStatus, progress.isRunning]);
 
-  // Manual refresh handler with loading state
   const handleManualRefresh = useCallback(async () => {
     setIsRefreshingStatus(true);
     try {
@@ -136,7 +132,6 @@ export function BulkDispatcher() {
     }
   }, [refreshAllStatus]);
 
-  // Convert contacts to dispatch format
   const handleContactsChange = useCallback((newContacts: Contact[]) => {
     setContacts(newContacts.map(c => ({
       phone: c.phone,
@@ -146,11 +141,10 @@ export function BulkDispatcher() {
       link: c.link,
       email: c.email,
       variables: c.variables,
-      originalId: c.originalId // Pass originalId to track saved contacts
+      originalId: c.originalId
     })));
   }, [setContacts]);
 
-  // Verify contacts WhatsApp numbers
   const handleVerifyContacts = useCallback(async () => {
     if (contacts.length === 0 || !config.instanceIds[0]) {
       toast({
@@ -215,12 +209,10 @@ export function BulkDispatcher() {
     });
   }, [contacts, config.instanceIds, instances, checkNumbers, toast, handleContactsChange]);
 
-  // Handle messages change
   const handleMessagesChange = useCallback((messages: DispatchMessage[]) => {
     updateConfig({ messages });
   }, [updateConfig]);
 
-  // Validation
   const canStart = 
     config.instanceIds.length > 0 &&
     config.messages.length > 0 &&
@@ -231,11 +223,9 @@ export function BulkDispatcher() {
   const handleStart = async () => {
     const selectedInstances = instances.filter(i => config.instanceIds.includes(i.id));
     await startDispatch(selectedInstances);
-    // Refresh saved contacts after dispatch to reflect moved contacts
     refreshSavedContacts();
   };
 
-  // Config management handlers
   const handleSaveConfig = useCallback(async (name: string) => {
     await saveConfig(name, config);
   }, [saveConfig, config]);
@@ -253,99 +243,183 @@ export function BulkDispatcher() {
     await deleteConfig(id);
   }, [deleteConfig]);
 
-  // Stats for header
   const connectedInstances = instances.filter(i => i.status === 'connected').length;
+  const selectedInstances = config.instanceIds.length;
   const totalMessages = config.messages.length;
+  const percentage = progress.total > 0 
+    ? Math.round(((progress.sent + progress.failed) / progress.total) * 100)
+    : 0;
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Premium Header */}
+    <div className="space-y-4 pb-8">
+      {/* Premium Header with Progress Integration */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/10 via-background to-accent/5 p-6 border border-white/10"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-background via-background to-primary/5 border border-border/50"
       >
-        {/* Background glow */}
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Background Effects */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl" />
+        </div>
         
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <motion.div 
-              className="page-header-icon"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Send className="w-7 h-7" />
-            </motion.div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold">Disparo em Massa</h2>
-                <Badge className="bg-gradient-to-r from-primary/20 to-accent/20 text-primary border-primary/30">
-                  <Zap className="w-3 h-3 mr-1" />
-                  Premium
-                </Badge>
+        <div className="relative p-6">
+          {/* Top Row - Title & Actions */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <motion.div 
+                className="page-header-icon"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Send className="w-7 h-7" />
+              </motion.div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold">Disparo Studio</h1>
+                  <Badge className="bg-gradient-to-r from-primary/20 to-accent/20 text-primary border-primary/30">
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Pro
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Crie e execute campanhas de WhatsApp com controle total
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Configure e execute disparos WhatsApp com controle total
-              </p>
+            </div>
+            
+            {/* Quick Stats */}
+            <div className="flex flex-wrap items-center gap-2">
+              <motion.div 
+                className="quick-action-btn"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  connectedInstances > 0 ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                )} />
+                <span className="text-sm">{connectedInstances} online</span>
+              </motion.div>
+              <motion.div 
+                className="quick-action-btn"
+                whileHover={{ scale: 1.02 }}
+              >
+                <Users className="w-4 h-4 text-primary" />
+                <span className="text-sm">{contacts.length} contatos</span>
+              </motion.div>
+              <motion.div 
+                className="quick-action-btn"
+                whileHover={{ scale: 1.02 }}
+              >
+                <MessageSquare className="w-4 h-4 text-accent" />
+                <span className="text-sm">{totalMessages} mensagens</span>
+              </motion.div>
             </div>
           </div>
           
-          {/* Quick Stats */}
-          <div className="flex items-center gap-3">
-            <motion.div 
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 backdrop-blur-sm border border-white/10"
-              whileHover={{ scale: 1.02 }}
-            >
-              <Smartphone className="w-4 h-4 text-emerald-500" />
-              <span className="text-sm font-medium">{connectedInstances} conectada(s)</span>
-            </motion.div>
-            <motion.div 
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 backdrop-blur-sm border border-white/10"
-              whileHover={{ scale: 1.02 }}
-            >
-              <Users className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">{contacts.length} contato(s)</span>
-            </motion.div>
-            <motion.div 
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 backdrop-blur-sm border border-white/10"
-              whileHover={{ scale: 1.02 }}
-            >
-              <MessageSquare className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium">{totalMessages} msg(s)</span>
-            </motion.div>
+          {/* Progress Bar - Only show when running */}
+          <AnimatePresence>
+            {progress.isRunning && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-4"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      progress.isPaused ? "bg-yellow-500" : "bg-emerald-500 animate-pulse"
+                    )} />
+                    <span className="text-sm font-medium">
+                      {progress.isPaused ? 'Pausado' : 'Enviando...'}
+                    </span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {progress.sent + progress.failed} / {progress.total} ({percentage}%)
+                  </span>
+                </div>
+                <div className="mission-progress">
+                  <motion.div 
+                    className="mission-progress-bar"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percentage}%` }}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <ConfigManager
+              configs={savedConfigs}
+              currentConfig={config}
+              isLoading={configsLoading}
+              onSave={handleSaveConfig}
+              onLoad={handleLoadConfig}
+              onUpdate={handleUpdateConfig}
+              onDelete={handleDeleteConfig}
+            />
+            <Button variant="outline" size="sm" onClick={resetConfig} className="gap-1.5">
+              <RotateCcw className="w-4 h-4" />
+              Resetar
+            </Button>
+            
+            <div className="flex-1" />
+            
+            {/* Main Control Buttons */}
+            {!progress.isRunning ? (
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  onClick={handleStart} 
+                  disabled={!canStart}
+                  className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-lg shadow-primary/25"
+                  size="lg"
+                >
+                  <Play className="w-5 h-5" />
+                  Iniciar Disparo
+                  {contacts.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 bg-white/20 text-white">
+                      {contacts.length}
+                    </Badge>
+                  )}
+                </Button>
+              </motion.div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {progress.isPaused ? (
+                  <Button onClick={resumeDispatch} className="gap-2" size="lg">
+                    <Play className="w-5 h-5" />
+                    Retomar
+                  </Button>
+                ) : (
+                  <Button onClick={pauseDispatch} variant="secondary" className="gap-2" size="lg">
+                    <Pause className="w-5 h-5" />
+                    Pausar
+                  </Button>
+                )}
+                <Button onClick={cancelDispatch} variant="destructive" size="lg">
+                  <Square className="w-5 h-5" />
+                </Button>
+              </div>
+            )}
           </div>
-        </div>
-        
-        {/* Action Buttons */}
-        <div className="relative flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
-          <ConfigManager
-            configs={savedConfigs}
-            currentConfig={config}
-            isLoading={configsLoading}
-            onSave={handleSaveConfig}
-            onLoad={handleLoadConfig}
-            onUpdate={handleUpdateConfig}
-            onDelete={handleDeleteConfig}
-          />
-          <Button variant="outline" size="sm" onClick={resetConfig} className="gap-1.5">
-            <RotateCcw className="w-4 h-4" />
-            Resetar
-          </Button>
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Configuration */}
-        <motion.div 
-          className="lg:col-span-2 space-y-6"
+      {/* Main Content - Studio Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr_300px] gap-4">
+        {/* Left - Instance Sidebar */}
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
+          className="hidden xl:block"
         >
-          {/* Instance Selector */}
-          <InstanceSelector
+          <InstanceSidebar
             instances={instances}
             selectedIds={config.instanceIds}
             balancingMode={config.balancingMode}
@@ -354,101 +428,99 @@ export function BulkDispatcher() {
             onRefresh={handleManualRefresh}
             isLoading={instancesLoading || isRefreshingStatus}
           />
+        </motion.div>
 
-          {/* Message Composer */}
-          <MessageComposer
+        {/* Center - Message Composer */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <ComposerStudio
             messages={config.messages}
             randomizeOrder={config.randomizeOrder}
             onMessagesChange={handleMessagesChange}
             onRandomizeChange={(randomize) => updateConfig({ randomizeOrder: randomize })}
           />
-
-          {/* Contacts Manager */}
-          <ContactsManager
-            contacts={contacts.map(c => ({ ...c, isValid: undefined })) as Contact[]}
-            verifyNumbers={config.verifyNumbers}
-            onContactsChange={handleContactsChange}
-            onVerifyChange={(verify) => updateConfig({ verifyNumbers: verify })}
-            isVerifying={isVerifying}
-            verificationProgress={verificationProgress}
-            savedContacts={savedContacts}
-            isLoadingSaved={savedContactsLoading}
-            onRefreshSaved={refreshSavedContacts}
-            onSaveContacts={handleSaveContacts}
-            isSaving={isSavingContacts}
-            onTabChange={(tab) => {
-              if (tab === 'saved') {
-                setShouldLoadSavedContacts(true);
-              }
-            }}
-            savedContactsTotal={savedContactsPagination.totalCount}
-            hasMoreSavedContacts={savedContactsPagination.hasMore}
-            onLoadMoreSavedContacts={loadMoreContacts}
-            onSearchSavedContacts={searchContactsRemote}
-          />
-
-          {/* Verify Button */}
-          {config.verifyNumbers && contacts.length > 0 && config.instanceIds.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <Button
-                variant="outline"
-                onClick={handleVerifyContacts}
-                disabled={isVerifying}
-                className="w-full h-12 gap-2 text-base"
-              >
-                {isVerifying ? 'Verificando...' : 'Verificar Números WhatsApp'}
-              </Button>
-            </motion.div>
-          )}
         </motion.div>
 
-        {/* Right Column - Settings & Progress */}
-        <motion.div 
-          className="space-y-6"
+        {/* Right - Phone Preview */}
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
+          className="hidden xl:flex items-start justify-center pt-4"
         >
-          {/* Sending Window */}
-          <SendingWindow
-            enabled={config.businessHoursEnabled}
-            startTime={config.businessHoursStart}
-            endTime={config.businessHoursEnd}
-            allowedDays={config.allowedDays}
-            onEnabledChange={(enabled) => updateConfig({ businessHoursEnabled: enabled })}
-            onStartTimeChange={(time) => updateConfig({ businessHoursStart: time })}
-            onEndTimeChange={(time) => updateConfig({ businessHoursEnd: time })}
-            onAllowedDaysChange={(days) => updateConfig({ allowedDays: days })}
-          />
-
-          {/* Timing Config */}
-          <TimingConfig
-            minDelay={config.minDelay}
-            maxDelay={config.maxDelay}
-            pauseAfterMessages={config.pauseAfterMessages}
-            pauseDurationMinutes={config.pauseDurationMinutes}
-            stopAfterMessages={config.stopAfterMessages}
-            smartDelay={config.smartDelay}
-            attentionCall={false}
-            autoArchive={false}
-            aiPersonalization={false}
-            onConfigChange={(updates) => updateConfig(updates as any)}
-          />
-
-          {/* Progress */}
-          <DispatchProgress
-            progress={progress}
-            onStart={handleStart}
-            onPause={pauseDispatch}
-            onResume={resumeDispatch}
-            onCancel={cancelDispatch}
-            canStart={canStart}
+          <PhonePreview 
+            message={config.messages[0]}
+            contactName={contacts[0]?.name || "João Silva"}
           />
         </motion.div>
       </div>
+
+      {/* Mobile Instance Selector */}
+      <div className="xl:hidden">
+        <InstanceSidebar
+          instances={instances}
+          selectedIds={config.instanceIds}
+          balancingMode={config.balancingMode}
+          onSelectionChange={(ids) => updateConfig({ instanceIds: ids })}
+          onBalancingModeChange={(mode) => updateConfig({ balancingMode: mode })}
+          onRefresh={handleManualRefresh}
+          isLoading={instancesLoading || isRefreshingStatus}
+          horizontal
+        />
+      </div>
+
+      {/* Bottom Panel - Expandable Sections */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+      >
+        <BottomPanel
+          activeTab={activeBottomTab}
+          onTabChange={setActiveBottomTab}
+          // Contacts props
+          contacts={contacts.map(c => ({ ...c, isValid: undefined })) as Contact[]}
+          verifyNumbers={config.verifyNumbers}
+          onContactsChange={handleContactsChange}
+          onVerifyChange={(verify) => updateConfig({ verifyNumbers: verify })}
+          isVerifying={isVerifying}
+          verificationProgress={verificationProgress}
+          onVerifyContacts={handleVerifyContacts}
+          savedContacts={savedContacts}
+          isLoadingSaved={savedContactsLoading}
+          onRefreshSaved={refreshSavedContacts}
+          onSaveContacts={handleSaveContacts}
+          isSaving={isSavingContacts}
+          onTabChangeInternal={(tab) => {
+            if (tab === 'saved') {
+              setShouldLoadSavedContacts(true);
+            }
+          }}
+          savedContactsTotal={savedContactsPagination.totalCount}
+          hasMoreSavedContacts={savedContactsPagination.hasMore}
+          onLoadMoreSavedContacts={loadMoreContacts}
+          onSearchSavedContacts={searchContactsRemote}
+          // Timing props
+          minDelay={config.minDelay}
+          maxDelay={config.maxDelay}
+          pauseAfterMessages={config.pauseAfterMessages}
+          pauseDurationMinutes={config.pauseDurationMinutes}
+          stopAfterMessages={config.stopAfterMessages}
+          smartDelay={config.smartDelay}
+          onTimingChange={(updates) => updateConfig(updates as any)}
+          // Sending window props
+          businessHoursEnabled={config.businessHoursEnabled}
+          businessHoursStart={config.businessHoursStart}
+          businessHoursEnd={config.businessHoursEnd}
+          allowedDays={config.allowedDays}
+          onWindowChange={(updates) => updateConfig(updates as any)}
+          // Progress props
+          progress={progress}
+        />
+      </motion.div>
     </div>
   );
 }
