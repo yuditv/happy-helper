@@ -72,22 +72,26 @@ export function DispatchProgress({
   };
 
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-      <CardHeader className="pb-3">
+    <Card className="glass-card">
+      <CardHeader className="pb-3 border-b border-border/30">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
+          <CardTitle className="text-lg flex items-center gap-3">
+            <div className="stats-icon-container primary">
+              <BarChart3 className="w-5 h-5 text-primary" />
+            </div>
             Progresso do Disparo
           </CardTitle>
           {progress.isRunning && (
             <Badge 
               variant="secondary" 
               className={cn(
+                "font-medium",
                 progress.isPaused 
-                  ? "bg-yellow-500/20 text-yellow-400" 
-                  : "bg-emerald-500/20 text-emerald-400"
+                  ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30" 
+                  : "bg-green-500/20 text-green-500 border border-green-500/30"
               )}
             >
+              <span className={cn("w-2 h-2 rounded-full mr-2", progress.isPaused ? "bg-yellow-400" : "bg-green-500 animate-pulse")} />
               {progress.isPaused ? 'Pausado' : 'Em andamento'}
             </Badge>
           )}
@@ -174,30 +178,30 @@ export function DispatchProgress({
         {/* Stats */}
         {(progress.total > 0) && (
           <div className={cn("grid gap-3", showArchiveCount ? "grid-cols-5" : "grid-cols-4")}>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-center p-4 rounded-xl bg-muted/30 border border-border/30">
               <div className="text-2xl font-bold">{progress.total}</div>
-              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-xs text-muted-foreground mt-1">Total</div>
             </div>
-            <div className="text-center p-3 rounded-lg bg-emerald-500/10">
-              <div className="text-2xl font-bold text-emerald-500">{progress.sent}</div>
-              <div className="text-xs text-emerald-500/70">Enviados</div>
+            <div className="text-center p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+              <div className="text-2xl font-bold text-green-500">{progress.sent}</div>
+              <div className="text-xs text-green-500/70 mt-1">Enviados</div>
             </div>
-            <div className="text-center p-3 rounded-lg bg-destructive/10">
+            <div className="text-center p-4 rounded-xl bg-destructive/10 border border-destructive/20">
               <div className="text-2xl font-bold text-destructive">{progress.failed}</div>
-              <div className="text-xs text-destructive/70">Falharam</div>
+              <div className="text-xs text-destructive/70 mt-1">Falharam</div>
             </div>
             {showArchiveCount && (
-              <div className="text-center p-3 rounded-lg bg-blue-500/10">
-                <div className="flex items-center justify-center gap-1">
+              <div className="text-center p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <div className="flex items-center justify-center gap-1.5">
                   <Archive className="w-4 h-4 text-blue-500" />
                   <span className="text-2xl font-bold text-blue-500">{progress.archived}</span>
                 </div>
-                <div className="text-xs text-blue-500/70">Arquivados</div>
+                <div className="text-xs text-blue-500/70 mt-1">Arquivados</div>
               </div>
             )}
-            <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-center p-4 rounded-xl bg-muted/30 border border-border/30">
               <div className="text-2xl font-bold text-muted-foreground">{progress.pending}</div>
-              <div className="text-xs text-muted-foreground">Pendentes</div>
+              <div className="text-xs text-muted-foreground mt-1">Pendentes</div>
             </div>
           </div>
         )}
@@ -212,22 +216,26 @@ export function DispatchProgress({
 
         {/* Activity Log */}
         {progress.logs.length > 0 && (
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Atividade Recente</div>
-            <ScrollArea className="h-[150px] rounded-lg border border-border/50 bg-background/50">
-              <div className="p-2 space-y-1">
+          <div className="space-y-3">
+            <div className="text-sm font-medium flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Atividade Recente
+            </div>
+            <ScrollArea className="h-[160px] rounded-xl border border-border/30 bg-background/30">
+              <div className="p-3 space-y-1.5">
                 {progress.logs.map((log, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-2 text-xs py-1 px-2 rounded hover:bg-muted/50"
+                    className="flex items-start gap-2 text-xs py-1.5 px-2.5 rounded-lg hover:bg-muted/30 transition-colors"
                   >
                     {getLogIcon(log.type)}
-                    <span className="text-muted-foreground shrink-0">
+                    <span className="text-muted-foreground shrink-0 font-mono">
                       {log.time.toLocaleTimeString('pt-BR')}
                     </span>
                     <span className={cn(
+                      "flex-1",
                       log.type === 'error' && 'text-destructive',
-                      log.type === 'success' && 'text-emerald-500',
+                      log.type === 'success' && 'text-green-500',
                       log.type === 'warning' && 'text-yellow-500'
                     )}>
                       {log.message}

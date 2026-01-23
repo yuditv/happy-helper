@@ -68,10 +68,10 @@ export function AIAgentAdmin() {
 
       <TabsContent value="agents" className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="glass-card group hover:shadow-[0_0_40px_hsl(var(--primary)/0.15)]">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-primary/20">
+              <div className="stats-icon-container primary">
                 <Bot className="h-6 w-6 text-primary" />
               </div>
               <div>
@@ -82,11 +82,11 @@ export function AIAgentAdmin() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="glass-card group hover:shadow-[0_0_40px_hsl(142_76%_45%/0.15)]">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-emerald-500/20">
-                <Power className="h-6 w-6 text-emerald-500" />
+              <div className="stats-icon-container success">
+                <Power className="h-6 w-6 text-green-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
@@ -98,10 +98,10 @@ export function AIAgentAdmin() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="glass-card group hover:shadow-[0_0_40px_hsl(var(--accent)/0.15)]">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-accent/20">
+              <div className="stats-icon-container accent">
                 <MessageSquare className="h-6 w-6 text-accent" />
               </div>
               <div>
@@ -116,10 +116,12 @@ export function AIAgentAdmin() {
       </div>
 
       {/* Agents List */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
+      <Card className="glass-card">
+        <CardHeader className="border-b border-border/30">
+          <CardTitle className="flex items-center gap-3">
+            <div className="stats-icon-container primary">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
             Agentes Configurados
           </CardTitle>
           <CardDescription>
@@ -170,14 +172,15 @@ export function AIAgentAdmin() {
                     layout
                     exit={{ opacity: 0, scale: 0.9 }}
                   >
-                    <Card className="bg-background/50 border-border/50 hover:border-primary/50 transition-all duration-300 group">
+                    <Card className="agent-card-premium group">
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
                             <div 
-                              className="p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110"
+                              className="p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg"
                               style={{ 
                                 backgroundColor: `${agent.color}20`,
+                                boxShadow: `0 0 20px ${agent.color}30`
                               }}
                             >
                               <Bot 

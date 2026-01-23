@@ -25,8 +25,10 @@ import {
   Loader2,
   FileText,
   Trash2,
-  Filter as FilterIcon
+  Filter as FilterIcon,
+  Type
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import * as XLSX from 'xlsx';
@@ -283,31 +285,24 @@ export function WhatsAppNumberFilter() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <FilterIcon className="h-6 w-6 text-primary" />
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Filtro de Número</h2>
-          <p className="text-muted-foreground">
-            Importe e verifique se os números estão registrados no WhatsApp
-          </p>
-        </div>
-      </div>
-
       {/* Import Section */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Importação Avançada de Contatos
+      <Card className="glass-card">
+        <CardHeader className="border-b border-border/30">
+          <CardTitle className="flex items-center gap-3">
+            <div className="stats-icon-container primary">
+              <Upload className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <span>Importação Avançada de Contatos</span>
+              <CardDescription className="mt-1">
+                Importe contatos de Excel, CSV ou TXT com detecção automática
+              </CardDescription>
+            </div>
           </CardTitle>
-          <CardDescription>
-            Importe contatos de Excel, CSV ou TXT com detecção automática de colunas
-          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="import" className="gap-2">
                 <FileSpreadsheet className="h-4 w-4" />
                 Importar
@@ -315,32 +310,38 @@ export function WhatsAppNumberFilter() {
               <TabsTrigger value="preview" className="gap-2">
                 <Download className="h-4 w-4" />
                 Pré-visualização
+                {parsedNumbers.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs">
+                    {parsedNumbers.length}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="import">
-              {/* Drag & Drop Area */}
+              {/* Premium Drag & Drop Area */}
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  isDragging 
-                    ? 'border-primary bg-primary/10' 
-                    : 'border-border/50 hover:border-primary/50'
-                }`}
+                className={cn(
+                  "drop-zone-premium group",
+                  isDragging && "dragging"
+                )}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
               >
-                <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-foreground font-medium mb-2">
+                <div className="drop-icon mb-4">
+                  <Upload className="h-14 w-14 mx-auto text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <p className="text-foreground font-semibold text-lg mb-2">
                   Arraste e solte o arquivo aqui
                 </p>
-                <p className="text-muted-foreground text-sm mb-4">
-                  ou clique para selecionar
+                <p className="text-muted-foreground text-sm mb-6">
+                  ou clique para selecionar do seu computador
                 </p>
                 <Button 
                   variant="outline" 
                   onClick={() => fileInputRef.current?.click()}
-                  className="gap-2"
+                  className="gap-2 btn-glass"
                 >
                   <FileText className="h-4 w-4" />
                   Selecionar Arquivo
@@ -352,10 +353,18 @@ export function WhatsAppNumberFilter() {
                   className="hidden"
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
-                <p className="text-xs text-muted-foreground mt-4">
-                  Formatos aceitos: .xlsx, .xls, .csv, .txt
-                </p>
-                <p className="text-xs text-muted-foreground">
+                <div className="flex items-center justify-center gap-4 mt-6">
+                  <Badge variant="outline" className="text-xs">
+                    .xlsx
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    .csv
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    .txt
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
                   Tamanho máximo: 10 MB
                 </p>
               </div>
@@ -363,32 +372,40 @@ export function WhatsAppNumberFilter() {
 
             <TabsContent value="preview">
               {parsedNumbers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhum número importado ainda
+                <div className="empty-state py-12">
+                  <div className="empty-state-icon mb-4">
+                    <FileSpreadsheet className="h-10 w-10" />
+                  </div>
+                  <p className="text-muted-foreground">Nenhum número importado ainda</p>
                 </div>
               ) : (
-                <ScrollArea className="h-[200px]">
-                  <div className="space-y-2">
+                <ScrollArea className="h-[220px] rounded-xl border border-border/30 bg-background/30">
+                  <div className="p-3 space-y-2">
                     {parsedNumbers.map((num, index) => (
                       <div 
                         key={index}
-                        className="flex items-center justify-between p-2 rounded bg-background/50 border border-border/30"
+                        className="template-card flex items-center justify-between"
                       >
-                        <div>
-                          <span className="font-mono text-sm">{num.phone}</span>
-                          {num.name && (
-                            <span className="text-muted-foreground text-sm ml-2">
-                              {num.name}
-                            </span>
-                          )}
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="font-mono text-xs">
+                            #{index + 1}
+                          </Badge>
+                          <div>
+                            <span className="font-mono text-sm">{num.phone}</span>
+                            {num.name && (
+                              <span className="text-muted-foreground text-sm ml-2">
+                                • {num.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                           onClick={() => removeNumber(index)}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ))}
@@ -403,9 +420,12 @@ export function WhatsAppNumberFilter() {
       {/* Manual Entry & Verification */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Manual Entry */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="glass-card">
           <CardHeader>
-            <CardTitle>Entrada Manual</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Type className="h-5 w-5 text-primary" />
+              Entrada Manual
+            </CardTitle>
             <CardDescription>
               Digite números diretamente ou adicione aos contatos importados
             </CardDescription>
@@ -420,22 +440,25 @@ export function WhatsAppNumberFilter() {
 5511999999999 João Silva
 +55 11 98888-8888 Maria Santos
 11977777777 Pedro Costa"
-                className="min-h-[150px] font-mono text-sm"
+                className="min-h-[150px] font-mono text-sm bg-background/50 border-border/50 focus:border-primary focus:ring-1 focus:ring-primary/20"
               />
             </div>
             <p className="text-xs text-muted-foreground">
               Suporta: número + nome, apenas número. Formatos: +5511999999999, 5511999999999, 11999999999
             </p>
-            <Button onClick={handleAddManualNumbers} className="w-full">
+            <Button onClick={handleAddManualNumbers} className="w-full btn-premium">
               Adicionar à Lista
             </Button>
           </CardContent>
         </Card>
 
         {/* WhatsApp Verification */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="glass-card">
           <CardHeader>
-            <CardTitle>Verificação WhatsApp</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5 text-primary" />
+              Verificação WhatsApp
+            </CardTitle>
             <CardDescription>
               Verifique se os números estão registrados no WhatsApp
             </CardDescription>
@@ -444,7 +467,7 @@ export function WhatsAppNumberFilter() {
             <div className="space-y-2">
               <Label>Instância</Label>
               <Select value={selectedInstance} onValueChange={setSelectedInstance}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-background/50 border-border/50">
                   <SelectValue placeholder="Selecione uma instância conectada" />
                 </SelectTrigger>
                 <SelectContent>
@@ -468,13 +491,13 @@ export function WhatsAppNumberFilter() {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
               <div className="space-y-0.5">
                 <Label>Buscar Nome Original do WhatsApp</Label>
                 <p className="text-xs text-muted-foreground">
                   {fetchOriginalName 
                     ? "Ativado: Busca o nome cadastrado no WhatsApp"
-                    : "Desativado: Verificação rápida, apenas status ativo/inativo"
+                    : "Desativado: Verificação rápida"
                   }
                 </p>
               </div>
@@ -484,15 +507,22 @@ export function WhatsAppNumberFilter() {
               />
             </div>
 
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-muted-foreground">Total para verificar:</span>
-              <Badge variant="secondary">{totalNumbers} números</Badge>
+            <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-primary/5 border border-primary/20">
+              <span className="text-sm text-foreground font-medium">Total para verificar:</span>
+              <Badge className="bg-primary/20 text-primary border-primary/30">
+                {totalNumbers} números
+              </Badge>
             </div>
 
             {isVerifying && (
-              <div className="space-y-2">
-                <Progress value={verificationProgress} />
-                <p className="text-xs text-center text-muted-foreground">
+              <div className="space-y-3 p-4 rounded-xl bg-muted/30">
+                <div className="progress-animated">
+                  <div 
+                    className="progress-animated-bar" 
+                    style={{ width: `${verificationProgress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-center text-foreground font-medium">
                   Verificando... {Math.round(verificationProgress)}%
                 </p>
               </div>
@@ -500,7 +530,7 @@ export function WhatsAppNumberFilter() {
 
             <Button 
               onClick={handleVerifyNumbers} 
-              className="w-full gap-2"
+              className="w-full gap-2 btn-premium"
               disabled={isVerifying || parsedNumbers.length === 0 || !selectedInstance}
             >
               {isVerifying ? (
@@ -527,21 +557,33 @@ export function WhatsAppNumberFilter() {
 
       {/* Results */}
       {verificationResults.length > 0 && (
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Resultados da Verificação</CardTitle>
-                <CardDescription>
-                  {validNumbers} válidos, {invalidNumbers} inválidos de {verificationResults.length} verificados
-                </CardDescription>
+        <Card className="glass-card">
+          <CardHeader className="border-b border-border/30">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <div className="stats-icon-container success">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <CardTitle>Resultados da Verificação</CardTitle>
+                  <CardDescription className="flex items-center gap-3 mt-1">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-green-500" />
+                      {validNumbers} válidos
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-destructive" />
+                      {invalidNumbers} inválidos
+                    </span>
+                  </CardDescription>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={exportValidNumbers}
-                  className="gap-1"
+                  className="gap-1.5 bg-green-500/10 border-green-500/30 text-green-500 hover:bg-green-500/20"
                 >
                   <Download className="h-4 w-4" />
                   Exportar Válidos
@@ -550,7 +592,7 @@ export function WhatsAppNumberFilter() {
                   variant="outline" 
                   size="sm" 
                   onClick={exportInvalidNumbers}
-                  className="gap-1"
+                  className="gap-1.5 bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20"
                 >
                   <Download className="h-4 w-4" />
                   Exportar Inválidos
@@ -558,26 +600,29 @@ export function WhatsAppNumberFilter() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-2">
+          <CardContent className="pt-4">
+            <ScrollArea className="h-[320px]">
+              <div className="space-y-2 pr-2">
                 {verificationResults.map((result, index) => (
                   <div 
                     key={index}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      result.exists 
-                        ? 'bg-green-500/10 border-green-500/30' 
-                        : 'bg-destructive/10 border-destructive/30'
-                    }`}
+                    className={cn(
+                      "result-item",
+                      result.exists ? "valid" : "invalid"
+                    )}
                   >
                     <div className="flex items-center gap-3">
                       {result.exists ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        </div>
                       ) : (
-                        <XCircle className="h-5 w-5 text-destructive" />
+                        <div className="h-8 w-8 rounded-full bg-destructive/20 flex items-center justify-center">
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        </div>
                       )}
                       <div>
-                        <p className="font-mono text-sm">{result.phone}</p>
+                        <p className="font-mono text-sm font-medium">{result.phone}</p>
                         {result.name && (
                           <p className="text-xs text-muted-foreground">{result.name}</p>
                         )}
@@ -585,11 +630,13 @@ export function WhatsAppNumberFilter() {
                     </div>
                     <div className="text-right">
                       {result.exists ? (
-                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                        <span className="verification-badge valid">
                           {result.whatsappName || "Válido"}
-                        </Badge>
+                        </span>
                       ) : (
-                        <Badge variant="destructive">Inválido</Badge>
+                        <span className="verification-badge invalid">
+                          Inválido
+                        </span>
                       )}
                     </div>
                   </div>

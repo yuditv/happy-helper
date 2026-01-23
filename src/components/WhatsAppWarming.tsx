@@ -51,6 +51,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { WarmingSessionHistory } from "./WarmingSessionHistory";
 import { WarmingScheduler, ScheduleConfig } from "./WarmingScheduler";
+import { cn } from "@/lib/utils";
 
 interface WarmingTemplate {
   id: string;
@@ -489,10 +490,12 @@ export function WhatsAppWarming() {
         <TabsContent value="config" className="mt-6">
           {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className={cn("warming-stat-card", warmingStatus === 'running' && "running")}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <Activity className="h-5 w-5 text-primary" />
+              <div className="stats-icon-container primary">
+                <Activity className="h-5 w-5 text-primary" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
                 <p className="font-semibold capitalize">
@@ -503,10 +506,12 @@ export function WhatsAppWarming() {
           </CardContent>
         </Card>
         
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="warming-stat-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-blue-500" />
+              <div className="stats-icon-container info">
+                <Users className="h-5 w-5 text-blue-500" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Instâncias</p>
                 <p className="font-semibold">{selectedInstances.size}</p>
@@ -515,10 +520,12 @@ export function WhatsAppWarming() {
           </CardContent>
         </Card>
         
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="warming-stat-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <MessageSquare className="h-5 w-5 text-green-500" />
+              <div className="stats-icon-container success">
+                <MessageSquare className="h-5 w-5 text-green-500" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Mensagens</p>
                 <p className="font-semibold">{messagesSent + messagesReceived}</p>
@@ -527,10 +534,12 @@ export function WhatsAppWarming() {
           </CardContent>
         </Card>
         
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="warming-stat-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <Zap className="h-5 w-5 text-orange-500" />
+              <div className="stats-icon-container warning">
+                <Zap className="h-5 w-5 text-orange-500" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Progresso</p>
                 <p className="font-semibold">{Math.round(overallProgress)}%</p>
@@ -539,10 +548,12 @@ export function WhatsAppWarming() {
           </CardContent>
         </Card>
         
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <Card className="warming-stat-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <Settings className="h-5 w-5 text-muted-foreground" />
+              <div className="stats-icon-container accent">
+                <Settings className="h-5 w-5 text-accent" />
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Modo</p>
                 <p className="font-semibold capitalize">
@@ -558,10 +569,12 @@ export function WhatsAppWarming() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Instance Selection */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+          <Card className="glass-card">
+            <CardHeader className="border-b border-border/30">
+              <CardTitle className="flex items-center gap-3">
+                <div className="stats-icon-container info">
+                  <Users className="h-5 w-5 text-blue-500" />
+                </div>
                 Seleção de Instâncias para Aquecimento
               </CardTitle>
               <CardDescription>
@@ -627,7 +640,7 @@ export function WhatsAppWarming() {
                       variant="outline" 
                       size="sm" 
                       onClick={selectAllInstances}
-                      className="mb-2"
+                      className="mb-3"
                     >
                       {selectedInstances.size === connectedInstances.length ? 'Desmarcar Todas' : 'Selecionar Todas'}
                     </Button>
@@ -636,11 +649,10 @@ export function WhatsAppWarming() {
                         {connectedInstances.map((instance) => (
                           <div 
                             key={instance.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
-                              selectedInstances.has(instance.id)
-                                ? 'border-primary bg-primary/10'
-                                : 'border-border/50 hover:border-primary/50'
-                            }`}
+                            className={cn(
+                              "instance-select-card",
+                              selectedInstances.has(instance.id) && "selected"
+                            )}
                             onClick={() => toggleInstance(instance.id)}
                           >
                             <Checkbox 
@@ -654,9 +666,7 @@ export function WhatsAppWarming() {
                                 {instance.phone_connected || "Número conectado"}
                               </p>
                             </div>
-                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                              Conectado
-                            </Badge>
+                            <div className="status-indicator online" />
                           </div>
                         ))}
                       </div>
@@ -696,10 +706,12 @@ export function WhatsAppWarming() {
           </Card>
 
           {/* Warming Configuration */}
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
+          <Card className="glass-card">
+            <CardHeader className="border-b border-border/30">
+              <CardTitle className="flex items-center gap-3">
+                <div className="stats-icon-container accent">
+                  <Settings className="h-5 w-5 text-accent" />
+                </div>
                 Configurações de Aquecimento
               </CardTitle>
             </CardHeader>
