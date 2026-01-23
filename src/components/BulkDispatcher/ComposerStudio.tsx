@@ -21,10 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { 
   MessageSquare, Plus, Trash2, Bold, Italic, 
   Sparkles, Wand2, Shuffle, Zap, Loader2,
-  Image, Video, FileAudio, FileText, Type
+  Image, Video, FileAudio, FileText, Type, File, Copy
 } from 'lucide-react';
 import { generatePreview, validateSpintax, SPINTAX_SUGGESTIONS } from '@/lib/spintaxParser';
 import { cn } from '@/lib/utils';
@@ -32,6 +37,82 @@ import { MediaUploader, MediaType } from './MediaUploader';
 import { SpintaxManager } from './SpintaxManager';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const WHATSAPP_TEMPLATES = [
+  {
+    id: 'renewal-reminder',
+    name: '🔄 Lembrete de Renovação',
+    content: `Olá {nome}! 👋
+
+Passando para lembrar que seu plano {plano} vence em {vencimento}.
+
+Para continuar aproveitando todos os benefícios sem interrupção, renove seu plano o quanto antes!
+
+Aguardamos seu contato! 😊`,
+  },
+  {
+    id: 'expiration-warning',
+    name: '⚠️ Aviso de Vencimento',
+    content: `Olá {nome}!
+
+Seu plano {plano} vence em {vencimento}.
+
+Não deixe para última hora! Renove agora e evite interrupções.
+
+✓ Acesso ininterrupto
+✓ Suporte prioritário
+
+Aguardamos seu contato!`,
+  },
+  {
+    id: 'expired',
+    name: '🔴 Plano Expirado',
+    content: `Olá {nome}!
+
+Notamos que seu plano {plano} expirou em {vencimento}.
+
+Sentimos sua falta! Para reativar seu acesso, entre em contato conosco.
+
+Estamos prontos para ajudá-lo! 🤝`,
+  },
+  {
+    id: 'welcome',
+    name: '👋 Boas-vindas',
+    content: `Olá {nome}! 🎉
+
+Seja muito bem-vindo(a)!
+
+Seu plano {plano} já está ativo e você tem acesso completo até {vencimento}.
+
+Se precisar de ajuda, estamos à disposição!
+
+Atenciosamente,
+Equipe de Suporte`,
+  },
+  {
+    id: 'credentials',
+    name: '🔑 Enviar Credenciais',
+    content: `Olá {nome}!
+
+Seguem suas credenciais de acesso:
+
+📱 Usuário: {usuario}
+🔐 Senha: {senha}
+
+Se tiver dúvidas, estamos à disposição!`,
+  },
+  {
+    id: 'promotion',
+    name: '🎁 Promoção',
+    content: `Olá {nome}! 🎁
+
+Temos uma oferta especial para você!
+
+🔥 Renove agora e ganhe desconto exclusivo!
+
+Válido por tempo limitado. Aproveite!`,
+  },
+];
 
 interface Message {
   id: string;
@@ -149,6 +230,54 @@ export function ComposerStudio({
     updateMessage(activeMessageId, newContent);
   };
 
+  // Variation management functions
+  const addVariation = (messageId: string) => {
+    onMessagesChange(
+      messages.map(m => m.id === messageId 
+        ? { ...m, variations: [...(m.variations || []), ''] }
+        : m
+      )
+    );
+  };
+
+  const updateVariation = (messageId: string, index: number, content: string) => {
+    onMessagesChange(
+      messages.map(m => {
+        if (m.id === messageId && m.variations) {
+          const newVariations = [...m.variations];
+          newVariations[index] = content;
+          return { ...m, variations: newVariations };
+        }
+        return m;
+      })
+    );
+  };
+
+  const removeVariation = (messageId: string, index: number) => {
+    onMessagesChange(
+      messages.map(m => m.id === messageId && m.variations
+        ? { ...m, variations: m.variations.filter((_, i) => i !== index) }
+        : m
+      )
+    );
+  };
+
+  const applyTemplate = (template: typeof WHATSAPP_TEMPLATES[0]) => {
+    if (activeMessageId) {
+      updateMessage(activeMessageId, template.content);
+    } else {
+      const newMessage: Message = {
+        id: crypto.randomUUID(),
+        content: template.content,
+        variations: [],
+        mediaType: 'none',
+      };
+      onMessagesChange([...messages, newMessage]);
+      setActiveMessageId(newMessage.id);
+    }
+    toast.success(`Template "${template.name}" aplicado!`);
+  };
+
   const updateMediaType = (messageId: string, mediaType: MediaType) => {
     onMessagesChange(
       messages.map(m => m.id === messageId ? { 
@@ -253,6 +382,34 @@ export function ComposerStudio({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <File className="w-4 h-4" />
+                Templates
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end">
+              <div className="p-3 border-b border-border/50">
+                <h4 className="font-medium text-sm">Templates Prontos</h4>
+                <p className="text-xs text-muted-foreground">Selecione para aplicar</p>
+              </div>
+              <ScrollArea className="max-h-64">
+                <div className="p-2 space-y-1">
+                  {WHATSAPP_TEMPLATES.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => applyTemplate(template)}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <p className="font-medium text-sm">{template.name}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{template.content.slice(0, 50)}...</p>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button 
               variant="outline" 
@@ -415,6 +572,63 @@ Use spintax {{ opção1 | opção2 }} para variações."
                 ))}
               </div>
             )}
+
+            {/* Variations Section */}
+            <div className="space-y-3 pt-4 border-t border-border/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Copy className="w-4 h-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Variações</Label>
+                  <Badge className="text-xs bg-primary/10 text-primary border-0">Anti-bloqueio</Badge>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => addVariation(activeMessage.id)}
+                  className="gap-1.5"
+                >
+                  <Plus className="w-3 h-3" />
+                  Nova Variação
+                </Button>
+              </div>
+              
+              {activeMessage.variations && activeMessage.variations.length > 0 ? (
+                <div className="space-y-2">
+                  {activeMessage.variations.map((variation, index) => (
+                    <motion.div 
+                      key={index} 
+                      className="relative group"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <div className="absolute left-3 top-3 z-10">
+                        <Badge variant="outline" className="text-xs bg-background">
+                          V{index + 1}
+                        </Badge>
+                      </div>
+                      <Textarea
+                        value={variation}
+                        onChange={(e) => updateVariation(activeMessage.id, index, e.target.value)}
+                        placeholder={`Variação ${index + 1}...`}
+                        className="pl-14 pr-10 min-h-[80px] resize-none bg-muted/30 border-border/50"
+                      />
+                      <Button 
+                        size="icon" 
+                        variant="ghost"
+                        onClick={() => removeVariation(activeMessage.id, index)}
+                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4 bg-muted/20 rounded-lg">
+                  Adicione variações para evitar bloqueios ao enviar mensagens em massa
+                </p>
+              )}
+            </div>
 
             {/* Randomize Toggle */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
