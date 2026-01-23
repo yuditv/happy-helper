@@ -21,11 +21,13 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Contact, SavedContact } from './ContactsManager';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 import confetti from 'canvas-confetti';
 
 export function BulkDispatcher() {
   const { toast } = useToast();
   const { permission, requestPermission, showLocalNotification, isSupported } = usePushNotifications();
+  const { playDispatchComplete } = useSoundEffects();
   const { instances, isLoading: instancesLoading, refetch: fetchInstances, checkNumbers, refreshAllStatus } = useWhatsAppInstances();
   const {
     config,
@@ -299,6 +301,9 @@ export function BulkDispatcher() {
           requireInteraction: true,
         });
       }
+
+      // Play completion sound
+      playDispatchComplete();
 
       // Fire multiple bursts of confetti
       const duration = 3000;
