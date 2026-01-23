@@ -465,22 +465,48 @@ serve(async (req: Request): Promise<Response> => {
 
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
-            const newStatus = statusData.connected ? "connected" : "disconnected";
+            console.log("Status data from UAZAPI:", JSON.stringify(statusData));
+            
+            // Determine connection status from multiple indicators
+            // UAZAPI returns: { instance: { status, owner, profileName }, status: { connected, loggedIn } }
+            const isConnected = 
+              statusData.status?.connected === true ||   // Direct flag
+              statusData.status?.loggedIn === true ||    // Logged in flag
+              (statusData.instance?.owner && statusData.instance?.profileName); // Has profile = connected
+            
+            // Map UAZAPI status to our status
+            let newStatus = "disconnected";
+            if (isConnected) {
+              newStatus = "connected";
+            } else if (statusData.instance?.status === "connecting" || statusData.instance?.qrcode) {
+              newStatus = "connecting";
+            }
+            
+            // Extract phone from owner field (format: 559180910280)
+            const phoneConnected = statusData.instance?.owner || statusData.phone || null;
+            const profileName = statusData.instance?.profileName || null;
+            
+            console.log("Mapped status:", newStatus, "Phone:", phoneConnected, "Profile:", profileName);
             
             // Update DB if status changed
-            if (newStatus !== instance.status) {
+            if (newStatus !== instance.status || phoneConnected !== instance.phone_connected) {
               await supabase
                 .from("whatsapp_instances")
                 .update({ 
                   status: newStatus,
-                  phone_connected: statusData.phone || null,
-                  last_connected_at: newStatus === "connected" ? new Date().toISOString() : null
+                  phone_connected: phoneConnected,
+                  last_connected_at: newStatus === "connected" ? new Date().toISOString() : instance.last_connected_at
                 })
                 .eq("id", entityId);
             }
 
             return new Response(
-              JSON.stringify({ success: true, status: newStatus, phone: statusData.phone }),
+              JSON.stringify({ 
+                success: true, 
+                status: newStatus, 
+                phone: phoneConnected,
+                profileName: profileName 
+              }),
               { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
