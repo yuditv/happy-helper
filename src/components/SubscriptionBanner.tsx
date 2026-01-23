@@ -5,11 +5,16 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 export function SubscriptionBanner() {
   const [dismissed, setDismissed] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
   const { subscription, isLoading } = useSubscription();
+  const { isAdmin } = useUserPermissions();
+
+  // Admins não veem banner de assinatura
+  if (isAdmin) return null;
 
   if (isLoading || !subscription) return null;
 
