@@ -4,6 +4,7 @@ import { FloatingSidebar, AppSection } from "@/components/FloatingSidebar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 
 // Lazy load heavy components
 const Index = lazy(() => import("@/pages/Index"));
@@ -76,6 +77,9 @@ export function MainLayout() {
 
   return (
     <div className="min-h-screen flex w-full relative">
+      {/* Subscription Expiration Banner */}
+      <SubscriptionBanner />
+      
       {/* Floating Sidebar */}
       <FloatingSidebar
         activeSection={activeSection}
