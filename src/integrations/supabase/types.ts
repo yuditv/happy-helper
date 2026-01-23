@@ -1304,6 +1304,33 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_notification_settings: {
+        Row: {
+          created_at: string
+          id: string
+          reminder_messages: Json | null
+          updated_at: string
+          user_id: string
+          whatsapp_enabled: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reminder_messages?: Json | null
+          updated_at?: string
+          user_id: string
+          whatsapp_enabled?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reminder_messages?: Json | null
+          updated_at?: string
+          user_id?: string
+          whatsapp_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       subscription_payments: {
         Row: {
           amount: number

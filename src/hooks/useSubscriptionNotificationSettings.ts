@@ -38,8 +38,9 @@ export function useSubscriptionNotificationSettings() {
     }
 
     try {
+      // Use rpc or direct query with type assertion since table is new
       const { data, error } = await supabase
-        .from('subscription_notification_settings')
+        .from('subscription_notification_settings' as any)
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -48,11 +49,12 @@ export function useSubscriptionNotificationSettings() {
         console.error('Error loading subscription notification settings:', error);
         setSettings(defaultSettings);
       } else if (data) {
+        const record = data as any;
         let reminderMessages = defaultReminderMessages;
-        if (data.reminder_messages) {
-          const parsed = typeof data.reminder_messages === 'string' 
-            ? JSON.parse(data.reminder_messages) 
-            : data.reminder_messages;
+        if (record.reminder_messages) {
+          const parsed = typeof record.reminder_messages === 'string' 
+            ? JSON.parse(record.reminder_messages) 
+            : record.reminder_messages;
           reminderMessages = {
             threeDays: parsed.threeDays || defaultReminderMessages.threeDays,
             oneDay: parsed.oneDay || defaultReminderMessages.oneDay,
@@ -61,7 +63,7 @@ export function useSubscriptionNotificationSettings() {
         }
 
         setSettings({
-          whatsapp_enabled: data.whatsapp_enabled ?? defaultSettings.whatsapp_enabled,
+          whatsapp_enabled: record.whatsapp_enabled ?? defaultSettings.whatsapp_enabled,
           reminder_messages: reminderMessages,
         });
       } else {
@@ -92,8 +94,9 @@ export function useSubscriptionNotificationSettings() {
         ...newSettings,
       };
 
+      // Check if record exists
       const { data: existing } = await supabase
-        .from('subscription_notification_settings')
+        .from('subscription_notification_settings' as any)
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -102,23 +105,25 @@ export function useSubscriptionNotificationSettings() {
 
       let error;
       if (existing) {
+        // Update existing
         const { error: updateError } = await supabase
-          .from('subscription_notification_settings')
+          .from('subscription_notification_settings' as any)
           .update({
             whatsapp_enabled: updatedSettings.whatsapp_enabled,
             reminder_messages: reminderMessagesJson,
             updated_at: new Date().toISOString(),
-          })
+          } as any)
           .eq('user_id', user.id);
         error = updateError;
       } else {
+        // Insert new
         const { error: insertError } = await supabase
-          .from('subscription_notification_settings')
+          .from('subscription_notification_settings' as any)
           .insert([{
             user_id: user.id,
             whatsapp_enabled: updatedSettings.whatsapp_enabled,
             reminder_messages: reminderMessagesJson,
-          }]);
+          }] as any);
         error = insertError;
       }
 
