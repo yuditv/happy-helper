@@ -17,7 +17,9 @@ import {
   RotateCcw,
   Lock,
   Image,
-  Smile
+  Smile,
+  PanelRightOpen,
+  PanelRightClose
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,8 @@ import {
 import { Conversation, InboxLabel } from "@/hooks/useInboxConversations";
 import { ChatMessage } from "@/hooks/useInboxMessages";
 import { useAuth } from "@/hooks/useAuth";
+import { useClientByPhone } from "@/hooks/useClientByPhone";
+import { ClientInfoPanel } from "./ClientInfoPanel";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -72,8 +76,12 @@ export function ChatPanel({
   const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [showClientPanel, setShowClientPanel] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch client by phone
+  const { client, isLoading: isLoadingClient } = useClientByPhone(conversation?.phone || null);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -167,9 +175,11 @@ export function ChatPanel({
   const availableLabels = labels.filter(l => !assignedLabels.some(al => al?.id === l.id));
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="p-3 border-b flex items-center justify-between">
+    <div className="flex-1 flex h-full bg-background">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <div className="p-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={conversation.contact_avatar || undefined} />
@@ -496,6 +506,51 @@ export function ChatPanel({
           </Button>
         </div>
       </div>
+      </div>
+
+      {/* Client Info Panel */}
+      {showClientPanel && (
+        <div className="w-72 border-l flex-shrink-0 overflow-hidden">
+          <div className="h-full p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Painel do Cliente</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowClientPanel(false)}
+              >
+                <PanelRightClose className="h-3 w-3" />
+              </Button>
+            </div>
+            <ClientInfoPanel
+              client={client}
+              isLoading={isLoadingClient}
+              phone={conversation.phone}
+              contactName={conversation.contact_name || undefined}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Toggle Panel Button (when hidden) */}
+      {!showClientPanel && (
+        <div className="border-l flex items-start pt-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 mx-1"
+                onClick={() => setShowClientPanel(true)}
+              >
+                <PanelRightOpen className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Mostrar dados do cliente</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </div>
   );
 }
