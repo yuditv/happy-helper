@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Send, RotateCcw } from 'lucide-react';
@@ -96,6 +96,44 @@ export function BulkDispatcher() {
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-refresh instances status every 30 seconds
+  useEffect(() => {
+    const autoRefresh = async () => {
+      if (!isRefreshingStatus && !progress.isRunning) {
+        setIsRefreshingStatus(true);
+        try {
+          await refreshAllStatus();
+        } finally {
+          setIsRefreshingStatus(false);
+        }
+      }
+    };
+
+    // Initial check
+    autoRefresh();
+
+    // Set up interval
+    refreshIntervalRef.current = setInterval(autoRefresh, 30000);
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [refreshAllStatus, progress.isRunning]);
+
+  // Manual refresh handler with loading state
+  const handleManualRefresh = useCallback(async () => {
+    setIsRefreshingStatus(true);
+    try {
+      await refreshAllStatus();
+    } finally {
+      setIsRefreshingStatus(false);
+    }
+  }, [refreshAllStatus]);
 
   // Convert contacts to dispatch format
   const handleContactsChange = useCallback((newContacts: Contact[]) => {
@@ -254,8 +292,8 @@ export function BulkDispatcher() {
             balancingMode={config.balancingMode}
             onSelectionChange={(ids) => updateConfig({ instanceIds: ids })}
             onBalancingModeChange={(mode) => updateConfig({ balancingMode: mode })}
-            onRefresh={refreshAllStatus}
-            isLoading={instancesLoading}
+            onRefresh={handleManualRefresh}
+            isLoading={instancesLoading || isRefreshingStatus}
           />
 
           {/* Message Composer */}

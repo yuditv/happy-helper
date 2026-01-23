@@ -92,14 +92,19 @@ export function InstanceSelector({
             </Badge>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={selectAll} disabled={connectedInstances.length === 0}>
+            {isLoading && (
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 animate-pulse">
+                Sincronizando...
+              </Badge>
+            )}
+            <Button variant="ghost" size="sm" onClick={selectAll} disabled={connectedInstances.length === 0 || isLoading}>
               Selecionar Todas
             </Button>
-            <Button variant="ghost" size="sm" onClick={clearSelection} disabled={selectedCount === 0}>
+            <Button variant="ghost" size="sm" onClick={clearSelection} disabled={selectedCount === 0 || isLoading}>
               Limpar
             </Button>
             {onRefresh && (
-              <Button variant="ghost" size="icon" onClick={onRefresh} disabled={isLoading}>
+              <Button variant="ghost" size="icon" onClick={onRefresh} disabled={isLoading} title="Atualizar status das instâncias">
                 <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
               </Button>
             )}
