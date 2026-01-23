@@ -87,18 +87,29 @@ export function QuickKPIs({ clients, instances, pendingMessages = 0, unreadConve
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       {kpis.map((kpi, index) => (
         <Card 
           key={kpi.label}
           className={cn(
-            "glass-card border transition-all duration-300 hover:scale-[1.02]",
+            "group relative overflow-hidden border transition-all duration-300",
+            "hover:scale-[1.02] hover:-translate-y-1",
             kpi.borderColor,
-            kpi.alert && "animate-pulse"
+            kpi.alert && "pulse-soft"
           )}
         >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={cn("p-2 rounded-lg", kpi.bgColor)}>
+          {/* Subtle gradient accent on hover */}
+          <div className={cn(
+            "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+            "bg-gradient-to-br from-transparent via-transparent to-primary/5"
+          )} />
+          
+          <CardContent className="p-4 flex items-center gap-3 relative">
+            <div className={cn(
+              "p-2.5 rounded-xl transition-all duration-300",
+              "group-hover:scale-110 group-hover:shadow-lg",
+              kpi.bgColor
+            )}>
               <kpi.icon className={cn("h-5 w-5", kpi.color)} />
             </div>
             <div className="min-w-0 flex-1">
