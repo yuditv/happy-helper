@@ -3,17 +3,44 @@ import { AlertTriangle, Clock, Zap, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useSubscription } from '@/hooks/useSubscription';
+import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
 
-interface SubscriptionBannerProps {
-  status: 'trial' | 'expiring' | 'expired';
-  daysRemaining: number;
-  onSubscribe: () => void;
-}
-
-export function SubscriptionBanner({ status, daysRemaining, onSubscribe }: SubscriptionBannerProps) {
+export function SubscriptionBanner() {
   const [dismissed, setDismissed] = useState(false);
+  const [showPlans, setShowPlans] = useState(false);
+  const { subscription, isLoading } = useSubscription();
 
-  if (dismissed && status !== 'expired') return null;
+  if (isLoading || !subscription) return null;
+
+  const { status, trial_ends_at, current_period_end } = subscription;
+  
+  // Calculate days remaining
+  const endDate = status === 'trial' ? trial_ends_at : current_period_end;
+  if (!endDate && status !== 'expired') return null;
+  
+  const daysRemaining = endDate 
+    ? Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  // Determine banner status
+  let bannerStatus: 'trial' | 'expiring' | 'expired' | null = null;
+  
+  if (status === 'expired') {
+    bannerStatus = 'expired';
+  } else if (status === 'trial') {
+    if (daysRemaining <= 0) {
+      bannerStatus = 'expired';
+    } else if (daysRemaining <= 3) {
+      bannerStatus = 'expiring';
+    } else if (daysRemaining <= 7) {
+      bannerStatus = 'trial';
+    }
+  } else if (status === 'active' && daysRemaining <= 7 && daysRemaining > 0) {
+    bannerStatus = 'expiring';
+  }
+
+  if (!bannerStatus || (dismissed && bannerStatus !== 'expired')) return null;
 
   const config = {
     trial: {
@@ -26,8 +53,8 @@ export function SubscriptionBanner({ status, daysRemaining, onSubscribe }: Subsc
     },
     expiring: {
       icon: AlertTriangle,
-      title: 'Trial Expirando!',
-      message: `Seu trial expira em ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}. Assine agora para não perder acesso.`,
+      title: 'Assinatura Expirando!',
+      message: `Sua assinatura expira em ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}. Renove agora para não perder acesso.`,
       bgClass: 'from-yellow-500/20 to-orange-500/10 border-yellow-500/30',
       iconClass: 'text-yellow-400',
       showDismiss: true,
@@ -42,52 +69,60 @@ export function SubscriptionBanner({ status, daysRemaining, onSubscribe }: Subsc
     },
   };
 
-  const { icon: Icon, title, message, bgClass, iconClass, showDismiss } = config[status];
+  const { icon: Icon, title, message, bgClass, iconClass, showDismiss } = config[bannerStatus];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={cn(
-        'relative overflow-hidden rounded-lg border bg-gradient-to-r p-4',
-        bgClass
-      )}
-    >
-      {/* Efeito de brilho */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
-      
-      <div className="relative flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className={cn('p-2 rounded-lg bg-background/50', iconClass)}>
-            <Icon className="h-5 w-5" />
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          'fixed top-0 left-20 right-0 z-50 overflow-hidden border-b bg-gradient-to-r p-3',
+          bgClass
+        )}
+      >
+        {/* Efeito de brilho */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+        
+        <div className="relative flex items-center justify-between gap-4 max-w-7xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div className={cn('p-2 rounded-lg bg-background/50', iconClass)}>
+              <Icon className="h-4 w-4" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground text-sm">{title}</h4>
+              <p className="text-xs text-muted-foreground">{message}</p>
+            </div>
           </div>
-          <div>
-            <h4 className="font-semibold text-foreground">{title}</h4>
-            <p className="text-sm text-muted-foreground">{message}</p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={onSubscribe}
-            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            Assinar Agora
-          </Button>
-          
-          {showDismiss && (
+          <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setDismissed(true)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowPlans(true)}
+              size="sm"
+              className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
             >
-              <X className="h-4 w-4" />
+              <Zap className="h-3 w-3 mr-1" />
+              Assinar Agora
             </Button>
-          )}
+            
+            {showDismiss && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDismissed(true)}
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+
+      <SubscriptionPlansDialog 
+        open={showPlans} 
+        onOpenChange={setShowPlans} 
+      />
+    </>
   );
 }

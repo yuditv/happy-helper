@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.generate-copy]
 verify_jwt = false
+
+[functions.mercado-pago-pix]
+verify_jwt = false
+
+[functions.mercado-pago-webhook]
+verify_jwt = false
