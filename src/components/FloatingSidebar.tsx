@@ -128,13 +128,14 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
 
   return (
     <TooltipProvider delayDuration={0}>
-      <motion.div
-        className="fixed left-4 top-1/2 -translate-y-1/2 z-50"
-        initial={{ x: -100, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        onMouseEnter={() => setIsExpanded(true)}
-        onMouseLeave={() => setIsExpanded(false)}
+      <div className="fixed left-4 inset-y-0 z-[60] flex items-center pointer-events-none">
+        <motion.div
+          className="pointer-events-auto"
+          initial={{ x: -100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          onMouseEnter={() => setIsExpanded(true)}
+          onMouseLeave={() => setIsExpanded(false)}
       >
         <motion.div
           className={cn(
@@ -262,7 +263,8 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
             })}
           </nav>
         </motion.div>
-      </motion.div>
+        </motion.div>
+      </div>
     </TooltipProvider>
   );
 }
