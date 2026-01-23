@@ -39,6 +39,7 @@ import {
   CreditCard,
   Link,
   User,
+  Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WhatsAppTemplateManager } from '@/components/WhatsAppTemplateManager';
@@ -53,6 +54,7 @@ import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
 import { BulkDispatcher } from '@/components/BulkDispatcher';
 import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
+import { InstanceSettingsDialog } from '@/components/InstanceSettingsDialog';
 import { motion } from 'framer-motion';
 
 export default function WhatsApp() {
@@ -94,6 +96,8 @@ export default function WhatsApp() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [configuringWebhook, setConfiguringWebhook] = useState<string | null>(null);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [settingsInstance, setSettingsInstance] = useState<WhatsAppInstance | null>(null);
 
   // Polling for campaign progress
   useEffect(() => {
@@ -136,6 +140,10 @@ export default function WhatsApp() {
     }
   };
 
+  const handleOpenSettings = (instance: WhatsAppInstance) => {
+    setSettingsInstance(instance);
+    setSettingsDialogOpen(true);
+  };
   const handleDeleteInstance = async (instanceId: string) => {
     if (confirm("Tem certeza que deseja excluir esta instância?")) {
       await deleteInstance(instanceId);
@@ -400,18 +408,21 @@ export default function WhatsApp() {
                               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
                             )}
                           </div>
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                          <div className="space-y-1 min-w-0">
+                            <CardTitle className="text-lg group-hover:text-primary transition-colors truncate">
                               {instance.name}
                             </CardTitle>
                             <CardDescription className="flex flex-col gap-0.5">
+                              {instance.profile_name && (
+                                <span className="font-medium text-foreground/80 truncate">
+                                  {instance.profile_name}
+                                </span>
+                              )}
                               {instance.phone_connected ? (
-                                <>
-                                  <span className="flex items-center gap-1">
-                                    <Smartphone className="w-3 h-3" />
-                                    {instance.phone_connected}
-                                  </span>
-                                </>
+                                <span className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3" />
+                                  {instance.phone_connected}
+                                </span>
                               ) : (
                                 <span>Não conectado</span>
                               )}
@@ -458,7 +469,15 @@ export default function WhatsApp() {
                             <Link className={`w-4 h-4 ${configuringWebhook === instance.id ? 'animate-pulse' : ''}`} />
                             Webhook
                           </Button>
-                        )}
+                         )}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleOpenSettings(instance)}
+                          title="Configurações avançadas"
+                        >
+                          <Settings className="w-4 h-4" />
+                        </Button>
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -686,6 +705,13 @@ export default function WhatsApp() {
       )}
 
       <SubscriptionPlansDialog open={showPlans} onOpenChange={setShowPlans} />
+
+      <InstanceSettingsDialog
+        instance={settingsInstance}
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        onSave={refetchInstances}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ export interface WhatsAppInstance {
   qr_code: string | null;
   phone_connected: string | null;
   profile_picture_url: string | null;
+  profile_name: string | null;
   business_hours_start: string | null;
   business_hours_end: string | null;
   last_connected_at: string | null;
@@ -52,6 +53,7 @@ export function useWhatsAppInstances() {
         qr_code: item.qr_code || null,
         phone_connected: item.phone_connected || null,
         profile_picture_url: item.profile_picture_url || null,
+        profile_name: item.profile_name || null,
         business_hours_start: item.business_hours_start || "08:00:00",
         business_hours_end: item.business_hours_end || "18:00:00",
         last_connected_at: item.last_connected_at,

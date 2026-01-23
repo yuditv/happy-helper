@@ -490,13 +490,14 @@ serve(async (req: Request): Promise<Response> => {
             console.log("Mapped status:", newStatus, "Phone:", phoneConnected, "Profile:", profileName, "Picture:", profilePictureUrl);
             
             // Update DB if status changed or new profile info
-            if (newStatus !== instance.status || phoneConnected !== instance.phone_connected || profilePictureUrl !== instance.profile_picture_url) {
+            if (newStatus !== instance.status || phoneConnected !== instance.phone_connected || profilePictureUrl !== instance.profile_picture_url || profileName !== instance.profile_name) {
               await supabase
                 .from("whatsapp_instances")
                 .update({ 
                   status: newStatus,
                   phone_connected: phoneConnected,
                   profile_picture_url: profilePictureUrl,
+                  profile_name: profileName,
                   last_connected_at: newStatus === "connected" ? new Date().toISOString() : instance.last_connected_at
                 })
                 .eq("id", entityId);
