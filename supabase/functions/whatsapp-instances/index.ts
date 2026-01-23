@@ -500,6 +500,35 @@ serve(async (req: Request): Promise<Response> => {
                 .eq("id", entityId);
             }
 
+            // Configure webhook when instance becomes connected
+            if (isConnected && instance.status !== "connected") {
+              const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-inbox-webhook`;
+              console.log("Configuring webhook URL in UAZAPI:", webhookUrl);
+              
+              try {
+                const webhookResponse = await fetch(`${uazapiUrl}/webhook`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "token": instance.instance_key,
+                  },
+                  body: JSON.stringify({
+                    webhookURL: webhookUrl,
+                    events: ["messages", "status", "qrcode"]
+                  }),
+                });
+                
+                if (webhookResponse.ok) {
+                  console.log("Webhook configured successfully in UAZAPI");
+                } else {
+                  const webhookError = await webhookResponse.text();
+                  console.error("Failed to configure webhook:", webhookError);
+                }
+              } catch (webhookErr) {
+                console.error("Error configuring webhook:", webhookErr);
+              }
+            }
+
             return new Response(
               JSON.stringify({ 
                 success: true, 

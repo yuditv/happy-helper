@@ -6,6 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Standard format from our internal calls
 interface IncomingMessage {
   phone: string;
   message: string;
@@ -15,6 +16,112 @@ interface IncomingMessage {
   mediaUrl?: string;
   mediaType?: string;
   messageId?: string;
+}
+
+// UAZAPI webhook format
+interface UAZAPIWebhookPayload {
+  event?: string;
+  instance?: string;
+  token?: string;
+  data?: {
+    key?: {
+      remoteJid?: string;
+      fromMe?: boolean;
+      id?: string;
+    };
+    message?: {
+      conversation?: string;
+      extendedTextMessage?: { text?: string };
+      imageMessage?: { caption?: string; url?: string; mimetype?: string };
+      videoMessage?: { caption?: string; url?: string; mimetype?: string };
+      audioMessage?: { url?: string; mimetype?: string };
+      documentMessage?: { fileName?: string; url?: string; mimetype?: string };
+    };
+    pushName?: string;
+    messageTimestamp?: number;
+  };
+  // Alternative fields that UAZAPI might send
+  phone?: string;
+  message?: string;
+  from?: string;
+  text?: string;
+  name?: string;
+  remoteJid?: string;
+  pushName?: string;
+}
+
+function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; message: string; contactName: string; mediaUrl?: string; mediaType?: string } | null {
+  // Try UAZAPI webhook format first
+  if (body.data?.key?.remoteJid) {
+    const remoteJid = body.data.key.remoteJid;
+    // Skip if message is from us
+    if (body.data.key.fromMe) {
+      console.log("[Inbox Webhook] Skipping outgoing message (fromMe=true)");
+      return null;
+    }
+    
+    // Extract phone from remoteJid (format: 5591999999999@s.whatsapp.net)
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    
+    // Extract message content from various message types
+    const msgData = body.data.message;
+    let message = '';
+    let mediaUrl: string | undefined;
+    let mediaType: string | undefined;
+    
+    if (msgData?.conversation) {
+      message = msgData.conversation;
+    } else if (msgData?.extendedTextMessage?.text) {
+      message = msgData.extendedTextMessage.text;
+    } else if (msgData?.imageMessage) {
+      message = msgData.imageMessage.caption || '[Imagem]';
+      mediaUrl = msgData.imageMessage.url;
+      mediaType = 'image';
+    } else if (msgData?.videoMessage) {
+      message = msgData.videoMessage.caption || '[Vídeo]';
+      mediaUrl = msgData.videoMessage.url;
+      mediaType = 'video';
+    } else if (msgData?.audioMessage) {
+      message = '[Áudio]';
+      mediaUrl = msgData.audioMessage.url;
+      mediaType = 'audio';
+    } else if (msgData?.documentMessage) {
+      message = msgData.documentMessage.fileName || '[Documento]';
+      mediaUrl = msgData.documentMessage.url;
+      mediaType = 'document';
+    }
+    
+    const contactName = body.data.pushName || phone;
+    
+    return { phone, message, contactName, mediaUrl, mediaType };
+  }
+  
+  // Try alternative UAZAPI formats
+  if (body.remoteJid) {
+    const phone = body.remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    const message = body.message || body.text || '';
+    const contactName = body.pushName || body.name || phone;
+    return { phone, message, contactName };
+  }
+  
+  // Try direct fields
+  if (body.phone && body.message) {
+    return {
+      phone: body.phone.replace(/\D/g, ''),
+      message: body.message,
+      contactName: body.name || body.phone
+    };
+  }
+  
+  if (body.from) {
+    return {
+      phone: body.from.replace(/\D/g, '').replace('@s.whatsapp.net', ''),
+      message: body.message || body.text || '',
+      contactName: body.name || body.from
+    };
+  }
+  
+  return null;
 }
 
 serve(async (req: Request) => {
@@ -30,10 +137,58 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const body: IncomingMessage = await req.json();
-    const { phone, message, instanceKey, instanceId, contactName, mediaUrl, mediaType } = body;
+    const body = await req.json();
+    console.log("[Inbox Webhook] Received payload:", JSON.stringify(body));
 
-    console.log(`[Inbox Webhook] Received message from: ${phone}`);
+    // Check if this is a non-message event (status, qrcode, etc.)
+    if (body.event && body.event !== 'messages' && body.event !== 'message') {
+      console.log(`[Inbox Webhook] Ignoring event type: ${body.event}`);
+      return new Response(
+        JSON.stringify({ success: true, ignored: true, event: body.event }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Extract message data from various formats
+    const extractedData = extractMessageData(body);
+    
+    // Also check for standard format
+    const standardFormat = body as IncomingMessage;
+    
+    let phone: string;
+    let message: string;
+    let instanceKey: string | undefined;
+    let instanceId: string | undefined;
+    let contactName: string;
+    let mediaUrl: string | undefined;
+    let mediaType: string | undefined;
+
+    if (extractedData) {
+      // UAZAPI format
+      phone = extractedData.phone;
+      message = extractedData.message;
+      contactName = extractedData.contactName;
+      mediaUrl = extractedData.mediaUrl;
+      mediaType = extractedData.mediaType;
+      instanceKey = body.token || body.instance;
+    } else if (standardFormat.phone && standardFormat.message) {
+      // Standard format from our internal calls
+      phone = standardFormat.phone;
+      message = standardFormat.message;
+      instanceKey = standardFormat.instanceKey;
+      instanceId = standardFormat.instanceId;
+      contactName = standardFormat.contactName || phone;
+      mediaUrl = standardFormat.mediaUrl;
+      mediaType = standardFormat.mediaType;
+    } else {
+      console.log("[Inbox Webhook] Could not extract message data from payload");
+      return new Response(
+        JSON.stringify({ error: 'Could not parse message data', received: body }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[Inbox Webhook] Received message from: ${phone}, instanceKey: ${instanceKey || 'none'}, instanceId: ${instanceId || 'none'}`);
 
     if (!phone || !message) {
       return new Response(
