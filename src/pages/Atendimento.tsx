@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, RefreshCw, Circle } from "lucide-react";
+import { ArrowLeft, RefreshCw, Circle, Lock, AlertTriangle, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -8,10 +8,12 @@ import { useInboxMessages, ChatMessage } from "@/hooks/useInboxMessages";
 import { useAgentStatus } from "@/hooks/useAgentStatus";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import { useAutomationTriggers } from "@/hooks/useAutomationTriggers";
+import { useSubscription } from "@/hooks/useSubscription";
 import { InboxSidebar } from "@/components/Inbox/InboxSidebar";
 import { ConversationList } from "@/components/Inbox/ConversationList";
 import { ChatPanel } from "@/components/Inbox/ChatPanel";
 import { InboxDashboard } from "@/components/Inbox/InboxDashboard";
+import { SubscriptionPlansDialog } from "@/components/SubscriptionPlansDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { motion } from "framer-motion";
 
 export default function Atendimento() {
   const navigate = useNavigate();
@@ -29,8 +32,11 @@ export default function Atendimento() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [lastProcessedMessageId, setLastProcessedMessageId] = useState<string | null>(null);
+  const [showPlans, setShowPlans] = useState(false);
 
   const { instances } = useWhatsAppInstances();
+  const { isActive, isOnTrial, getRemainingDays } = useSubscription();
+  const subscriptionExpired = !isActive();
   const { agents, myStatus, updateStatus } = useAgentStatus();
   
   const {
@@ -225,6 +231,32 @@ export default function Atendimento() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      {/* Subscription Expired Banner */}
+      {subscriptionExpired && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-destructive/10 border-b border-destructive/20 px-4 py-3 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <div>
+              <p className="font-medium text-destructive">Assinatura Expirada</p>
+              <p className="text-sm text-muted-foreground">
+                Renove sua assinatura para acessar a Central de Atendimento
+              </p>
+            </div>
+          </div>
+          <Button 
+            onClick={() => setShowPlans(true)}
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            Renovar Agora
+          </Button>
+        </motion.div>
+      )}
+
       {/* Top Header */}
       <header className="h-14 border-b flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
@@ -238,7 +270,7 @@ export default function Atendimento() {
           {/* Status Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-2" disabled={subscriptionExpired}>
                 <Circle className={cn(
                   "h-2 w-2 fill-current",
                   statusColors[myStatus?.status || 'offline']
@@ -262,14 +294,43 @@ export default function Atendimento() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="icon" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={subscriptionExpired}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Subscription Expired Overlay */}
+        {subscriptionExpired && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
+          >
+            <div className="text-center p-8 max-w-md">
+              <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
+                <Lock className="h-10 w-10 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3 text-foreground">
+                Central de Atendimento Bloqueada
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Sua assinatura expirou. Renove para continuar atendendo seus clientes via WhatsApp.
+              </p>
+              <Button 
+                size="lg"
+                onClick={() => setShowPlans(true)}
+                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+              >
+                <Zap className="h-5 w-5 mr-2" />
+                Ver Planos de Assinatura
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Left Sidebar */}
         <InboxSidebar
           instances={instances}
@@ -319,6 +380,9 @@ export default function Atendimento() {
           </>
         )}
       </div>
+
+      {/* Subscription Plans Dialog */}
+      <SubscriptionPlansDialog open={showPlans} onOpenChange={setShowPlans} />
     </div>
   );
 }
