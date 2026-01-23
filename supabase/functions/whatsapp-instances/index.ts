@@ -588,6 +588,80 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // CONFIGURE-WEBHOOK - Manually configure webhook for an instance
+    if (action === "configure-webhook" && entityId) {
+      const { data: instance, error } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("id", entityId)
+        .single();
+
+      if (error || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instance not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância não inicializada. Conecte a instância primeiro." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-inbox-webhook`;
+      console.log("Configuring webhook URL in UAZAPI:", webhookUrl);
+
+      try {
+        const webhookResponse = await fetch(`${uazapiUrl}/webhook`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({
+            webhookURL: webhookUrl,
+            events: ["messages", "status", "qrcode"]
+          }),
+        });
+
+        const webhookData = await webhookResponse.json().catch(() => null);
+        console.log("Webhook response:", webhookResponse.status, JSON.stringify(webhookData));
+
+        if (webhookResponse.ok) {
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              webhookUrl,
+              configured: true,
+              message: "Webhook configurado com sucesso!"
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Falha ao configurar webhook na UAZAPI",
+              details: webhookData
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (webhookErr) {
+        console.error("Error configuring webhook:", webhookErr);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Erro ao comunicar com UAZAPI",
+            details: String(webhookErr)
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // DELETE
     if (action === "delete" && entityId) {
       const { data: instance } = await supabase

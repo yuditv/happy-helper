@@ -167,6 +167,21 @@ export function useWhatsAppInstances() {
     }
   };
 
+  const configureWebhook = async (instanceId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'configure-webhook', instanceId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(data?.message || 'Webhook configurado com sucesso!');
+      return data;
+    } catch (error: any) {
+      console.error('Configure webhook error:', error);
+      toast.error(error.message || 'Erro ao configurar webhook');
+      return null;
+    }
+  };
   // Refresh all instances status from UAZAPI
   const refreshAllStatus = useCallback(async () => {
     if (!user) return;
@@ -212,6 +227,7 @@ export function useWhatsAppInstances() {
     deleteInstance,
     getPairingCode,
     checkNumbers,
+    configureWebhook,
     refetch: fetchInstances,
     refreshAllStatus,
   };
