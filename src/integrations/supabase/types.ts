@@ -1626,6 +1626,7 @@ export type Database = {
           instance_name: string
           last_connected_at: string | null
           phone_connected: string | null
+          profile_name: string | null
           profile_picture_url: string | null
           qr_code: string | null
           status: string
@@ -1642,6 +1643,7 @@ export type Database = {
           instance_name: string
           last_connected_at?: string | null
           phone_connected?: string | null
+          profile_name?: string | null
           profile_picture_url?: string | null
           qr_code?: string | null
           status?: string
@@ -1658,6 +1660,7 @@ export type Database = {
           instance_name?: string
           last_connected_at?: string | null
           phone_connected?: string | null
+          profile_name?: string | null
           profile_picture_url?: string | null
           qr_code?: string | null
           status?: string
