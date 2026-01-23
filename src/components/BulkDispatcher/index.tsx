@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Send, RotateCcw, Users, MessageSquare,
-  Play, Pause, Square, Sparkles
+  Play, Pause, Square, Sparkles, Clock
 } from 'lucide-react';
 import { InstanceSidebar } from './InstanceSidebar';
 import { ComposerStudio } from './ComposerStudio';
@@ -20,6 +20,7 @@ import { useContactsSupabase } from '@/hooks/useContactsSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Contact, SavedContact } from './ContactsManager';
+import confetti from 'canvas-confetti';
 
 export function BulkDispatcher() {
   const { toast } = useToast();
@@ -249,6 +250,68 @@ export function BulkDispatcher() {
   const percentage = progress.total > 0 
     ? Math.round(((progress.sent + progress.failed) / progress.total) * 100)
     : 0;
+
+  // Track previous progress state to detect completion
+  const prevProgressRef = useRef({ isRunning: false, sent: 0 });
+  
+  // Fire confetti when dispatch completes successfully
+  useEffect(() => {
+    const wasRunning = prevProgressRef.current.isRunning;
+    const justCompleted = wasRunning && !progress.isRunning && progress.sent > 0;
+    
+    if (justCompleted) {
+      // Fire multiple bursts of confetti
+      const duration = 3000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        });
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        });
+      }, 250);
+    }
+
+    prevProgressRef.current = { isRunning: progress.isRunning, sent: progress.sent };
+  }, [progress.isRunning, progress.sent]);
+
+  // Format estimated time remaining
+  const formatTimeRemaining = (seconds: number) => {
+    if (!seconds || seconds <= 0) return null;
+    
+    if (seconds < 60) {
+      return `${Math.ceil(seconds)}s`;
+    } else if (seconds < 3600) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.ceil(seconds % 60);
+      return `${mins}m ${secs}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.ceil((seconds % 3600) / 60);
+      return `${hours}h ${mins}m`;
+    }
+  };
+
+  // Calculate estimated time based on progress
+  const estimatedTimeRemaining = progress.isRunning && progress.estimatedTimeRemaining 
+    ? formatTimeRemaining(progress.estimatedTimeRemaining)
+    : null;
 
   return (
     <div className="space-y-4 pb-8">
@@ -511,7 +574,7 @@ export function BulkDispatcher() {
           
           <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Status Summary */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2 text-sm">
                 <div className={cn(
                   "w-2 h-2 rounded-full",
@@ -523,6 +586,24 @@ export function BulkDispatcher() {
               <span className="text-sm text-muted-foreground">
                 {contacts.length} contatos • {totalMessages} mensagens
               </span>
+              
+              {/* Estimated Time Remaining */}
+              <AnimatePresence>
+                {estimatedTimeRemaining && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="flex items-center gap-2"
+                  >
+                    <div className="h-4 w-px bg-border" />
+                    <div className="flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-2.5 py-1 rounded-full">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span className="font-medium">~{estimatedTimeRemaining}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             
             {/* Control Buttons */}
