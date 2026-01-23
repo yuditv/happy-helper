@@ -4,14 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Flame, Lock, CreditCard } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { SubscriptionPlansDialog } from "@/components/SubscriptionPlansDialog";
 import { useState } from "react";
 
 export default function WarmChips() {
   const { isActive, isOnTrial, getRemainingDays } = useSubscription();
+  const { isAdmin } = useUserPermissions();
   const [showPlans, setShowPlans] = useState(false);
   
-  const subscriptionExpired = !isActive();
+  // Admins bypass subscription check
+  const subscriptionExpired = !isActive() && !isAdmin;
   const trialActive = isOnTrial();
   const daysRemaining = getRemainingDays();
 

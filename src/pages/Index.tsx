@@ -7,6 +7,7 @@ import { useClientTags } from '@/hooks/useClientTags';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { Client, PlanType, planLabels } from '@/types/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientTable } from '@/components/ClientTable';
@@ -64,6 +65,7 @@ const Index = () => {
   const { tags, createTag, updateTag, deleteTag, assignTag, removeTag, getClientTags, getClientsByTag } = useClientTags();
   const { instances } = useWhatsAppInstances();
   const { isActive, canAccessFeature } = useSubscription();
+  const { isAdmin } = useUserPermissions();
   const { 
     notifications, 
     unreadConversations, 
@@ -74,12 +76,12 @@ const Index = () => {
     refresh: refreshNotifications 
   } = useNotifications({ clients, instances });
   
-  // Check if subscription is active for restricted actions
-  const isSubscriptionActive = isActive();
-  const canCreateClients = canAccessFeature('can_create_clients');
-  const canEditClients = canAccessFeature('can_edit_clients');
-  const canDeleteClients = canAccessFeature('can_delete_clients');
-  const canSendWhatsapp = canAccessFeature('can_send_whatsapp');
+  // Check if subscription is active for restricted actions (admins bypass this check)
+  const isSubscriptionActive = isActive() || isAdmin;
+  const canCreateClients = canAccessFeature('can_create_clients') || isAdmin;
+  const canEditClients = canAccessFeature('can_edit_clients') || isAdmin;
+  const canDeleteClients = canAccessFeature('can_delete_clients') || isAdmin;
+  const canSendWhatsapp = canAccessFeature('can_send_whatsapp') || isAdmin;
   
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
