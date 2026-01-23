@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,7 +27,7 @@ import {
 import { 
   MessageSquare, Plus, Trash2, Bold, Italic, 
   Sparkles, Copy, Info, RefreshCw,
-  Image, Video, FileAudio, FileText, Type, Loader2, Wand2, Shuffle
+  Image, Video, FileAudio, FileText, Type, Loader2, Wand2, Shuffle, Zap
 } from 'lucide-react';
 import { generatePreview, validateSpintax, SPINTAX_SUGGESTIONS } from '@/lib/spintaxParser';
 import { cn } from '@/lib/utils';
@@ -321,77 +322,90 @@ export function MessageComposer({
   const preview = activeMessage ? generatePreview(activeMessage.content) : '';
 
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-      <CardHeader className="pb-3">
+    <Card className="glass-card overflow-hidden">
+      <CardHeader className="pb-3 border-b border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              Configuração de Mensagens
-            </CardTitle>
-            <Badge variant="secondary">
+            <div className="stats-icon-container accent">
+              <MessageSquare className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Configuração de Mensagens</CardTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Crie mensagens personalizadas
+              </p>
+            </div>
+            <Badge className="bg-primary/20 text-primary border-primary/30">
               {messages.length} mensagem(ns)
             </Badge>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowAiDialog(true)}
-              className="gap-1.5"
-            >
-              <Wand2 className="w-4 h-4 text-primary" />
-              Gerar com IA
-            </Button>
-            <Button variant="outline" size="sm" onClick={addMessage}>
-              <Plus className="w-4 h-4 mr-1" />
-              Adicionar Mensagem
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowAiDialog(true)}
+                className="gap-1.5 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:border-primary/50"
+              >
+                <Wand2 className="w-4 h-4 text-primary" />
+                Gerar com IA
+              </Button>
+            </motion.div>
+            <Button variant="outline" size="sm" onClick={addMessage} className="gap-1.5">
+              <Plus className="w-4 h-4" />
+              Nova
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-4">
         {/* Variables Bar */}
-        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
-          <span className="text-sm text-muted-foreground mr-2">Variáveis:</span>
-          {VARIABLES.map(v => (
-            <Badge
-              key={v.key}
-              variant="outline"
-              className="cursor-pointer hover:bg-primary/20 transition-colors"
-              onClick={() => insertVariable(v.key)}
-            >
-              {v.key}
-            </Badge>
-          ))}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 px-2">
-                <Info className="w-3 h-3 mr-1" />
-                Ajuda
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <div className="space-y-3">
-                <h4 className="font-semibold">Variáveis Disponíveis</h4>
-                <div className="space-y-2">
-                  {VARIABLES.map(v => (
-                    <div key={v.key} className="flex justify-between text-sm">
-                      <code className="text-primary">{v.key}</code>
-                      <span className="text-muted-foreground">{v.example}</span>
-                    </div>
-                  ))}
+        <div className="p-4 rounded-xl bg-gradient-to-r from-muted/40 to-muted/20 border border-white/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Variáveis Disponíveis</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {VARIABLES.map(v => (
+              <motion.div key={v.key} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer bg-background/60 hover:bg-primary/20 hover:border-primary/50 transition-all"
+                  onClick={() => insertVariable(v.key)}
+                >
+                  {v.key}
+                </Badge>
+              </motion.div>
+            ))}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-muted-foreground hover:text-foreground">
+                  <Info className="w-3 h-3 mr-1" />
+                  Ajuda
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Variáveis Disponíveis</h4>
+                  <div className="space-y-2">
+                    {VARIABLES.map(v => (
+                      <div key={v.key} className="flex justify-between text-sm">
+                        <code className="text-primary">{v.key}</code>
+                        <span className="text-muted-foreground">{v.example}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <h4 className="font-semibold pt-2">Spintax</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Use para variações aleatórias:
+                  </p>
+                  <code className="text-xs block bg-muted p-2 rounded">
+                    {"{{ saudacao : Olá | Oi | Hey }}"}
+                  </code>
                 </div>
-                <h4 className="font-semibold pt-2">Spintax</h4>
-                <p className="text-sm text-muted-foreground">
-                  Use para variações aleatórias:
-                </p>
-                <code className="text-xs block bg-muted p-2 rounded">
-                  {"{{ saudacao : Olá | Oi | Hey }}"}
-                </code>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         {/* Spintax Suggestions */}
@@ -422,28 +436,43 @@ export function MessageComposer({
 
         {/* Message Tabs */}
         {messages.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {messages.map((msg, index) => (
-              <div key={msg.id} className="flex items-center gap-1 shrink-0">
-                <Button
-                  variant={activeMessageId === msg.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setActiveMessageId(msg.id)}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <AnimatePresence mode="popLayout">
+              {messages.map((msg, index) => (
+                <motion.div 
+                  key={msg.id} 
+                  className="flex items-center gap-1 shrink-0"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
                 >
-                  Mensagem {index + 1}
-                </Button>
-                {messages.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => removeMessage(msg.id)}
+                  <motion.button
+                    onClick={() => setActiveMessageId(msg.id)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300",
+                      "border backdrop-blur-sm",
+                      activeMessageId === msg.id 
+                        ? "bg-primary/20 border-primary/50 text-primary shadow-[0_0_20px_hsl(var(--primary)/0.2)]" 
+                        : "bg-background/40 border-white/10 text-muted-foreground hover:border-primary/30"
+                    )}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
+                    Mensagem {index + 1}
+                  </motion.button>
+                  {messages.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => removeMessage(msg.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
 

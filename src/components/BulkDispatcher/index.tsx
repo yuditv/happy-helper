@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Send, RotateCcw } from 'lucide-react';
+import { Send, RotateCcw, Zap, Users, MessageSquare, Smartphone } from 'lucide-react';
 import { InstanceSelector } from './InstanceSelector';
 import { MessageComposer } from './MessageComposer';
 import { ContactsManager, Contact, SavedContact } from './ContactsManager';
@@ -252,20 +253,73 @@ export function BulkDispatcher() {
     await deleteConfig(id);
   }, [deleteConfig]);
 
+  // Stats for header
+  const connectedInstances = instances.filter(i => i.status === 'connected').length;
+  const totalMessages = config.messages.length;
+
   return (
     <div className="space-y-6 pb-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Send className="w-6 h-6 text-primary" />
-            Disparo em Massa
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Configure e execute disparos WhatsApp com controle total
-          </p>
+      {/* Premium Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/10 via-background to-accent/5 p-6 border border-white/10"
+      >
+        {/* Background glow */}
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <motion.div 
+              className="page-header-icon"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Send className="w-7 h-7" />
+            </motion.div>
+            <div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold">Disparo em Massa</h2>
+                <Badge className="bg-gradient-to-r from-primary/20 to-accent/20 text-primary border-primary/30">
+                  <Zap className="w-3 h-3 mr-1" />
+                  Premium
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Configure e execute disparos WhatsApp com controle total
+              </p>
+            </div>
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="flex items-center gap-3">
+            <motion.div 
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 backdrop-blur-sm border border-white/10"
+              whileHover={{ scale: 1.02 }}
+            >
+              <Smartphone className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm font-medium">{connectedInstances} conectada(s)</span>
+            </motion.div>
+            <motion.div 
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 backdrop-blur-sm border border-white/10"
+              whileHover={{ scale: 1.02 }}
+            >
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">{contacts.length} contato(s)</span>
+            </motion.div>
+            <motion.div 
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 backdrop-blur-sm border border-white/10"
+              whileHover={{ scale: 1.02 }}
+            >
+              <MessageSquare className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium">{totalMessages} msg(s)</span>
+            </motion.div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        
+        {/* Action Buttons */}
+        <div className="relative flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
           <ConfigManager
             configs={savedConfigs}
             currentConfig={config}
@@ -275,16 +329,21 @@ export function BulkDispatcher() {
             onUpdate={handleUpdateConfig}
             onDelete={handleDeleteConfig}
           />
-          <Button variant="outline" size="sm" onClick={resetConfig}>
-            <RotateCcw className="w-4 h-4 mr-1" />
+          <Button variant="outline" size="sm" onClick={resetConfig} className="gap-1.5">
+            <RotateCcw className="w-4 h-4" />
             Resetar
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Configuration */}
-        <div className="lg:col-span-2 space-y-6">
+        <motion.div 
+          className="lg:col-span-2 space-y-6"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+        >
           {/* Instance Selector */}
           <InstanceSelector
             instances={instances}
@@ -330,19 +389,29 @@ export function BulkDispatcher() {
 
           {/* Verify Button */}
           {config.verifyNumbers && contacts.length > 0 && config.instanceIds.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleVerifyContacts}
-              disabled={isVerifying}
-              className="w-full"
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              {isVerifying ? 'Verificando...' : 'Verificar Números WhatsApp'}
-            </Button>
+              <Button
+                variant="outline"
+                onClick={handleVerifyContacts}
+                disabled={isVerifying}
+                className="w-full h-12 gap-2 text-base"
+              >
+                {isVerifying ? 'Verificando...' : 'Verificar Números WhatsApp'}
+              </Button>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
 
         {/* Right Column - Settings & Progress */}
-        <div className="space-y-6">
+        <motion.div 
+          className="space-y-6"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+        >
           {/* Sending Window */}
           <SendingWindow
             enabled={config.businessHoursEnabled}
@@ -378,7 +447,7 @@ export function BulkDispatcher() {
             onCancel={cancelDispatch}
             canStart={canStart}
           />
-        </div>
+        </motion.div>
       </div>
     </div>
   );

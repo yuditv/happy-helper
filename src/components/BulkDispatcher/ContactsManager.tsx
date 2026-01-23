@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, Upload, FileSpreadsheet, Trash2, 
   Check, X, Loader2, Download, AlertCircle,
-  Database, Search, Plus
+  Database, Search, Plus, CheckCircle2, XCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
@@ -348,15 +349,23 @@ export function ContactsManager({
   const uncheckedCount = contacts.filter(c => c.isValid === undefined).length;
 
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-      <CardHeader className="pb-3">
+    <Card className="glass-card overflow-hidden">
+      <CardHeader className="pb-3 border-b border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              Contatos
-            </CardTitle>
-            <Badge variant="secondary">
+            <div className="stats-icon-container success">
+              <Users className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Contatos</CardTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Gerencie sua lista de destinatários
+              </p>
+            </div>
+            <Badge className={cn(
+              "transition-all",
+              contacts.length > 0 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-muted"
+            )}>
               {contacts.length} contato(s)
             </Badge>
           </div>
@@ -371,41 +380,44 @@ export function ContactsManager({
                 if (file) handleFileUpload(file);
               }}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="w-4 h-4 mr-1" />
-              Importar
-            </Button>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-1.5"
+              >
+                <Upload className="w-4 h-4" />
+                Importar
+              </Button>
+            </motion.div>
             {contacts.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clearContacts}
+                className="text-muted-foreground hover:text-destructive"
               >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Limpar
+                <Trash2 className="w-4 h-4" />
               </Button>
             )}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-4">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="manual">
+          <TabsList className="w-full grid grid-cols-4 bg-muted/30 p-1">
+            <TabsTrigger value="manual" className="data-[state=active]:bg-background">
               Manual
             </TabsTrigger>
-            <TabsTrigger value="upload">
+            <TabsTrigger value="upload" className="data-[state=active]:bg-background">
               Upload
             </TabsTrigger>
-            <TabsTrigger value="saved" className="gap-1">
+            <TabsTrigger value="saved" className="gap-1.5 data-[state=active]:bg-background">
               <Database className="w-3 h-3" />
               Meus
             </TabsTrigger>
-            <TabsTrigger value="preview">
+            <TabsTrigger value="preview" className="data-[state=active]:bg-background">
               Preview
             </TabsTrigger>
           </TabsList>
@@ -455,32 +467,34 @@ Exemplo:
           </TabsContent>
 
           <TabsContent value="upload">
-            <div
+            <motion.div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
+              whileHover={{ scale: 1.01 }}
               className={cn(
-                "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
-                isDragging 
-                  ? "border-primary bg-primary/10" 
-                  : "border-border/50 hover:border-border"
+                "drop-zone-premium cursor-pointer",
+                isDragging && "dragging"
               )}
+              onClick={() => fileInputRef.current?.click()}
             >
-              <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <motion.div
+                animate={isDragging ? { scale: 1.1, rotate: 5 } : { scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <FileSpreadsheet className="drop-icon w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              </motion.div>
               <p className="text-lg font-medium mb-2">
                 Arraste um arquivo aqui
               </p>
               <p className="text-sm text-muted-foreground mb-4">
                 Suporta: CSV, XLSX, XLS, TXT
               </p>
-              <Button
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="w-4 h-4 mr-2" />
+              <Button variant="outline" className="gap-2">
+                <Upload className="w-4 h-4" />
                 Selecionar Arquivo
               </Button>
-            </div>
+            </motion.div>
           </TabsContent>
 
           <TabsContent value="saved" className="space-y-3">
@@ -667,22 +681,26 @@ Exemplo:
 
         {/* Stats */}
         {contacts.length > 0 && (validCount > 0 || invalidCount > 0) && (
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-500" />
-              <span>{validCount} válidos</span>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-3 gap-3"
+          >
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm font-medium text-emerald-500">{validCount} válidos</span>
             </div>
-            <div className="flex items-center gap-2">
-              <X className="w-4 h-4 text-destructive" />
-              <span>{invalidCount} inválidos</span>
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <XCircle className="w-4 h-4 text-red-500" />
+              <span className="text-sm font-medium text-red-500">{invalidCount} inválidos</span>
             </div>
             {uncheckedCount > 0 && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <AlertCircle className="w-4 h-4" />
-                <span>{uncheckedCount} não verificados</span>
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/30 border border-white/10">
+                <AlertCircle className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{uncheckedCount} pendentes</span>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* Export Options */}
