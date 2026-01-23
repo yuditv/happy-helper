@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWhatsAppInstances, WhatsAppInstance } from '@/hooks/useWhatsAppInstances';
 import { useCampaigns, Campaign } from '@/hooks/useCampaigns';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -71,13 +72,14 @@ export default function WhatsApp() {
     refetch: refetchCampaigns 
   } = useCampaigns();
   const { isActive, isOnTrial, getRemainingDays } = useSubscription();
+  const { isAdmin } = useUserPermissions();
   
   // Tab state
   const [activeTab, setActiveTab] = useState('dispatch');
   const [showPlans, setShowPlans] = useState(false);
 
-  // Subscription status
-  const subscriptionExpired = !isActive();
+  // Subscription status (admins bypass this check)
+  const subscriptionExpired = !isActive() && !isAdmin;
 
   // Instance/Campaign dialogs
   const [selectedInstance, setSelectedInstance] = useState<WhatsAppInstance | null>(null);

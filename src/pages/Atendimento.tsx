@@ -9,6 +9,7 @@ import { useAgentStatus } from "@/hooks/useAgentStatus";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import { useAutomationTriggers } from "@/hooks/useAutomationTriggers";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { InboxSidebar } from "@/components/Inbox/InboxSidebar";
 import { ConversationList } from "@/components/Inbox/ConversationList";
 import { ChatPanel } from "@/components/Inbox/ChatPanel";
@@ -36,7 +37,9 @@ export default function Atendimento() {
 
   const { instances } = useWhatsAppInstances();
   const { isActive, isOnTrial, getRemainingDays } = useSubscription();
-  const subscriptionExpired = !isActive();
+  const { isAdmin } = useUserPermissions();
+  // Admins bypass subscription check
+  const subscriptionExpired = !isActive() && !isAdmin;
   const { agents, myStatus, updateStatus } = useAgentStatus();
   
   const {

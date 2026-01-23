@@ -17,7 +17,8 @@ export default function AIAgent() {
   const { isActive, isOnTrial, getRemainingDays } = useSubscription();
   const [showPlans, setShowPlans] = useState(false);
   
-  const subscriptionExpired = !isActive();
+  // Admins bypass subscription check
+  const subscriptionExpired = !isActive() && !isAdmin;
 
   if (isLoading) {
     return (
