@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { AppSection } from '@/components/AppSidebar';
+import { AppSection } from '@/components/FloatingSidebar';
 
 interface KeyboardShortcutsOptions {
   onSectionChange: (section: AppSection) => void;

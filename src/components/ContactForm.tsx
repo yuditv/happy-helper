@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { Contact } from "@/hooks/useContacts";
+import type { Contact } from "@/hooks/useContactsSupabase";
 
 const contactSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
