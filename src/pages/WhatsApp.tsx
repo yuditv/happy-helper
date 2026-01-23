@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useWhatsAppInstances, WhatsAppInstance } from '@/hooks/useWhatsAppInstances';
 import { useCampaigns, Campaign } from '@/hooks/useCampaigns';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -33,6 +34,8 @@ import {
   WifiOff,
   AlertCircle,
   CircleDot,
+  Lock,
+  CreditCard,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WhatsAppTemplateManager } from '@/components/WhatsAppTemplateManager';
@@ -46,6 +49,7 @@ import { CampaignLogsDialog } from '@/components/CampaignLogsDialog';
 import { ImportContactsDialog } from '@/components/ImportContactsDialog';
 import { WhatsAppStatus } from '@/components/WhatsAppStatus';
 import { BulkDispatcher } from '@/components/BulkDispatcher';
+import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
 import { motion } from 'framer-motion';
 
 export default function WhatsApp() {
@@ -66,9 +70,14 @@ export default function WhatsApp() {
     pauseCampaign, 
     refetch: refetchCampaigns 
   } = useCampaigns();
+  const { isActive, isOnTrial, getRemainingDays } = useSubscription();
   
   // Tab state
   const [activeTab, setActiveTab] = useState('dispatch');
+  const [showPlans, setShowPlans] = useState(false);
+
+  // Subscription status
+  const subscriptionExpired = !isActive();
 
   // Instance/Campaign dialogs
   const [selectedInstance, setSelectedInstance] = useState<WhatsAppInstance | null>(null);
@@ -230,7 +239,50 @@ export default function WhatsApp() {
         </div>
       </motion.div>
 
+      {/* Subscription Expired Banner */}
+      {subscriptionExpired && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card border-destructive/50 bg-destructive/5 p-6 rounded-xl"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-full bg-destructive/10">
+              <Lock className="h-6 w-6 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">Assinatura Expirada</h3>
+              <p className="text-muted-foreground">
+                Renove sua assinatura para continuar usando disparos, campanhas e instâncias WhatsApp.
+              </p>
+            </div>
+            <Button onClick={() => setShowPlans(true)} className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Renovar Agora
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Main Tabs with Premium Styling */}
+      <div className="relative">
+        {/* Overlay when subscription expired */}
+        {subscriptionExpired && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-xl flex items-center justify-center min-h-[400px]">
+            <div className="text-center space-y-4">
+              <Lock className="h-12 w-12 text-muted-foreground mx-auto" />
+              <p className="text-lg font-medium">Funcionalidades bloqueadas</p>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Sua assinatura expirou. Renove para continuar usando disparos em massa, campanhas e gerenciamento de instâncias.
+              </p>
+              <Button onClick={() => setShowPlans(true)} variant="default" className="gap-2">
+                <CreditCard className="h-4 w-4" />
+                Renovar Assinatura
+              </Button>
+            </div>
+          </div>
+        )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full max-w-4xl grid grid-cols-7">
           <TabsTrigger value="dispatch" className="gap-2">
@@ -534,6 +586,7 @@ export default function WhatsApp() {
           <WhatsAppStatus instances={instances} />
         </TabsContent>
       </Tabs>
+      </div>
 
       {/* Dialogs */}
       <QRCodeDialog
@@ -543,11 +596,11 @@ export default function WhatsApp() {
         getQRCode={getQRCode}
         getPairingCode={getPairingCode}
       />
-      
+
       <CreateInstanceDialog
         open={createInstanceDialogOpen}
         onOpenChange={setCreateInstanceDialogOpen}
-        onCreateInstance={(name, dailyLimit) => createInstance(name)}
+        onCreateInstance={createInstance}
         onRefetch={refetchInstances}
       />
 
@@ -573,6 +626,8 @@ export default function WhatsApp() {
           />
         </>
       )}
+
+      <SubscriptionPlansDialog open={showPlans} onOpenChange={setShowPlans} />
     </div>
   );
 }
