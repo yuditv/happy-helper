@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Send, RotateCcw, Users, MessageSquare,
-  Play, Pause, Square, Sparkles, Clock
+  Play, Pause, Square, Sparkles, Clock, Zap
 } from 'lucide-react';
 import { InstanceSidebar } from './InstanceSidebar';
 import { ComposerStudio } from './ComposerStudio';
@@ -253,6 +253,35 @@ export function BulkDispatcher() {
 
   // Track previous progress state to detect completion
   const prevProgressRef = useRef({ isRunning: false, sent: 0 });
+  const dispatchStartTimeRef = useRef<number | null>(null);
+  const [messagesPerMinute, setMessagesPerMinute] = useState<number | null>(null);
+
+  // Track dispatch start time and calculate speed
+  useEffect(() => {
+    if (progress.isRunning && !dispatchStartTimeRef.current) {
+      dispatchStartTimeRef.current = Date.now();
+    } else if (!progress.isRunning) {
+      dispatchStartTimeRef.current = null;
+      setMessagesPerMinute(null);
+    }
+  }, [progress.isRunning]);
+
+  // Update messages per minute calculation
+  useEffect(() => {
+    if (!progress.isRunning || !dispatchStartTimeRef.current) return;
+
+    const interval = setInterval(() => {
+      const elapsedMs = Date.now() - dispatchStartTimeRef.current!;
+      const elapsedMinutes = elapsedMs / 60000;
+      
+      if (elapsedMinutes > 0 && progress.sent > 0) {
+        const speed = progress.sent / elapsedMinutes;
+        setMessagesPerMinute(Math.round(speed * 10) / 10);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [progress.isRunning, progress.sent]);
   
   // Fire confetti when dispatch completes successfully
   useEffect(() => {
@@ -587,9 +616,9 @@ export function BulkDispatcher() {
                 {contacts.length} contatos • {totalMessages} mensagens
               </span>
               
-              {/* Estimated Time Remaining */}
+              {/* Speed & Time Indicators */}
               <AnimatePresence>
-                {estimatedTimeRemaining && (
+                {progress.isRunning && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -597,10 +626,22 @@ export function BulkDispatcher() {
                     className="flex items-center gap-2"
                   >
                     <div className="h-4 w-px bg-border" />
-                    <div className="flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-2.5 py-1 rounded-full">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span className="font-medium">~{estimatedTimeRemaining}</span>
-                    </div>
+                    
+                    {/* Speed Indicator */}
+                    {messagesPerMinute !== null && (
+                      <div className="flex items-center gap-1.5 text-sm bg-accent/10 text-accent px-2.5 py-1 rounded-full">
+                        <Zap className="w-3.5 h-3.5" />
+                        <span className="font-medium">{messagesPerMinute}/min</span>
+                      </div>
+                    )}
+                    
+                    {/* Estimated Time */}
+                    {estimatedTimeRemaining && (
+                      <div className="flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-2.5 py-1 rounded-full">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="font-medium">~{estimatedTimeRemaining}</span>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
