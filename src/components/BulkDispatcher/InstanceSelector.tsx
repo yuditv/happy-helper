@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Smartphone, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Smartphone, Wifi, WifiOff, RefreshCw, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WhatsAppInstance {
@@ -53,34 +53,22 @@ export function InstanceSelector({
     onSelectionChange([]);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return (
-          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-            <Wifi className="w-3 h-3 mr-1" />
-            Conectado
-          </Badge>
-        );
-      case 'disconnected':
-        return (
-          <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30">
-            <WifiOff className="w-3 h-3 mr-1" />
-            Desconectado
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-            Aguardando
-          </Badge>
-        );
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.05 }
     }
   };
 
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <Card className="glass-card">
-      <CardHeader className="pb-3 border-b border-border/30">
+    <Card className="glass-card overflow-hidden">
+      <CardHeader className="pb-3 border-b border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="stats-icon-container primary">
@@ -97,8 +85,9 @@ export function InstanceSelector({
           </div>
           <div className="flex items-center gap-2">
             {isLoading && (
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 animate-pulse">
-                Sincronizando...
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 animate-pulse gap-1.5">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                Sincronizando
               </Badge>
             )}
             <Button variant="ghost" size="sm" onClick={selectAll} disabled={connectedInstances.length === 0 || isLoading}>
@@ -126,21 +115,40 @@ export function InstanceSelector({
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+            >
               {instances.map(instance => {
                 const isSelected = selectedIds.includes(instance.id);
                 const isConnected = instance.status === 'connected';
                 
                 return (
-                  <div
+                  <motion.div
                     key={instance.id}
+                    variants={itemVariants}
                     onClick={() => isConnected && handleToggle(instance.id)}
+                    whileHover={isConnected ? { scale: 1.02 } : {}}
+                    whileTap={isConnected ? { scale: 0.98 } : {}}
                     className={cn(
-                      "instance-select-card",
-                      isSelected && "selected",
-                      !isConnected && "opacity-50 cursor-not-allowed"
+                      "relative flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all duration-300",
+                      "bg-background/40 backdrop-blur-sm",
+                      isSelected && "bg-primary/10 border-primary/50 shadow-[0_0_25px_hsl(var(--primary)/0.2)]",
+                      !isSelected && isConnected && "border-white/10 hover:border-primary/30 hover:bg-primary/5",
+                      !isConnected && "opacity-50 cursor-not-allowed border-white/5"
                     )}
                   >
+                    {/* Selection indicator */}
+                    {isSelected && (
+                      <motion.div
+                        initial={{ scaleY: 0 }}
+                        animate={{ scaleY: 1 }}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3/5 bg-primary rounded-r-full"
+                      />
+                    )}
+                    
                     <Checkbox
                       checked={isSelected}
                       disabled={!isConnected}
@@ -151,7 +159,17 @@ export function InstanceSelector({
                         <span className="font-medium truncate">
                           {instance.instance_name}
                         </span>
-                        {getStatusBadge(instance.status)}
+                        {isConnected ? (
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Conectado
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30 gap-1">
+                            <WifiOff className="w-3 h-3" />
+                            Offline
+                          </Badge>
+                        )}
                       </div>
                       {instance.phone_connected && (
                         <p className="text-sm text-muted-foreground">
@@ -164,12 +182,12 @@ export function InstanceSelector({
                         </p>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-border/30">
+            <div className="flex items-center justify-between pt-4 border-t border-white/10">
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">Modo de balanceamento:</span>
                 <Select value={balancingMode} onValueChange={(v) => onBalancingModeChange(v as any)}>
@@ -178,7 +196,10 @@ export function InstanceSelector({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="automatic">
-                      🧠 Automático (Inteligente)
+                      <span className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-primary" />
+                        Automático (Inteligente)
+                      </span>
                     </SelectItem>
                     <SelectItem value="round-robin">
                       🔄 Round Robin (Alternado)
@@ -189,7 +210,13 @@ export function InstanceSelector({
                   </SelectContent>
                 </Select>
               </div>
-              <Badge variant="secondary" className="text-sm">
+              <Badge 
+                variant="secondary" 
+                className={cn(
+                  "text-sm transition-all",
+                  selectedCount > 0 && "bg-primary/20 text-primary border-primary/30"
+                )}
+              >
                 {selectedCount} instância(s) selecionada(s)
               </Badge>
             </div>
