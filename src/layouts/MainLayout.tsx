@@ -37,6 +37,8 @@ export function MainLayout() {
         return <AIAgent />;
       case "warm-chips":
         return <WarmChips />;
+      case "atendimento":
+        return <Atendimento />;
       default:
         return <Index />;
     }
