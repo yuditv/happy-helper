@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Clock, Calendar, BarChart3, Settings2 } from 'lucide-react';
+import { Users, Clock, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContactsManager, Contact, SavedContact } from './ContactsManager';
 import { TimingConfig } from './TimingConfig';
 import { SendingWindow } from './SendingWindow';
-import { DispatchProgress } from './DispatchProgress';
 
 interface BottomPanelProps {
   activeTab: string;
@@ -42,15 +41,12 @@ interface BottomPanelProps {
   businessHoursEnd: string;
   allowedDays: number[];
   onWindowChange: (updates: any) => void;
-  // Progress
-  progress: any;
 }
 
 const TABS = [
   { id: 'contacts', label: 'Contatos', icon: Users },
-  { id: 'timing', label: 'Timing', icon: Clock },
-  { id: 'window', label: 'Janela', icon: Calendar },
-  { id: 'progress', label: 'Progresso', icon: BarChart3 },
+  { id: 'timing', label: 'Delay De Envio', icon: Clock },
+  { id: 'window', label: 'Agendar Disparo', icon: Calendar },
 ];
 
 export function BottomPanel({
@@ -85,7 +81,6 @@ export function BottomPanel({
   businessHoursEnd,
   allowedDays,
   onWindowChange,
-  progress,
 }: BottomPanelProps) {
   return (
     <div className="bottom-panel">
@@ -177,24 +172,6 @@ export function BottomPanel({
                 onStartTimeChange={(time) => onWindowChange({ businessHoursStart: time })}
                 onEndTimeChange={(time) => onWindowChange({ businessHoursEnd: time })}
                 onAllowedDaysChange={(days) => onWindowChange({ allowedDays: days })}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'progress' && (
-            <motion.div
-              key="progress"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <DispatchProgress
-                progress={progress}
-                onStart={() => {}}
-                onPause={() => {}}
-                onResume={() => {}}
-                onCancel={() => {}}
-                canStart={false}
               />
             </motion.div>
           )}

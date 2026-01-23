@@ -4,14 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Send, RotateCcw, Zap, Users, MessageSquare, Smartphone,
-  Settings2, Clock, Calendar, BarChart3, Play, Pause, Square,
-  ChevronDown, Sparkles, CheckCircle2
+  Send, RotateCcw, Users, MessageSquare,
+  Play, Pause, Square, Sparkles
 } from 'lucide-react';
 import { InstanceSidebar } from './InstanceSidebar';
 import { ComposerStudio } from './ComposerStudio';
 import { PhonePreview } from './PhonePreview';
 import { BottomPanel } from './BottomPanel';
+import { DispatchProgress } from './DispatchProgress';
 import { ConfigManager } from './ConfigManager';
 import { useBulkDispatch, DispatchMessage } from '@/hooks/useBulkDispatch';
 import { useDispatchConfigs } from '@/hooks/useDispatchConfigs';
@@ -517,10 +517,26 @@ export function BulkDispatcher() {
           businessHoursEnd={config.businessHoursEnd}
           allowedDays={config.allowedDays}
           onWindowChange={(updates) => updateConfig(updates as any)}
-          // Progress props
-          progress={progress}
         />
       </motion.div>
+
+      {/* Progress Section - Below Bottom Panel */}
+      {(progress.isRunning || progress.sent > 0 || progress.failed > 0 || progress.logs.length > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <DispatchProgress
+            progress={progress}
+            onStart={handleStart}
+            onPause={pauseDispatch}
+            onResume={resumeDispatch}
+            onCancel={cancelDispatch}
+            canStart={canStart}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }
