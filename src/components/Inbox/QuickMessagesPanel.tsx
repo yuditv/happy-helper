@@ -173,10 +173,15 @@ export function QuickMessagesPanel({
   return (
     <>
       <motion.div 
-        initial={{ width: 0, opacity: 0 }}
-        animate={{ width: 320, opacity: 1 }}
-        exit={{ width: 0, opacity: 0 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
+        initial={{ width: 0, opacity: 0, x: 20 }}
+        animate={{ width: 320, opacity: 1, x: 0 }}
+        exit={{ width: 0, opacity: 0, x: 20 }}
+        transition={{ 
+          type: "spring",
+          stiffness: 300,
+          damping: 30,
+          opacity: { duration: 0.2 }
+        }}
         className="border-l flex flex-col h-full bg-muted/20 overflow-hidden"
       >
         {/* Header */}
