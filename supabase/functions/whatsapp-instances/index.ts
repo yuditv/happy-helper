@@ -792,54 +792,101 @@ serve(async (req: Request): Promise<Response> => {
         );
       }
 
-      const results = [];
+      // UAZAPI v2 - /chat/check - batch verification
+      const formattedPhones = phones.map((phone: string) => formatPhoneNumber(phone));
       
-      for (const phone of phones) {
-        try {
-          // Format phone number with international support
-          const formattedPhone = formatPhoneNumber(phone);
+      console.log(`[check-number] Checking ${formattedPhones.length} numbers via /chat/check`);
+      console.log(`[check-number] Numbers:`, formattedPhones.slice(0, 5), formattedPhones.length > 5 ? `... and ${formattedPhones.length - 5} more` : '');
 
-          console.log(`Checking number: ${formattedPhone}`);
+      try {
+        const checkResponse = await fetch(`${uazapiUrl}/chat/check`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({ 
+            numbers: formattedPhones 
+          }),
+        });
+
+        const checkData = await checkResponse.json();
+        console.log(`[check-number] API response status: ${checkResponse.status}`);
+        console.log(`[check-number] API response:`, JSON.stringify(checkData).slice(0, 500));
+
+        const results: Array<{ phone: string; exists: boolean; whatsappName?: string | null; error?: string }> = [];
+
+        // Handle different response formats from UAZAPI
+        if (Array.isArray(checkData)) {
+          // Response is an array of results
+          for (const item of checkData) {
+            const phone = item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
+            const exists = item.exists === true || item.registered === true || item.isRegistered === true;
+            results.push({
+              phone,
+              exists,
+              whatsappName: fetchName && exists ? (item.name || item.pushName || item.verifiedName || null) : null,
+            });
+          }
+        } else if (checkData.results && Array.isArray(checkData.results)) {
+          // Response has "results" field
+          for (const item of checkData.results) {
+            const phone = item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
+            const exists = item.exists === true || item.registered === true || item.isRegistered === true;
+            results.push({
+              phone,
+              exists,
+              whatsappName: fetchName && exists ? (item.name || item.pushName || item.verifiedName || null) : null,
+            });
+          }
+        } else if (checkData.data && Array.isArray(checkData.data)) {
+          // Response has "data" field
+          for (const item of checkData.data) {
+            const phone = item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
+            const exists = item.exists === true || item.registered === true || item.isRegistered === true;
+            results.push({
+              phone,
+              exists,
+              whatsappName: fetchName && exists ? (item.name || item.pushName || item.verifiedName || null) : null,
+            });
+          }
+        } else {
+          // Unknown format - log and return error
+          console.error("[check-number] Unknown response format:", JSON.stringify(checkData));
           
-          // Call UAZAPI checkNumber endpoint
-          const checkResponse = await fetch(`${uazapiUrl}/chat/checkNumber`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "token": instance.instance_key,
-            },
-            body: JSON.stringify({ 
-              number: formattedPhone 
-            }),
-          });
-
-          const checkData = await checkResponse.json();
-          console.log(`Check result for ${formattedPhone}:`, JSON.stringify(checkData));
-
-          const exists = checkData.exists === true || checkData.isRegistered === true || checkData.numberExists === true;
-          
-          results.push({
-            phone: formattedPhone,
-            exists,
-            whatsappName: fetchName && exists ? (checkData.name || checkData.pushName || checkData.verifiedName || null) : null,
-          });
-
-          // Small delay between requests to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (e) {
-          console.error(`Error checking ${phone}:`, e);
-          results.push({
-            phone,
-            exists: false,
-            error: String(e),
-          });
+          // Try to process single result if it has the expected fields
+          if (checkData.exists !== undefined || checkData.registered !== undefined) {
+            const exists = checkData.exists === true || checkData.registered === true;
+            results.push({
+              phone: formattedPhones[0],
+              exists,
+              whatsappName: fetchName && exists ? (checkData.name || checkData.pushName || null) : null,
+            });
+          } else {
+            // Mark all as unknown
+            for (const phone of formattedPhones) {
+              results.push({
+                phone,
+                exists: false,
+                error: "Formato de resposta desconhecido da API"
+              });
+            }
+          }
         }
-      }
 
-      return new Response(
-        JSON.stringify({ success: true, results }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        console.log(`[check-number] Processed ${results.length} results`);
+        
+        return new Response(
+          JSON.stringify({ success: true, results }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[check-number] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao verificar números: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // FETCH-AVATAR - Get contact profile picture
