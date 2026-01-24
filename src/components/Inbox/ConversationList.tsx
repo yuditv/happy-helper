@@ -6,7 +6,8 @@ import {
   Bot, 
   User, 
   Circle,
-  Filter
+  Filter,
+  Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,45 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Country code to flag emoji and name mapping
+const countryData: Record<string, { flag: string; name: string }> = {
+  US: { flag: '🇺🇸', name: 'Estados Unidos' },
+  BR: { flag: '🇧🇷', name: 'Brasil' },
+  GB: { flag: '🇬🇧', name: 'Reino Unido' },
+  PT: { flag: '🇵🇹', name: 'Portugal' },
+  ES: { flag: '🇪🇸', name: 'Espanha' },
+  FR: { flag: '🇫🇷', name: 'França' },
+  DE: { flag: '🇩🇪', name: 'Alemanha' },
+  IT: { flag: '🇮🇹', name: 'Itália' },
+  AR: { flag: '🇦🇷', name: 'Argentina' },
+  CL: { flag: '🇨🇱', name: 'Chile' },
+  CO: { flag: '🇨🇴', name: 'Colômbia' },
+  VE: { flag: '🇻🇪', name: 'Venezuela' },
+  MX: { flag: '🇲🇽', name: 'México' },
+  PE: { flag: '🇵🇪', name: 'Peru' },
+  BO: { flag: '🇧🇴', name: 'Bolívia' },
+  PY: { flag: '🇵🇾', name: 'Paraguai' },
+  UY: { flag: '🇺🇾', name: 'Uruguai' },
+  EC: { flag: '🇪🇨', name: 'Equador' },
+  IE: { flag: '🇮🇪', name: 'Irlanda' },
+  NL: { flag: '🇳🇱', name: 'Holanda' },
+  BE: { flag: '🇧🇪', name: 'Bélgica' },
+  CH: { flag: '🇨🇭', name: 'Suíça' },
+  AT: { flag: '🇦🇹', name: 'Áustria' },
+  PL: { flag: '🇵🇱', name: 'Polônia' },
+  JP: { flag: '🇯🇵', name: 'Japão' },
+  CN: { flag: '🇨🇳', name: 'China' },
+  IN: { flag: '🇮🇳', name: 'Índia' },
+  AU: { flag: '🇦🇺', name: 'Austrália' },
+  NZ: { flag: '🇳🇿', name: 'Nova Zelândia' },
+  ZA: { flag: '🇿🇦', name: 'África do Sul' },
+  AE: { flag: '🇦🇪', name: 'Emirados Árabes' },
+  IL: { flag: '🇮🇱', name: 'Israel' },
+  SA: { flag: '🇸🇦', name: 'Arábia Saudita' },
+  CA: { flag: '🇨🇦', name: 'Canadá' },
+};
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -151,12 +191,29 @@ export function ConversationList({
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className={cn(
-                      "font-medium truncate text-sm",
-                      conversation.unread_count > 0 && "font-semibold"
-                    )}>
-                      {conversation.contact_name || formatPhone(conversation.phone)}
-                    </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {/* Country flag for international contacts */}
+                      {conversation.country_code && conversation.country_code !== 'BR' && countryData[conversation.country_code] && (
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm shrink-0" role="img" aria-label={countryData[conversation.country_code].name}>
+                                {countryData[conversation.country_code].flag}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {countryData[conversation.country_code].name}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <span className={cn(
+                        "font-medium truncate text-sm",
+                        conversation.unread_count > 0 && "font-semibold"
+                      )}>
+                        {conversation.contact_name || formatPhone(conversation.phone)}
+                      </span>
+                    </div>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {formatDistanceToNow(new Date(conversation.last_message_at), {
                         addSuffix: false,

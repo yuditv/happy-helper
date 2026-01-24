@@ -666,6 +666,7 @@ export type Database = {
           assigned_to: string | null
           contact_avatar: string | null
           contact_name: string | null
+          country_code: string | null
           created_at: string
           first_reply_at: string | null
           id: string
@@ -686,6 +687,7 @@ export type Database = {
           assigned_to?: string | null
           contact_avatar?: string | null
           contact_name?: string | null
+          country_code?: string | null
           created_at?: string
           first_reply_at?: string | null
           id?: string
@@ -706,6 +708,7 @@ export type Database = {
           assigned_to?: string | null
           contact_avatar?: string | null
           contact_name?: string | null
+          country_code?: string | null
           created_at?: string
           first_reply_at?: string | null
           id?: string

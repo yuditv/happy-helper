@@ -10,6 +10,7 @@ export interface Conversation {
   phone: string;
   contact_name: string | null;
   contact_avatar: string | null;
+  country_code: string | null;
   status: 'open' | 'pending' | 'resolved' | 'snoozed';
   assigned_to: string | null;
   ai_enabled: boolean;
