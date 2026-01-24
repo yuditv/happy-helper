@@ -73,46 +73,46 @@ const handler = async (req: Request): Promise<Response> => {
     let body: Record<string, any>;
 
     // Determine endpoint and body based on media type
-    // wuzapi/UAZAPI uses /chat/send/text with capitalized keys (Phone, Body)
+    // UAZAPI v2 uses /{token}/sendText format with lowercase keys (phone, message)
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
-          endpoint = '/chat/send/image';
+          endpoint = '/sendImage';
           body = {
-            Phone: formattedPhone,
-            Image: mediaUrl,
-            Caption: caption || message || ''
+            phone: formattedPhone,
+            image: mediaUrl,
+            caption: caption || message || ''
           };
           break;
         case 'video':
-          endpoint = '/chat/send/video';
+          endpoint = '/sendVideo';
           body = {
-            Phone: formattedPhone,
-            Video: mediaUrl,
-            Caption: caption || message || ''
+            phone: formattedPhone,
+            video: mediaUrl,
+            caption: caption || message || ''
           };
           break;
         case 'audio':
-          endpoint = '/chat/send/audio';
+          endpoint = '/sendAudio';
           body = {
-            Phone: formattedPhone,
-            Audio: mediaUrl,
-            Ptt: true
+            phone: formattedPhone,
+            audio: mediaUrl,
+            ptt: true
           };
           break;
         case 'document':
-          endpoint = '/chat/send/document';
+          endpoint = '/sendDocument';
           body = {
-            Phone: formattedPhone,
-            Document: mediaUrl,
-            FileName: fileName || 'document'
+            phone: formattedPhone,
+            document: mediaUrl,
+            filename: fileName || 'document'
           };
           break;
         default:
-          endpoint = '/chat/send/text';
+          endpoint = '/sendText';
           body = {
-            Phone: formattedPhone,
-            Body: message || ''
+            phone: formattedPhone,
+            message: message || ''
           };
       }
     } else {
@@ -126,25 +126,25 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-      endpoint = '/chat/send/text';
+      endpoint = '/sendText';
       body = {
-        Phone: formattedPhone,
-        Body: message
+        phone: formattedPhone,
+        message: message
       };
     }
 
-    // UAZAPI uses token in header, not in URL path
-    const fullUrl = `${UAZAPI_URL}${endpoint}`;
+    // UAZAPI v2: token goes in URL path: {base_url}/{token}/sendText
+    const fullUrl = `${UAZAPI_URL}/${instanceToken}${endpoint}`;
     console.log(`Calling UAZAPI endpoint: ${endpoint}`);
     console.log(`Full URL: ${fullUrl}`);
     console.log(`Token (first 8 chars): ${instanceToken.substring(0, 8)}...`);
     console.log(`Request body:`, JSON.stringify(body));
 
+    // No token header needed - token is in URL path
     const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "token": instanceToken,
       },
       body: JSON.stringify(body),
     });
