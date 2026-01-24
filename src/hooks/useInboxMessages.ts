@@ -196,13 +196,33 @@ export function useInboxMessages(conversationId: string | null) {
           table: 'chat_inbox_messages',
           filter: `conversation_id=eq.${conversationId}`
         },
-        (payload) => {
+      (payload) => {
           const newMessage = payload.new as ChatMessage;
           setMessages(prev => {
-            // Avoid duplicates
+            // Avoid duplicates by ID
             if (prev.some(m => m.id === newMessage.id)) {
               return prev;
             }
+            
+            // Replace optimistic message (temp-*) with real one
+            // Match by sender_type='agent', same content, recent timestamp
+            const optimisticIndex = prev.findIndex(m => 
+              m.id.startsWith('temp-') && 
+              m.sender_type === 'agent' &&
+              m.content === newMessage.content &&
+              newMessage.sender_type === 'agent' &&
+              // Only match if created within last 10 seconds
+              (Date.now() - new Date(m.created_at).getTime()) < 10000
+            );
+            
+            if (optimisticIndex !== -1) {
+              // Replace optimistic with real message
+              const updated = [...prev];
+              updated[optimisticIndex] = newMessage;
+              return updated;
+            }
+            
+            // Not a duplicate, add normally
             return [...prev, newMessage];
           });
         }
