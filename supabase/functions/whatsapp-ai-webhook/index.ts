@@ -187,16 +187,16 @@ serve(async (req: Request) => {
         }
       });
 
-    // Send response back via UAZAPI - use same format as scheduled-dispatcher
-    const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
+    // Send response back via UAZAPI - Wuzapi format: /chat/send/text with Token header and Phone/Body
+    const sendResponse = await fetch(`${uazapiUrl}/chat/send/text`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'token': instance.instance_key || uazapiToken
+        'Token': instance.instance_key || uazapiToken
       },
       body: JSON.stringify({
-        number: phone.replace(/\D/g, ''),
-        text: assistantResponse
+        Phone: phone.replace(/\D/g, ''),
+        Body: assistantResponse
       })
     });
 

@@ -621,16 +621,16 @@ serve(async (req: Request) => {
                   metadata: { agent_id: agent.id, agent_name: agent.name }
                 });
 
-              // Send via UAZAPI - use same format as scheduled-dispatcher
-              await fetch(`${uazapiUrl}/sendText`, {
+              // Send via UAZAPI - Wuzapi format: /chat/send/text with Token header and Phone/Body
+              await fetch(`${uazapiUrl}/chat/send/text`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'token': instance.instance_key || uazapiToken
+                  'Token': instance.instance_key || uazapiToken
                 },
                 body: JSON.stringify({
-                  number: normalizedPhone,
-                  text: assistantResponse
+                  Phone: normalizedPhone,
+                  Body: assistantResponse
                 })
               });
 

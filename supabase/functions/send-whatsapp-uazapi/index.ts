@@ -80,11 +80,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Use same format as scheduled-dispatcher (which works!)
-    // Header: "token" (lowercase, no Bearer)
-    // Body: { number, text } (not phone/message)
-    console.log(`Sending via /sendText`);
-    console.log(`URL: ${UAZAPI_URL}/sendText`);
+    // Wuzapi/uazapiGO format:
+    // - Endpoint: /chat/send/text, /chat/send/image, etc.
+    // - Header: Token (PascalCase)
+    // - Body: Phone, Body, Image, Caption (PascalCase)
+    console.log(`Sending via Wuzapi format`);
     console.log(`Phone: ${formattedPhone}`);
 
     // deno-lint-ignore no-explicit-any
@@ -94,42 +94,43 @@ const handler = async (req: Request): Promise<Response> => {
     // Determine endpoint based on media type
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       // Media message
-      let endpoint = '/sendImage';
+      let endpoint = '/chat/send/image';
       // deno-lint-ignore no-explicit-any
-      const body: Record<string, any> = { number: formattedPhone };
+      const body: Record<string, any> = { Phone: formattedPhone };
       
       switch (mediaType) {
         case 'image':
-          endpoint = '/sendImage';
-          body.image = mediaUrl;
-          body.caption = caption || message || '';
+          endpoint = '/chat/send/image';
+          body.Image = mediaUrl;
+          body.Caption = caption || message || '';
           break;
         case 'video':
-          endpoint = '/sendVideo';
-          body.video = mediaUrl;
-          body.caption = caption || message || '';
+          endpoint = '/chat/send/video';
+          body.Video = mediaUrl;
+          body.Caption = caption || message || '';
           break;
         case 'audio':
-          endpoint = '/sendAudio';
-          body.audio = mediaUrl;
+          endpoint = '/chat/send/audio';
+          body.Audio = mediaUrl;
           break;
         case 'document':
-          endpoint = '/sendDocument';
-          body.document = mediaUrl;
-          body.filename = fileName || 'document';
+          endpoint = '/chat/send/document';
+          body.Document = mediaUrl;
+          body.FileName = fileName || 'document';
           break;
         default:
-          endpoint = '/sendText';
-          body.text = message || '';
+          endpoint = '/chat/send/text';
+          body.Body = message || '';
       }
       
       console.log(`Sending media via ${endpoint}`);
+      console.log(`URL: ${UAZAPI_URL}${endpoint}`);
       
       const response = await fetch(`${UAZAPI_URL}${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "token": instanceToken
+          "Token": instanceToken
         },
         body: JSON.stringify(body),
       });
@@ -149,16 +150,19 @@ const handler = async (req: Request): Promise<Response> => {
         lastError = `${response.status}: ${respText}`;
       }
     } else {
-      // Text message - use /sendText with { number, text }
-      const response = await fetch(`${UAZAPI_URL}/sendText`, {
+      // Text message - use /chat/send/text with { Phone, Body }
+      console.log(`Sending text via /chat/send/text`);
+      console.log(`URL: ${UAZAPI_URL}/chat/send/text`);
+      
+      const response = await fetch(`${UAZAPI_URL}/chat/send/text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "token": instanceToken
+          "Token": instanceToken
         },
         body: JSON.stringify({
-          number: formattedPhone,
-          text: message
+          Phone: formattedPhone,
+          Body: message
         }),
       });
       
@@ -199,11 +203,11 @@ const handler = async (req: Request): Promise<Response> => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "token": instanceToken  // lowercase 'token' header
+            "Token": instanceToken
           },
           body: JSON.stringify({
-            phone: formattedPhone,
-            archive: true
+            Phone: formattedPhone,
+            State: true
           }),
         });
         
@@ -217,7 +221,6 @@ const handler = async (req: Request): Promise<Response> => {
         }
       } catch (archiveError) {
         console.error("[Archive] Error:", archiveError);
-        // Don't fail the request if archiving fails
       }
     }
 
