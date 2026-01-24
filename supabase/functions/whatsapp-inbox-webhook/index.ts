@@ -372,8 +372,10 @@ function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | 
 
 // Handle message status updates (delivery/read receipts)
 // deno-lint-ignore no-explicit-any
-async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPayload & { message?: { ack?: number; messageid?: string; chatid?: string } }) {
+async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPayload & { message?: { ack?: number; messageid?: string; chatid?: string }; data?: { ack?: number; status?: string } }) {
   try {
+    console.log(`[Status Handler] Starting status update processing...`);
+    
     // Extract message ID and status from various UAZAPI formats
     let messageId: string | undefined;
     let ackStatus: number | undefined;
@@ -392,14 +394,35 @@ async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPaylo
     
     // UAZAPI v2 may send with instance:id format - extract just the ID part
     if (messageId?.includes(':')) {
-      messageId = messageId.split(':').pop();
+      const parts = messageId.split(':');
+      messageId = parts.pop();
+      console.log(`[Status Handler] Extracted ID from composite: ${messageId}`);
     }
     
     // Get ack status (0=pending, 1=sent, 2=delivered, 3=read)
+    // Try multiple locations for ACK value
     if (typeof body.ack === 'number') {
       ackStatus = body.ack;
+      console.log(`[Status Handler] Found ack at body.ack: ${ackStatus}`);
     } else if (typeof body.message?.ack === 'number') {
       ackStatus = body.message.ack;
+      console.log(`[Status Handler] Found ack at body.message.ack: ${ackStatus}`);
+    } else if (typeof body.data?.ack === 'number') {
+      ackStatus = body.data.ack;
+      console.log(`[Status Handler] Found ack at body.data.ack: ${ackStatus}`);
+    } else if (body.data?.status) {
+      // Handle string status values
+      const statusToAck: Record<string, number> = {
+        'pending': 0, 'sending': 0,
+        'sent': 1, 'server': 1,
+        'delivered': 2, 'device': 2,
+        'read': 3, 'played': 3
+      };
+      const statusStr = body.data.status.toLowerCase();
+      if (statusStr in statusToAck) {
+        ackStatus = statusToAck[statusStr];
+        console.log(`[Status Handler] Converted status string '${statusStr}' to ack: ${ackStatus}`);
+      }
     }
     
     // Get phone for matching - try multiple formats
@@ -415,13 +438,13 @@ async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPaylo
       phone = body.remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
     }
     
-    console.log(`[Inbox Webhook] Status update details:`);
-    console.log(`[Inbox Webhook]   - Message ID: ${messageId}`);
-    console.log(`[Inbox Webhook]   - ACK status: ${ackStatus}`);
-    console.log(`[Inbox Webhook]   - Phone: ${phone}`);
+    console.log(`[Status Handler] Extracted values:`);
+    console.log(`[Status Handler]   - Message ID: ${messageId || 'NOT FOUND'}`);
+    console.log(`[Status Handler]   - ACK status: ${ackStatus ?? 'NOT FOUND'}`);
+    console.log(`[Status Handler]   - Phone: ${phone || 'NOT FOUND'}`);
     
     if (!phone && !messageId) {
-      console.log('[Inbox Webhook] No identifier found for status update');
+      console.log('[Status Handler] ERROR: No identifier found for status update - cannot proceed');
       return;
     }
     
@@ -436,23 +459,29 @@ async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPaylo
     const newStatus = ackStatus !== undefined ? statusMap[ackStatus] : undefined;
     
     if (!newStatus) {
-      console.log('[Inbox Webhook] Unknown or missing ack status:', ackStatus);
+      console.log(`[Status Handler] ERROR: Unknown or missing ack status: ${ackStatus}`);
       return;
     }
     
-    console.log(`[Inbox Webhook] Mapping ACK ${ackStatus} to status: ${newStatus}`);
+    console.log(`[Status Handler] Will update to status: ${newStatus} (ACK=${ackStatus})`);
     
     // Find and update the message
     // First try by message ID in metadata
     if (messageId) {
+      console.log(`[Status Handler] Searching for message with whatsapp_id: ${messageId}`);
+      
       const { data: messages, error } = await supabase
         .from('chat_inbox_messages')
-        .select('id, metadata')
+        .select('id, metadata, conversation_id')
         .eq('sender_type', 'agent')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
       
-      if (!error && messages) {
+      if (error) {
+        console.error(`[Status Handler] Database error fetching messages:`, error);
+      } else if (messages) {
+        console.log(`[Status Handler] Found ${messages.length} agent messages to search`);
+        
         // Find message by ID in metadata
         // deno-lint-ignore no-explicit-any
         const matchingMessage = messages.find((m: any) => 
@@ -460,72 +489,110 @@ async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPaylo
         );
         
         if (matchingMessage) {
-          await supabase
-            .from('chat_inbox_messages')
-            .update({
-              metadata: {
-                ...matchingMessage.metadata,
-                status: newStatus
-              },
-              is_read: newStatus === 'read'
-            })
-            .eq('id', matchingMessage.id);
+          const currentStatus = matchingMessage.metadata?.status;
+          const statusOrder: Record<string, number> = { sending: 0, sent: 1, delivered: 2, read: 3 };
+          const currentOrder = statusOrder[currentStatus as string] ?? -1;
+          const newOrder = statusOrder[newStatus] ?? -1;
           
-          console.log(`[Inbox Webhook] Updated message ${matchingMessage.id} status to ${newStatus}`);
+          console.log(`[Status Handler] Found matching message ${matchingMessage.id}`);
+          console.log(`[Status Handler] Current status: ${currentStatus} (order=${currentOrder}), New status: ${newStatus} (order=${newOrder})`);
+          
+          if (newOrder > currentOrder) {
+            const { error: updateError } = await supabase
+              .from('chat_inbox_messages')
+              .update({
+                metadata: {
+                  ...matchingMessage.metadata,
+                  status: newStatus,
+                  status_updated_at: new Date().toISOString()
+                },
+                is_read: newStatus === 'read'
+              })
+              .eq('id', matchingMessage.id);
+            
+            if (updateError) {
+              console.error(`[Status Handler] Update error:`, updateError);
+            } else {
+              console.log(`[Status Handler] ✅ SUCCESS: Updated message ${matchingMessage.id} from ${currentStatus} to ${newStatus}`);
+            }
+          } else {
+            console.log(`[Status Handler] Skipping update - new status not higher than current`);
+          }
           return;
+        } else {
+          console.log(`[Status Handler] No message found with whatsapp_id: ${messageId}`);
         }
       }
     }
     
     // Fallback: Update most recent outgoing message to this phone
     if (phone) {
+      console.log(`[Status Handler] Fallback: Searching by phone ${phone}`);
+      
       // Find conversation by phone
-      const { data: conversations } = await supabase
+      const { data: conversations, error: convError } = await supabase
         .from('conversations')
         .select('id')
         .eq('phone', phone);
       
-      if (conversations && conversations.length > 0) {
+      if (convError) {
+        console.error(`[Status Handler] Error finding conversations:`, convError);
+      } else if (conversations && conversations.length > 0) {
         // deno-lint-ignore no-explicit-any
         const conversationIds = conversations.map((c: any) => c.id);
+        console.log(`[Status Handler] Found ${conversations.length} conversations for phone ${phone}`);
         
-        // Get most recent outgoing message
+        // Get most recent outgoing messages (get more to increase chances of match)
         const { data: recentMessages, error: msgError } = await supabase
           .from('chat_inbox_messages')
-          .select('id, metadata')
+          .select('id, metadata, created_at')
           .in('conversation_id', conversationIds)
           .eq('sender_type', 'agent')
           .order('created_at', { ascending: false })
-          .limit(1);
+          .limit(10);
         
-        if (!msgError && recentMessages && recentMessages.length > 0) {
-          const msg = recentMessages[0];
-          const currentStatus = msg.metadata?.status;
+        if (msgError) {
+          console.error(`[Status Handler] Error fetching recent messages:`, msgError);
+        } else if (recentMessages && recentMessages.length > 0) {
+          console.log(`[Status Handler] Found ${recentMessages.length} recent agent messages`);
           
-          // Only update if new status is "higher" (sent < delivered < read)
-          const statusOrder: Record<string, number> = { sending: 0, sent: 1, delivered: 2, read: 3 };
-          const currentOrder = statusOrder[currentStatus as string] ?? -1;
-          const newOrder = statusOrder[newStatus] ?? -1;
-          
-          if (newOrder > currentOrder) {
-            await supabase
-              .from('chat_inbox_messages')
-              .update({
-                metadata: {
-                  ...msg.metadata,
-                  status: newStatus
-                },
-                is_read: newStatus === 'read'
-              })
-              .eq('id', msg.id);
+          // Update the most recent one that hasn't reached this status yet
+          for (const msg of recentMessages) {
+            const currentStatus = msg.metadata?.status;
+            const statusOrder: Record<string, number> = { sending: 0, sent: 1, delivered: 2, read: 3 };
+            const currentOrder = statusOrder[currentStatus as string] ?? -1;
+            const newOrder = statusOrder[newStatus] ?? -1;
             
-            console.log(`[Inbox Webhook] Updated recent message ${msg.id} status to ${newStatus}`);
+            if (newOrder > currentOrder) {
+              const { error: updateError } = await supabase
+                .from('chat_inbox_messages')
+                .update({
+                  metadata: {
+                    ...msg.metadata,
+                    status: newStatus,
+                    status_updated_at: new Date().toISOString()
+                  },
+                  is_read: newStatus === 'read'
+                })
+                .eq('id', msg.id);
+              
+              if (updateError) {
+                console.error(`[Status Handler] Update error:`, updateError);
+              } else {
+                console.log(`[Status Handler] ✅ SUCCESS: Updated recent message ${msg.id} from ${currentStatus} to ${newStatus}`);
+              }
+              break; // Only update the first matching message
+            }
           }
+        } else {
+          console.log(`[Status Handler] No recent agent messages found for these conversations`);
         }
+      } else {
+        console.log(`[Status Handler] No conversations found for phone ${phone}`);
       }
     }
   } catch (error) {
-    console.error('[Inbox Webhook] Error handling status update:', error);
+    console.error('[Status Handler] CRITICAL ERROR:', error);
   }
 }
 
@@ -574,6 +641,8 @@ serve(async (req: Request) => {
 
     // Check if this is a message status update event (delivery/read receipts)
     const eventType = body.EventType || body.event;
+    
+    // Expanded list of status events for UAZAPI v2
     const statusEvents = [
       'message_ack', 
       'ack', 
@@ -584,18 +653,38 @@ serve(async (req: Request) => {
       'messages.update',     // UAZAPI v2
       'message_update',      // Alternative format
       'acks',                // Alternative format
-      'MessageAck'           // UAZAPI v2 PascalCase
+      'MessageAck',          // UAZAPI v2 PascalCase
+      'message.status',      // Alternative v2 format
+      'messages.status',     // Alternative v2 format
+      'MessageUpdate',       // PascalCase v2
+      'message-ack',         // kebab-case
+      'message-update',      // kebab-case
+      'receipt',             // Common name for read receipts
+      'read',                // Direct read event
+      'delivered'            // Direct delivered event
     ];
     const isStatusEvent = eventType && statusEvents.includes(eventType);
     
-    // Also check for inline ACK in the message payload
-    const hasInlineAck = typeof body.ack === 'number' || body.message?.ack !== undefined;
+    // Also check for inline ACK in the message payload (various locations)
+    const hasInlineAck = typeof body.ack === 'number' || 
+                         body.message?.ack !== undefined || 
+                         body.data?.ack !== undefined ||
+                         body.data?.status !== undefined;
     
-    if (isStatusEvent || hasInlineAck) {
-      console.log(`[Inbox Webhook] === STATUS UPDATE ===`);
+    // Check if this is an outgoing message with ACK info (fromMe=true with ack)
+    const isOutgoingWithAck = body.message?.fromMe === true && body.message?.ack !== undefined;
+    
+    console.log(`[Inbox Webhook] Event detection:`);
+    console.log(`[Inbox Webhook]   - EventType: ${eventType}`);
+    console.log(`[Inbox Webhook]   - isStatusEvent: ${isStatusEvent}`);
+    console.log(`[Inbox Webhook]   - hasInlineAck: ${hasInlineAck}`);
+    console.log(`[Inbox Webhook]   - isOutgoingWithAck: ${isOutgoingWithAck}`);
+    
+    if (isStatusEvent || hasInlineAck || isOutgoingWithAck) {
+      console.log(`[Inbox Webhook] === STATUS UPDATE DETECTED ===`);
       console.log(`[Inbox Webhook] EventType: ${eventType}`);
-      console.log(`[Inbox Webhook] Has inline ACK: ${hasInlineAck}`);
-      console.log(`[Inbox Webhook] ACK value: ${body.ack ?? body.message?.ack}`);
+      console.log(`[Inbox Webhook] ACK sources: body.ack=${body.ack}, message.ack=${body.message?.ack}, data.ack=${body.data?.ack}`);
+      console.log(`[Inbox Webhook] Message ID sources: id=${body.id}, message.id=${body.message?.id}, message.messageid=${body.message?.messageid}`);
       console.log(`[Inbox Webhook] Full payload: ${JSON.stringify(body)}`);
       
       await handleMessageStatusUpdate(supabase, body);
