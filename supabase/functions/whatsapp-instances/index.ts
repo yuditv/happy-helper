@@ -2035,6 +2035,78 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // SEND MEDIA CAROUSEL - Rich carousel with images and structured buttons
+    if (action === "send_carousel") {
+      const phone = body.phone as string;
+      const instanceKey = body.instanceKey as string;
+      const text = body.text as string;
+      const carousel = body.carousel as Array<{
+        text: string;
+        image?: string;
+        video?: string;
+        document?: string;
+        filename?: string;
+        buttons: Array<{
+          id: string;
+          text: string;
+          type: "REPLY" | "URL" | "COPY" | "CALL";
+        }>;
+      }>;
+      const delay = body.delay as number | undefined;
+
+      if (!phone || !instanceKey || !text || !carousel?.length) {
+        return new Response(
+          JSON.stringify({ error: "phone, instanceKey, text e carousel são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Send Carousel] phone: ${phone}, cards: ${carousel.length}`);
+
+      const formattedPhone = formatPhoneNumber(phone);
+      
+      const requestBody: Record<string, unknown> = {
+        number: formattedPhone,
+        text: text,
+        carousel: carousel,
+        readchat: true
+      };
+
+      if (delay) requestBody.delay = delay;
+
+      try {
+        const response = await fetch(`${uazapiUrl}/send/carousel`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instanceKey,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+        console.log(`[Send Carousel] Response:`, JSON.stringify(data));
+
+        if (!response.ok) {
+          return new Response(
+            JSON.stringify({ success: false, error: data.error || "Erro ao enviar carrossel", data }),
+            { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Send Carousel] Error:", e);
+        return new Response(
+          JSON.stringify({ success: false, error: String(e) }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // SEND INTERACTIVE MENU - Buttons, List, Poll, Carousel
     if (action === "send_menu") {
       const phone = body.phone as string;

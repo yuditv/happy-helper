@@ -30,7 +30,8 @@ import {
   Settings,
   Pencil,
   BookUser,
-  SquareStack
+  SquareStack,
+  GalleryHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,7 @@ import { MessageSearchDialog } from "./MessageSearchDialog";
 import { SyncOptionsDialog } from "./SyncOptionsDialog";
 import { DeleteMessageDialog } from "./DeleteMessageDialog";
 import { InteractiveMenuComposer } from "./InteractiveMenuComposer";
+import { MediaCarouselComposer } from "./MediaCarouselComposer";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -168,6 +170,7 @@ export function ChatPanel({
   const [newContactName, setNewContactName] = useState("");
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [showInteractiveMenu, setShowInteractiveMenu] = useState(false);
+  const [showMediaCarousel, setShowMediaCarousel] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1158,6 +1161,22 @@ export function ChatPanel({
                 <TooltipContent>Menu Interativo</TooltipContent>
               </Tooltip>
 
+              {/* Media Carousel Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setShowMediaCarousel(true)}
+                    disabled={!instanceKey}
+                  >
+                    <GalleryHorizontal className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Carrossel de Mídia</TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <AudioRecorder
@@ -1413,6 +1432,19 @@ export function ChatPanel({
         <InteractiveMenuComposer
           open={showInteractiveMenu}
           onOpenChange={setShowInteractiveMenu}
+          phone={conversation.phone}
+          instanceKey={instanceKey}
+          onSent={() => {
+            // Refresh messages after sending
+          }}
+        />
+      )}
+
+      {/* Media Carousel Composer */}
+      {conversation && instanceKey && (
+        <MediaCarouselComposer
+          open={showMediaCarousel}
+          onOpenChange={setShowMediaCarousel}
           phone={conversation.phone}
           instanceKey={instanceKey}
           onSent={() => {
