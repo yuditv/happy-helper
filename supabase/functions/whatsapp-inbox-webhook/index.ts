@@ -7,6 +7,82 @@ const corsHeaders = {
 };
 
 /**
+ * Detect country code from phone number
+ * Returns ISO 2-letter country code (e.g., 'US', 'BR', 'UK')
+ */
+function detectCountryCode(phone: string): string | null {
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Country code mappings (prefix -> ISO code)
+  const countryPrefixes: [string, string][] = [
+    ['55', 'BR'],   // Brazil
+    ['1', 'US'],    // USA/Canada (we'll use US as default)
+    ['44', 'GB'],   // United Kingdom
+    ['351', 'PT'],  // Portugal
+    ['34', 'ES'],   // Spain
+    ['33', 'FR'],   // France
+    ['49', 'DE'],   // Germany
+    ['39', 'IT'],   // Italy
+    ['54', 'AR'],   // Argentina
+    ['56', 'CL'],   // Chile
+    ['57', 'CO'],   // Colombia
+    ['58', 'VE'],   // Venezuela
+    ['52', 'MX'],   // Mexico
+    ['51', 'PE'],   // Peru
+    ['591', 'BO'], // Bolivia
+    ['595', 'PY'], // Paraguay
+    ['598', 'UY'], // Uruguay
+    ['593', 'EC'], // Ecuador
+    ['353', 'IE'], // Ireland
+    ['31', 'NL'],  // Netherlands
+    ['32', 'BE'],  // Belgium
+    ['41', 'CH'],  // Switzerland
+    ['43', 'AT'],  // Austria
+    ['48', 'PL'],  // Poland
+    ['81', 'JP'],  // Japan
+    ['86', 'CN'],  // China
+    ['91', 'IN'],  // India (only if 12+ digits)
+    ['61', 'AU'],  // Australia
+    ['64', 'NZ'],  // New Zealand
+    ['27', 'ZA'],  // South Africa
+    ['971', 'AE'], // UAE
+    ['972', 'IL'], // Israel
+    ['966', 'SA'], // Saudi Arabia
+  ];
+
+  // For numbers with 12+ digits, check longer prefixes first
+  if (cleaned.length >= 12) {
+    for (const [prefix, code] of countryPrefixes) {
+      if (cleaned.startsWith(prefix)) {
+        return code;
+      }
+    }
+  }
+  
+  // For 11-digit numbers starting with 1 (USA/Canada)
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    const areaCode = cleaned.substring(1, 4);
+    if (!areaCode.startsWith('0') && !areaCode.startsWith('1')) {
+      return 'US';
+    }
+  }
+  
+  // For numbers starting with common international prefixes
+  for (const [prefix, code] of countryPrefixes) {
+    if (prefix !== '1' && cleaned.startsWith(prefix) && cleaned.length >= 10) {
+      return code;
+    }
+  }
+  
+  // Default to Brazil for 10-11 digit numbers without recognized prefix
+  if (cleaned.length >= 10 && cleaned.length <= 11) {
+    return 'BR';
+  }
+  
+  return null;
+}
+
+/**
  * Format phone number for WhatsApp API - supports international numbers
  */
 function formatPhoneNumber(phone: string): string {
@@ -899,6 +975,10 @@ serve(async (req: Request) => {
         contactAvatar = await fetchContactAvatar(uazapiUrl, instance.instance_key, normalizedPhone);
       }
 
+      // Detect country code from phone number
+      const countryCode = detectCountryCode(normalizedPhone);
+      console.log(`[Inbox Webhook] Detected country code for ${normalizedPhone}: ${countryCode}`);
+
       // Create new conversation
       const { data: newConv, error: createError } = await supabase
         .from('conversations')
@@ -908,6 +988,7 @@ serve(async (req: Request) => {
           phone: normalizedPhone,
           contact_name: contactName || normalizedPhone,
           contact_avatar: contactAvatar,
+          country_code: countryCode,
           status: 'open',
           ai_enabled: true,
           unread_count: 1,
