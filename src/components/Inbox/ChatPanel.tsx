@@ -71,6 +71,7 @@ import { AudioRecorder } from "./AudioRecorder";
 import { MediaGallery } from "./MediaGallery";
 import { QuickMessagesPanel } from "./QuickMessagesPanel";
 import { EmojiPickerButton } from "./EmojiPickerButton";
+import { AudioPlayer } from "./AudioPlayer";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -848,10 +849,9 @@ export function ChatPanel({
                               </button>
                             </div>
                           ) : msg.media_type?.startsWith('audio/') ? (
-                            <audio 
+                            <AudioPlayer 
                               src={msg.media_url} 
-                              controls
-                              className="w-full max-w-[250px]"
+                              isOutgoing={isOutgoing}
                             />
                           ) : (
                             <a 
