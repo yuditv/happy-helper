@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Copy, Loader2, Tv, User, Lock, Calendar, Link2, Smartphone, Cloud } from "lucide-react";
+import { RefreshCw, Copy, Loader2, Tv, User, Lock, Calendar, Link2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -119,18 +119,45 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     }
   };
 
+  const copySectionToClipboard = async (title: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast({ 
+        title: "Copiado!", 
+        description: `${title} copiado para a área de transferência` 
+      });
+    } catch (err) {
+      toast({ 
+        title: "Erro ao copiar", 
+        description: "Não foi possível copiar para a área de transferência",
+        variant: "destructive"
+      });
+    }
+  };
+
   const copyAll = async () => {
     if (credentials) {
-      const formattedText = `👤 Usuário: ${credentials.username}
+      const formattedText = `📺 *TESTE IPTV*
+
+👤 Usuário: ${credentials.username}
 🔐 Senha: ${credentials.password}
 📅 Expira em: ${credentials.expiresAt}
-🔗 Conexões: ${credentials.connections}
 
-📺 Link M3U: ${credentials.linkM3U}
-📱 ASSIST PLUS Código: ${credentials.assistPlusCode}
-📱 CORE PLAYER Código: ${credentials.corePlayerCode}
-📱 PlaySim Código: ${credentials.playSimCode}
-☁️ XCLOUD Provedor: ${credentials.xcloudProvider}`;
+📱 *ASSIST PLUS*
+🔢 Código: ${credentials.assistPlusCode}
+👤 Usuário: ${credentials.username}
+🔐 Senha: ${credentials.password}
+📅 Expira em: ${credentials.expiresAt}
+
+🚀 *PLAYSIM*
+🔢 Código: ${credentials.playSimCode}
+👤 Usuário: ${credentials.username}
+🔐 Senha: ${credentials.password}
+📅 Expira em: ${credentials.expiresAt}
+
+📥 *M3U*
+🔗 Link: ${credentials.linkM3U}
+📅 Expira em: ${credentials.expiresAt}`;
 
       try {
         await navigator.clipboard.writeText(formattedText);
@@ -174,6 +201,39 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     </div>
   );
 
+  const CredentialSection = ({ 
+    title, 
+    icon: Icon,
+    children,
+    onCopySection
+  }: { 
+    title: string; 
+    icon: any;
+    children: React.ReactNode;
+    onCopySection: () => void;
+  }) => (
+    <div className="rounded-lg border bg-card">
+      <div className="px-3 py-2 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={onCopySection}
+        >
+          <Copy className="h-3 w-3 mr-1" />
+          Copiar
+        </Button>
+      </div>
+      <div className="divide-y">
+        {children}
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden">
@@ -212,32 +272,62 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           {credentials && (
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-4 pr-4">
-                {/* Credenciais */}
-                <div className="rounded-lg border bg-card">
-                  <div className="px-3 py-2 border-b">
-                    <h4 className="text-sm font-semibold text-foreground">Credenciais</h4>
-                  </div>
-                  <div className="divide-y">
-                    <CredentialRow icon={User} label="Usuário" value={credentials.username} />
-                    <CredentialRow icon={Lock} label="Senha" value={credentials.password} />
-                    <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
-                    <CredentialRow icon={Link2} label="Conexões" value={credentials.connections} />
-                  </div>
-                </div>
+                {/* Credenciais Básicas */}
+                <CredentialSection 
+                  title="Usuário e Senha" 
+                  icon={User}
+                  onCopySection={() => copySectionToClipboard(
+                    "Usuário e Senha",
+                    `👤 Usuário: ${credentials.username}\n🔐 Senha: ${credentials.password}\n📅 Expira em: ${credentials.expiresAt}`
+                  )}
+                >
+                  <CredentialRow icon={User} label="Usuário" value={credentials.username} />
+                  <CredentialRow icon={Lock} label="Senha" value={credentials.password} />
+                  <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
+                </CredentialSection>
 
-                {/* Links e Códigos */}
-                <div className="rounded-lg border bg-card">
-                  <div className="px-3 py-2 border-b">
-                    <h4 className="text-sm font-semibold text-foreground">Links e Códigos</h4>
-                  </div>
-                  <div className="divide-y">
-                    <CredentialRow icon={Link2} label="Link M3U" value={credentials.linkM3U} />
-                    <CredentialRow icon={Smartphone} label="ASSIST PLUS Código" value={credentials.assistPlusCode} />
-                    <CredentialRow icon={Smartphone} label="CORE PLAYER Código" value={credentials.corePlayerCode} />
-                    <CredentialRow icon={Smartphone} label="PlaySim Código" value={credentials.playSimCode} />
-                    <CredentialRow icon={Cloud} label="XCLOUD Provedor" value={credentials.xcloudProvider} />
-                  </div>
-                </div>
+                {/* Assist Plus */}
+                <CredentialSection 
+                  title="Assist Plus" 
+                  icon={Smartphone}
+                  onCopySection={() => copySectionToClipboard(
+                    "Assist Plus",
+                    `📱 *ASSIST PLUS*\n🔢 Código: ${credentials.assistPlusCode}\n👤 Usuário: ${credentials.username}\n🔐 Senha: ${credentials.password}\n📅 Expira em: ${credentials.expiresAt}`
+                  )}
+                >
+                  <CredentialRow icon={Smartphone} label="Código" value={credentials.assistPlusCode} />
+                  <CredentialRow icon={User} label="Usuário" value={credentials.username} />
+                  <CredentialRow icon={Lock} label="Senha" value={credentials.password} />
+                  <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
+                </CredentialSection>
+
+                {/* PlaySim */}
+                <CredentialSection 
+                  title="PlaySim" 
+                  icon={Smartphone}
+                  onCopySection={() => copySectionToClipboard(
+                    "PlaySim",
+                    `🚀 *PLAYSIM*\n🔢 Código: ${credentials.playSimCode}\n👤 Usuário: ${credentials.username}\n🔐 Senha: ${credentials.password}\n📅 Expira em: ${credentials.expiresAt}`
+                  )}
+                >
+                  <CredentialRow icon={Smartphone} label="Código" value={credentials.playSimCode} />
+                  <CredentialRow icon={User} label="Usuário" value={credentials.username} />
+                  <CredentialRow icon={Lock} label="Senha" value={credentials.password} />
+                  <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
+                </CredentialSection>
+
+                {/* M3U */}
+                <CredentialSection 
+                  title="M3U" 
+                  icon={Link2}
+                  onCopySection={() => copySectionToClipboard(
+                    "M3U",
+                    `📥 *M3U*\n🔗 Link: ${credentials.linkM3U}\n📅 Expira em: ${credentials.expiresAt}`
+                  )}
+                >
+                  <CredentialRow icon={Link2} label="Link M3U" value={credentials.linkM3U} />
+                  <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
+                </CredentialSection>
               </div>
             </ScrollArea>
           )}
