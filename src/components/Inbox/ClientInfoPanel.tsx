@@ -22,6 +22,7 @@ import {
   ExternalLink,
   UserPlus
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -34,7 +35,23 @@ interface ClientInfoPanelProps {
   onRegisterClient?: (phone: string, name?: string) => void;
   phone?: string;
   contactName?: string;
+  contactAvatar?: string | null;
 }
+
+// Helper function to get initials
+const getInitials = (name?: string | null, phone?: string | null): string => {
+  if (name) {
+    const parts = name.split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+  if (phone) {
+    return phone.slice(-2);
+  }
+  return '??';
+};
 
 export function ClientInfoPanel({ 
   client, 
@@ -43,7 +60,8 @@ export function ClientInfoPanel({
   onEdit,
   onRegisterClient,
   phone,
-  contactName
+  contactName,
+  contactAvatar
 }: ClientInfoPanelProps) {
   const status = client ? getExpirationStatus(client.expiresAt) : null;
   const daysUntil = client ? getDaysUntilExpiration(client.expiresAt) : 0;
@@ -99,7 +117,7 @@ export function ClientInfoPanel({
     );
   }
 
-  // Client not found - show register option
+  // Client not found - show WhatsApp profile info + register option
   if (!client) {
     return (
       <Card className="glass-card h-full">
@@ -110,23 +128,40 @@ export function ClientInfoPanel({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6">
-            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-              <User className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground mb-1">
-              Cliente não cadastrado
-            </p>
+          <div className="text-center py-4">
+            {/* Avatar do WhatsApp */}
+            <Avatar className="h-16 w-16 mx-auto mb-3">
+              <AvatarImage src={contactAvatar || undefined} />
+              <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                {getInitials(contactName, phone)}
+              </AvatarFallback>
+            </Avatar>
+            
+            {/* Nome do contato */}
+            {contactName && (
+              <p className="font-medium text-sm mb-1">
+                {contactName}
+              </p>
+            )}
+            
+            {/* Número de telefone */}
             {phone && (
-              <p className="text-xs text-muted-foreground mb-4">
+              <p className="text-xs text-muted-foreground mb-2">
                 {phone}
               </p>
             )}
+            
+            {/* Badge indicando que não está cadastrado */}
+            <Badge variant="outline" className="text-xs mb-4">
+              Não cadastrado
+            </Badge>
+            
+            {/* Botão Cadastrar */}
             {onRegisterClient && (
               <Button 
                 size="sm" 
                 onClick={() => onRegisterClient(phone || '', contactName)}
-                className="gap-2"
+                className="w-full gap-2"
               >
                 <UserPlus className="h-4 w-4" />
                 Cadastrar Cliente

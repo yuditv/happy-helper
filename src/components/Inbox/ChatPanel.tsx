@@ -810,6 +810,7 @@ export function ChatPanel({
               isLoading={isLoadingClient}
               phone={conversation.phone}
               contactName={conversation.contact_name || undefined}
+              contactAvatar={contactAvatarUrl || conversation.contact_avatar}
               onRegisterClient={onRegisterClient}
             />
           </div>
