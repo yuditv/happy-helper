@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Edit2, Trash2, Zap, Play, Pause, Clock, MessageSquare, Tag, Users } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Zap, Play, Pause, Clock, MessageSquare, Tag, Users, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { useInboxAutomation, AutomationRule } from "@/hooks/useInboxAutomation";
 import { useInboxMacros } from "@/hooks/useInboxMacros";
+import { useInboxLabels } from "@/hooks/useInboxLabels";
 import { useToast } from "@/hooks/use-toast";
 import { CRM_STAGES } from "@/hooks/useCRMMetrics";
 
@@ -65,6 +66,7 @@ const ACTION_TYPES = [
 export function AutomationSettings() {
   const { rules, isLoading, createRule, updateRule, deleteRule, toggleActive } = useInboxAutomation();
   const { macros } = useInboxMacros();
+  const { labels } = useInboxLabels();
   const { toast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -391,6 +393,49 @@ export function AutomationSettings() {
                     conditions: { ...prev.conditions, inactivity_minutes: parseInt(e.target.value) || 0 }
                   }))}
                 />
+              </div>
+            )}
+
+            {/* Condition to block if already has label */}
+            {(formData.event_type === "keyword_detected" || 
+              formData.event_type === "message_created" ||
+              formData.event_type === "conversation_created") && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Ban className="h-4 w-4 text-destructive" />
+                  Bloquear se já tiver etiqueta
+                </Label>
+                <Select
+                  value={(formData.conditions.exclude_if_has_label as string) || "none"}
+                  onValueChange={(value) => setFormData(prev => ({
+                    ...prev,
+                    conditions: { 
+                      ...prev.conditions, 
+                      exclude_if_has_label: value === "none" ? undefined : value 
+                    }
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Nenhuma - sempre executar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma - sempre executar</SelectItem>
+                    {labels.map((label) => (
+                      <SelectItem key={label.id} value={label.id}>
+                        <div className="flex items-center gap-2">
+                          <span 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: label.color }}
+                          />
+                          {label.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Se o cliente já tiver esta etiqueta, a automação não será executada
+                </p>
               </div>
             )}
 

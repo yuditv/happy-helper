@@ -120,6 +120,18 @@ export function useAutomationTriggers(callbacks: TriggerCallbacks = {}) {
   ): boolean => {
     const conditions = rule.conditions || {};
 
+    // NOVA CONDIÇÃO: Bloquear se conversa já tem a etiqueta específica
+    if (conditions.exclude_if_has_label && context.conversation?.labels) {
+      const excludeLabelId = conditions.exclude_if_has_label as string;
+      const hasLabel = context.conversation.labels.some(
+        (labelData: { label?: { id?: string } }) => labelData.label?.id === excludeLabelId
+      );
+      if (hasLabel) {
+        console.log(`[Automation] Blocked: conversation already has label ${excludeLabelId}`);
+        return false;
+      }
+    }
+
     // Check keyword conditions
     if (conditions.keywords && context.message?.content) {
       const keywords = (conditions.keywords as string).split(',').map(k => k.trim().toLowerCase());
