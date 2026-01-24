@@ -71,11 +71,14 @@ interface UAZAPIWebhookPayload {
     isGroup?: boolean;
     content?: { text?: string };
     id?: string;
+    messageid?: string;  // Alternative ID field
     // Media fields
     hasMedia?: boolean;
     mediaType?: string;
     mediaUrl?: string;
     caption?: string;
+    mimetype?: string;
+    fileName?: string;
   };
   // Legacy UAZAPI format with data wrapper
   data?: {
@@ -91,6 +94,7 @@ interface UAZAPIWebhookPayload {
       videoMessage?: { caption?: string; url?: string; mimetype?: string };
       audioMessage?: { url?: string; mimetype?: string };
       documentMessage?: { fileName?: string; url?: string; mimetype?: string };
+      stickerMessage?: { url?: string; mimetype?: string };
     };
     pushName?: string;
     messageTimestamp?: number;
@@ -107,7 +111,104 @@ interface UAZAPIWebhookPayload {
   pushName?: string;
 }
 
-function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; message: string; contactName: string; mediaUrl?: string; mediaType?: string } | null {
+// Download media from UAZAPI using /message/download endpoint
+async function downloadMediaFromUAZAPI(
+  uazapiUrl: string,
+  instanceKey: string,
+  messageId: string,
+  mediaType: string
+): Promise<{ fileUrl: string | null; mimetype: string | null }> {
+  try {
+    console.log(`[Media Download] Downloading media for message: ${messageId}, type: ${mediaType}`);
+    
+    const response = await fetch(`${uazapiUrl}/message/download`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': instanceKey
+      },
+      body: JSON.stringify({
+        id: messageId,
+        return_link: true,        // Returns public URL
+        return_base64: false,     // Don't need base64
+        generate_mp3: mediaType === 'audio' || mediaType === 'ptt',  // Convert audio to MP3
+        download_quoted: false    // Don't download quoted media
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`[Media Download] Failed with status: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`[Media Download] Error response: ${errorText}`);
+      return { fileUrl: null, mimetype: null };
+    }
+
+    const data = await response.json();
+    console.log(`[Media Download] Response:`, JSON.stringify(data));
+    
+    // UAZAPI returns: { fileURL, mimetype, base64Data?, transcription? }
+    const fileUrl = data.fileURL || data.url || data.link || data.fileUrl || null;
+    const mimetype = data.mimetype || data.mimeType || null;
+    
+    if (fileUrl) {
+      console.log(`[Media Download] Success: ${fileUrl.substring(0, 80)}...`);
+    } else {
+      console.log(`[Media Download] No URL in response`);
+    }
+    
+    return { fileUrl, mimetype };
+  } catch (error) {
+    console.error('[Media Download] Error:', error);
+    return { fileUrl: null, mimetype: null };
+  }
+}
+
+// Map simple media type to proper MIME type
+function mapMediaTypeToMime(mediaType: string | undefined, mimetype: string | undefined): string | undefined {
+  if (mimetype) return mimetype;
+  if (!mediaType) return undefined;
+  
+  const mimeMap: Record<string, string> = {
+    'image': 'image/jpeg',
+    'video': 'video/mp4',
+    'audio': 'audio/mpeg',
+    'ptt': 'audio/ogg',  // Push-to-talk (voice messages)
+    'document': 'application/octet-stream',
+    'sticker': 'image/webp'
+  };
+  
+  return mimeMap[mediaType] || undefined;
+}
+
+// Get preview label for media messages
+function getMediaPreviewLabel(mediaType: string | undefined, caption: string | undefined): string {
+  if (caption) return caption.substring(0, 100);
+  
+  const labels: Record<string, string> = {
+    'image': '📷 Imagem',
+    'video': '🎥 Vídeo',
+    'audio': '🎵 Áudio',
+    'ptt': '🎤 Áudio',
+    'document': '📄 Documento',
+    'sticker': '🩹 Sticker'
+  };
+  
+  return labels[mediaType || ''] || '📎 Anexo';
+}
+
+interface ExtractedMessageData {
+  phone: string;
+  message: string;
+  contactName: string;
+  mediaUrl?: string;
+  mediaType?: string;
+  messageId?: string;
+  hasMedia?: boolean;
+  mimetype?: string;
+  caption?: string;
+}
+
+function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | null {
   // Try UAZAPI v2 format first (EventType + message object)
   if ((body.EventType === 'messages' || body.event === 'messages') && body.message && typeof body.message === 'object') {
     const msgObj = body.message;
@@ -127,22 +228,24 @@ function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; messag
     // Extract phone from sender_pn (format: 559187459963@s.whatsapp.net)
     const phone = msgObj.sender_pn?.replace('@s.whatsapp.net', '').replace('@g.us', '') || '';
     
-    // Extract message text
-    const message = msgObj.text || msgObj.content?.text || '';
+    // Extract message text (use caption for media messages)
+    const message = msgObj.text || msgObj.content?.text || msgObj.caption || '';
     
     // Extract contact name
     const contactName = msgObj.senderName || phone;
     
-    // Extract media if present
-    let mediaUrl: string | undefined;
-    let mediaType: string | undefined;
-    if (msgObj.hasMedia && msgObj.mediaUrl) {
-      mediaUrl = msgObj.mediaUrl;
-      mediaType = msgObj.mediaType;
-    }
+    // Extract message ID for media download
+    const messageId = msgObj.id || msgObj.messageid;
     
-    console.log(`[Inbox Webhook] UAZAPI v2 format detected - phone: ${phone}, message: ${message.substring(0, 50)}...`);
-    return { phone, message, contactName, mediaUrl, mediaType };
+    // Extract media info
+    const hasMedia = msgObj.hasMedia === true;
+    let mediaUrl: string | undefined = msgObj.mediaUrl;
+    const mediaType: string | undefined = msgObj.mediaType;
+    const mimetype: string | undefined = msgObj.mimetype;
+    const caption: string | undefined = msgObj.caption;
+    
+    console.log(`[Inbox Webhook] UAZAPI v2 format detected - phone: ${phone}, hasMedia: ${hasMedia}, messageId: ${messageId}`);
+    return { phone, message, contactName, mediaUrl, mediaType, messageId, hasMedia, mimetype, caption };
   }
   
   // Try legacy UAZAPI webhook format with data wrapper
@@ -157,38 +260,60 @@ function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; messag
     // Extract phone from remoteJid (format: 5591999999999@s.whatsapp.net)
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
     
+    // Extract message ID
+    const messageId = body.data.key.id;
+    
     // Extract message content from various message types
     const msgData = body.data.message;
     let message = '';
     let mediaUrl: string | undefined;
     let mediaType: string | undefined;
+    let mimetype: string | undefined;
+    let hasMedia = false;
+    let caption: string | undefined;
     
     if (msgData?.conversation) {
       message = msgData.conversation;
     } else if (msgData?.extendedTextMessage?.text) {
       message = msgData.extendedTextMessage.text;
     } else if (msgData?.imageMessage) {
-      message = msgData.imageMessage.caption || '[Imagem]';
+      caption = msgData.imageMessage.caption;
+      message = caption || '';
       mediaUrl = msgData.imageMessage.url;
       mediaType = 'image';
+      mimetype = msgData.imageMessage.mimetype;
+      hasMedia = true;
     } else if (msgData?.videoMessage) {
-      message = msgData.videoMessage.caption || '[Vídeo]';
+      caption = msgData.videoMessage.caption;
+      message = caption || '';
       mediaUrl = msgData.videoMessage.url;
       mediaType = 'video';
+      mimetype = msgData.videoMessage.mimetype;
+      hasMedia = true;
     } else if (msgData?.audioMessage) {
-      message = '[Áudio]';
+      message = '';
       mediaUrl = msgData.audioMessage.url;
       mediaType = 'audio';
+      mimetype = msgData.audioMessage.mimetype;
+      hasMedia = true;
     } else if (msgData?.documentMessage) {
-      message = msgData.documentMessage.fileName || '[Documento]';
+      message = msgData.documentMessage.fileName || '';
       mediaUrl = msgData.documentMessage.url;
       mediaType = 'document';
+      mimetype = msgData.documentMessage.mimetype;
+      hasMedia = true;
+    } else if (msgData?.stickerMessage) {
+      message = '';
+      mediaUrl = msgData.stickerMessage.url;
+      mediaType = 'sticker';
+      mimetype = msgData.stickerMessage.mimetype;
+      hasMedia = true;
     }
     
     const contactName = body.data.pushName || phone;
     
-    console.log(`[Inbox Webhook] Legacy UAZAPI format detected - phone: ${phone}`);
-    return { phone, message, contactName, mediaUrl, mediaType };
+    console.log(`[Inbox Webhook] Legacy UAZAPI format detected - phone: ${phone}, hasMedia: ${hasMedia}`);
+    return { phone, message, contactName, mediaUrl, mediaType, messageId, hasMedia, mimetype, caption };
   }
   
   // Try alternative UAZAPI formats
@@ -484,6 +609,11 @@ serve(async (req: Request) => {
     let mediaUrl: string | undefined;
     let mediaType: string | undefined;
 
+    let messageId: string | undefined;
+    let hasMedia = false;
+    let mimetype: string | undefined;
+    let caption: string | undefined;
+
     if (extractedData) {
       // UAZAPI format
       phone = extractedData.phone;
@@ -492,6 +622,10 @@ serve(async (req: Request) => {
       mediaUrl = extractedData.mediaUrl;
       mediaType = extractedData.mediaType;
       instanceKey = body.token || body.instance;
+      messageId = extractedData.messageId;
+      hasMedia = extractedData.hasMedia || false;
+      mimetype = extractedData.mimetype;
+      caption = extractedData.caption;
     } else if (standardFormat.phone && standardFormat.message) {
       // Standard format from our internal calls
       phone = standardFormat.phone;
@@ -509,11 +643,20 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`[Inbox Webhook] Received message from: ${phone}, instanceKey: ${instanceKey || 'none'}, instanceId: ${instanceId || 'none'}`);
+    console.log(`[Inbox Webhook] Received message from: ${phone}, instanceKey: ${instanceKey || 'none'}, hasMedia: ${hasMedia}, messageId: ${messageId}`);
 
-    if (!phone || !message) {
+    // For messages with media, we need either a URL or phone/message content
+    if (!phone) {
       return new Response(
-        JSON.stringify({ error: 'phone and message are required' }),
+        JSON.stringify({ error: 'phone is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If message is empty but has media, that's okay - we'll show media preview
+    if (!message && !hasMedia) {
+      return new Response(
+        JSON.stringify({ error: 'message or media is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -546,6 +689,45 @@ serve(async (req: Request) => {
 
     // Normalize phone number
     const normalizedPhone = phone.replace(/\D/g, '');
+
+    // === DOWNLOAD MEDIA IF NEEDED ===
+    // If message has media but no URL, download from UAZAPI
+    if (hasMedia && !mediaUrl && messageId && instance.instance_key) {
+      console.log(`[Inbox Webhook] Message has media but no URL, downloading via /message/download...`);
+      
+      const { fileUrl, mimetype: downloadedMimetype } = await downloadMediaFromUAZAPI(
+        uazapiUrl,
+        instance.instance_key,
+        messageId,
+        mediaType || 'unknown'
+      );
+      
+      if (fileUrl) {
+        mediaUrl = fileUrl;
+        console.log(`[Inbox Webhook] Media downloaded successfully: ${mediaUrl.substring(0, 80)}...`);
+        
+        // Determine media type from mimetype if not set
+        if (!mediaType && downloadedMimetype) {
+          if (downloadedMimetype.startsWith('image/')) mediaType = 'image';
+          else if (downloadedMimetype.startsWith('video/')) mediaType = 'video';
+          else if (downloadedMimetype.startsWith('audio/')) mediaType = 'audio';
+          else mediaType = 'document';
+        }
+        
+        // Update mimetype if downloaded
+        if (downloadedMimetype) {
+          mimetype = downloadedMimetype;
+        }
+      } else {
+        console.log(`[Inbox Webhook] Failed to download media, saving message without media URL`);
+      }
+    }
+
+    // Determine final media type for database (use proper MIME type)
+    const finalMediaType = mapMediaTypeToMime(mediaType, mimetype);
+    
+    // Create preview message for media
+    const previewMessage = message || (hasMedia ? getMediaPreviewLabel(mediaType, caption) : '');
 
     // Find or create conversation
     let { data: conversation, error: convError } = await supabase
@@ -581,7 +763,7 @@ serve(async (req: Request) => {
           ai_enabled: true,
           unread_count: 1,
           last_message_at: new Date().toISOString(),
-          last_message_preview: message.substring(0, 100)
+          last_message_preview: previewMessage.substring(0, 100)
         })
         .select()
         .single();
@@ -604,7 +786,7 @@ serve(async (req: Request) => {
           status: conversation.status === 'resolved' ? 'open' : conversation.status,
           unread_count: (conversation.unread_count || 0) + 1,
           last_message_at: new Date().toISOString(),
-          last_message_preview: message.substring(0, 100),
+          last_message_preview: previewMessage.substring(0, 100),
           contact_name: contactName || conversation.contact_name
         })
         .eq('id', conversation.id);
@@ -621,10 +803,17 @@ serve(async (req: Request) => {
       .insert({
         conversation_id: conversation.id,
         sender_type: 'contact',
-        content: message,
+        content: message || caption || '',
         media_url: mediaUrl,
-        media_type: mediaType,
-        metadata: { phone, original_message: body }
+        media_type: finalMediaType,
+        metadata: { 
+          phone, 
+          original_message: body,
+          whatsapp_message_id: messageId,
+          has_media: hasMedia,
+          original_media_type: mediaType,
+          file_name: caption || undefined
+        }
       })
       .select()
       .single();
