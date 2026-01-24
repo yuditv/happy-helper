@@ -145,24 +145,29 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // UAZAPI zynk2 format: token in header, unified /chat/send endpoint
-        const uazapiEndpoint = `${uazapiUrl}/chat/send`;
+        // Wuzapi format: Token header (capital T), /chat/send/text endpoint, Phone/Body keys (capital)
+        let uazapiEndpoint: string;
         let uazapiBody: Record<string, unknown>;
 
-        // Handle media with specific keys
+        // Handle media with specific endpoints
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiBody = { phone, image: mediaUrl, caption: content || '' };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/image`;
+            uazapiBody = { Phone: phone, Image: mediaUrl, Caption: content || '' };
           } else if (mediaType.startsWith('video/')) {
-            uazapiBody = { phone, video: mediaUrl, caption: content || '' };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/video`;
+            uazapiBody = { Phone: phone, Video: mediaUrl, Caption: content || '' };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiBody = { phone, audio: mediaUrl };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/audio`;
+            uazapiBody = { Phone: phone, Audio: mediaUrl };
           } else {
-            uazapiBody = { phone, document: mediaUrl, fileName: 'file' };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/document`;
+            uazapiBody = { Phone: phone, Document: mediaUrl, FileName: 'file' };
           }
         } else {
           // Text message
-          uazapiBody = { phone, message: content };
+          uazapiEndpoint = `${uazapiUrl}/chat/send/text`;
+          uazapiBody = { Phone: phone, Body: content };
         }
 
         console.log(`[Send Inbox] UAZAPI endpoint: ${uazapiEndpoint}`);
@@ -172,7 +177,7 @@ serve(async (req: Request) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'token': instanceToken
+            'Token': instanceToken
           },
           body: JSON.stringify(uazapiBody)
         });

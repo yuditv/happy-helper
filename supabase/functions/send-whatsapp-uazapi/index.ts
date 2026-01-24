@@ -69,43 +69,48 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedPhone = formatPhoneNumber(phone);
     console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
-    // UAZAPI zynk2 format: token in header, unified /chat/send endpoint
-    const endpoint = `${UAZAPI_URL}/chat/send`;
+    // Wuzapi format: Token header (capital T), /chat/send/[type] endpoints, PascalCase keys
+    let endpoint: string;
     let body: Record<string, any>;
 
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
+          endpoint = `${UAZAPI_URL}/chat/send/image`;
           body = {
-            phone: formattedPhone,
-            image: mediaUrl,
-            caption: caption || message || ''
+            Phone: formattedPhone,
+            Image: mediaUrl,
+            Caption: caption || message || ''
           };
           break;
         case 'video':
+          endpoint = `${UAZAPI_URL}/chat/send/video`;
           body = {
-            phone: formattedPhone,
-            video: mediaUrl,
-            caption: caption || message || ''
+            Phone: formattedPhone,
+            Video: mediaUrl,
+            Caption: caption || message || ''
           };
           break;
         case 'audio':
+          endpoint = `${UAZAPI_URL}/chat/send/audio`;
           body = {
-            phone: formattedPhone,
-            audio: mediaUrl
+            Phone: formattedPhone,
+            Audio: mediaUrl
           };
           break;
         case 'document':
+          endpoint = `${UAZAPI_URL}/chat/send/document`;
           body = {
-            phone: formattedPhone,
-            document: mediaUrl,
-            fileName: fileName || 'document'
+            Phone: formattedPhone,
+            Document: mediaUrl,
+            FileName: fileName || 'document'
           };
           break;
         default:
+          endpoint = `${UAZAPI_URL}/chat/send/text`;
           body = {
-            phone: formattedPhone,
-            message: message || ''
+            Phone: formattedPhone,
+            Body: message || ''
           };
       }
     } else {
@@ -119,9 +124,10 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
+      endpoint = `${UAZAPI_URL}/chat/send/text`;
       body = {
-        phone: formattedPhone,
-        message: message
+        Phone: formattedPhone,
+        Body: message
       };
     }
 
@@ -132,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "token": instanceToken
+        "Token": instanceToken
       },
       body: JSON.stringify(body),
     });
@@ -161,11 +167,11 @@ const handler = async (req: Request): Promise<Response> => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "token": instanceToken
+            "Token": instanceToken
           },
           body: JSON.stringify({
-            phone: formattedPhone,
-            archive: true
+            Phone: formattedPhone,
+            Archive: true
           }),
         });
         
