@@ -72,7 +72,7 @@ import { AttachmentPreview } from "./AttachmentPreview";
 import { QuickReplyAutocomplete } from "./QuickReplyAutocomplete";
 import { AudioRecorder } from "./AudioRecorder";
 import { MediaGallery } from "./MediaGallery";
-import { QuickMessagesPanel } from "./QuickMessagesPanel";
+// QuickMessagesPanel removed - management moved to Inbox Settings
 import { EmojiPickerButton } from "./EmojiPickerButton";
 import { AudioPlayer } from "./AudioPlayer";
 import { CRMLeadPanel } from "./CRMLeadPanel";
@@ -147,7 +147,7 @@ export function ChatPanel({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFromWhatsApp, setDeleteFromWhatsApp] = useState(false);
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
-  const [showQuickPanel, setShowQuickPanel] = useState(false);
+  // showQuickPanel removed - management moved to Inbox Settings
   const [showCRMPanel, setShowCRMPanel] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
@@ -363,19 +363,7 @@ export function ChatPanel({
     return success;
   };
 
-  // Handler for quick send (bypasses input, supports media)
-  const handleQuickSend = async (content: string, mediaUrl?: string, mediaType?: string) => {
-    if (mediaUrl && mediaType) {
-      return await onSendMessage(content, false, mediaUrl, mediaType, undefined);
-    }
-    return await onSendMessage(content, false);
-  };
-
-  // Handler for editing from quick panel (fills input)
-  const handleEditFromQuick = (content: string) => {
-    setMessage(content);
-    textareaRef.current?.focus();
-  };
+  // handleQuickSend and handleEditFromQuick removed - panel moved to Inbox Settings
 
   // Handler for emoji selection - inserts at cursor position
   const handleEmojiSelect = (emoji: string) => {
@@ -622,21 +610,7 @@ export function ChatPanel({
             <TooltipContent>{showCRMPanel ? 'Ocultar CRM' : 'Dados do Lead'}</TooltipContent>
           </Tooltip>
 
-          {/* Toggle Quick Messages Panel */}
-          {showQuickPanel && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => setShowQuickPanel(false)}
-                >
-                  <PanelRightClose className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Ocultar mensagens rápidas</TooltipContent>
-            </Tooltip>
-          )}
+          {/* Quick Messages Panel toggle removed - management moved to Settings */}
 
           {/* Search Button */}
           <Tooltip>
@@ -1138,19 +1112,6 @@ export function ChatPanel({
       </div>
       </div>
 
-      {/* Quick Messages Panel - Right side */}
-      <AnimatePresence mode="wait">
-        {showQuickPanel && (
-          <QuickMessagesPanel
-            onSendMessage={handleQuickSend}
-            onEditMessage={handleEditFromQuick}
-            contactName={conversation.contact_name}
-            phone={conversation.phone}
-            onClose={() => setShowQuickPanel(false)}
-          />
-        )}
-      </AnimatePresence>
-
       {/* CRM Panel - Right side */}
       <AnimatePresence mode="wait">
         {showCRMPanel && (
@@ -1168,37 +1129,6 @@ export function ChatPanel({
                 contactName={conversation.contact_name || undefined}
               />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Toggle Quick Panel Button (when hidden) */}
-      <AnimatePresence>
-        {!showQuickPanel && !showCRMPanel && (
-          <motion.div 
-            initial={{ opacity: 0, x: 20, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 20, scale: 0.9 }}
-            transition={{ 
-              type: "spring",
-              stiffness: 400,
-              damping: 25
-            }}
-            className="border-l flex items-start pt-3"
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 mx-1.5 hover:bg-primary/10 hover:text-primary transition-colors"
-                  onClick={() => setShowQuickPanel(true)}
-                >
-                  <MessageSquareText className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">Mensagens rápidas</TooltipContent>
-            </Tooltip>
           </motion.div>
         )}
       </AnimatePresence>
