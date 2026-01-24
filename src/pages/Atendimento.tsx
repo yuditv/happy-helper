@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ArrowLeft, RefreshCw, Circle, Lock, AlertTriangle, Zap } from "lucide-react";
+import { ArrowLeft, RefreshCw, Circle, Lock, AlertTriangle, Zap, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -418,6 +418,16 @@ export default function Atendimento() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/inbox-settings')} 
+            disabled={subscriptionExpired}
+            title="Configurações do Inbox"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
 
           <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={subscriptionExpired}>
             <RefreshCw className="h-4 w-4" />
