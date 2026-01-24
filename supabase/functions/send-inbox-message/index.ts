@@ -145,27 +145,27 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Use UAZAPI v2/Wuzapi format: {base_url}/{token}/chat/send/text
-        let uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/text`;
+        // Use UAZAPI v2/Wuzapi format: {base_url}/{token}/sendText
+        let uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendText`;
         let uazapiBody: Record<string, unknown> = {
-          Phone: phone,
-          Body: content
+          phone: phone,
+          message: content
         };
 
         // Handle media with correct UAZAPI v2 endpoints
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/image`;
-            uazapiBody = { Phone: phone, Image: mediaUrl, Caption: content };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendImage`;
+            uazapiBody = { phone: phone, image: mediaUrl, caption: content };
           } else if (mediaType.startsWith('video/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/video`;
-            uazapiBody = { Phone: phone, Video: mediaUrl, Caption: content };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendVideo`;
+            uazapiBody = { phone: phone, video: mediaUrl, caption: content };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/audio`;
-            uazapiBody = { Phone: phone, Audio: mediaUrl };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendAudio`;
+            uazapiBody = { phone: phone, audio: mediaUrl };
           } else {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/document`;
-            uazapiBody = { Phone: phone, Document: mediaUrl, FileName: 'file' };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendDocument`;
+            uazapiBody = { phone: phone, document: mediaUrl, fileName: 'file' };
           }
         }
 
