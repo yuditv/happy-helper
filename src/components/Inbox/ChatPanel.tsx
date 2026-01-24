@@ -694,7 +694,7 @@ export function ChatPanel({
           </p>
         )}
       </div>
-    </div>
+      </div>
 
       {/* Client Info Panel */}
       {showClientPanel && (
