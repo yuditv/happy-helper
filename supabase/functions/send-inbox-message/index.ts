@@ -145,36 +145,38 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Use UAZAPI v2/Wuzapi format: {base_url}/{token}/sendText
-        let uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendText`;
+        // UAZAPI Wuzapi format: Token in header, PascalCase body
+        let uazapiEndpoint = `${uazapiUrl}/chat/send/text`;
         let uazapiBody: Record<string, unknown> = {
-          phone: phone,
-          message: content
+          Phone: phone,
+          Body: content
         };
 
-        // Handle media with correct UAZAPI v2 endpoints
+        // Handle media with correct Wuzapi endpoints
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendImage`;
-            uazapiBody = { phone: phone, image: mediaUrl, caption: content };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/image`;
+            uazapiBody = { Phone: phone, Image: mediaUrl, Caption: content };
           } else if (mediaType.startsWith('video/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendVideo`;
-            uazapiBody = { phone: phone, video: mediaUrl, caption: content };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/video`;
+            uazapiBody = { Phone: phone, Video: mediaUrl, Caption: content };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendAudio`;
-            uazapiBody = { phone: phone, audio: mediaUrl };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/audio`;
+            uazapiBody = { Phone: phone, Audio: mediaUrl };
           } else {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendDocument`;
-            uazapiBody = { phone: phone, document: mediaUrl, fileName: 'file' };
+            uazapiEndpoint = `${uazapiUrl}/chat/send/document`;
+            uazapiBody = { Phone: phone, Document: mediaUrl, FileName: 'file' };
           }
         }
 
         console.log(`[Send Inbox] UAZAPI endpoint: ${uazapiEndpoint}`);
+        console.log(`[Send Inbox] Using token: ${instanceToken.substring(0, 8)}...`);
 
         const sendResponse = await fetch(uazapiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Token': instanceToken,
           },
           body: JSON.stringify(uazapiBody)
         });
