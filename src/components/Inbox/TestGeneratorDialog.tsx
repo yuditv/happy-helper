@@ -68,6 +68,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
       }
       
       const data = await response.json();
+      console.log("🔍 JSON da API:", JSON.stringify(data, null, 2));
       const extracted = extractCredentials(data);
       setCredentials(extracted);
     } catch (err) {
