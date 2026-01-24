@@ -28,16 +28,38 @@ interface TestCredentials {
 }
 
 const extractCredentials = (data: any): TestCredentials => {
+  const reply = data.reply || '';
+  
+  // Extract Link M3U from reply
+  const m3uMatch = reply.match(/📥\s*(http[^\s\n]+)/);
+  const linkM3U = m3uMatch ? m3uMatch[1] : '';
+  
+  // Extract ASSIST PLUS code
+  const assistMatch = reply.match(/ASSIST PLUS\n🔢 Código:\s*(\d+)/);
+  const assistPlusCode = assistMatch ? assistMatch[1] : '';
+  
+  // Extract CORE PLAYER code
+  const coreMatch = reply.match(/CORE PLAYER\n🔢 Código:\s*(\d+)/);
+  const corePlayerCode = coreMatch ? coreMatch[1] : '';
+  
+  // Extract PlaySim code
+  const playSimMatch = reply.match(/PlaySim\n🔢 Código:\s*(\d+)/);
+  const playSimCode = playSimMatch ? playSimMatch[1] : '';
+  
+  // Extract XCLOUD provider
+  const xcloudMatch = reply.match(/XCLOUD\n🏷️ Provedor:\s*([^\n]+)/);
+  const xcloudProvider = xcloudMatch ? xcloudMatch[1].trim() : '';
+
   return {
-    username: data.username || data.user || data.Usuario || '',
-    password: data.password || data.pass || data.Senha || '',
-    expiresAt: data.expiresAt || data.exp_date || data.Expira || data.expira || '',
-    connections: String(data.connections || data.max_connections || data.Conexoes || ''),
-    linkM3U: data.m3u_url || data.linkM3U || data.M3U || data.link_m3u || '',
-    assistPlusCode: data.assist_plus || data.assistPlus || data.ASSIST_PLUS || '',
-    corePlayerCode: data.core_player || data.corePlayer || data.CORE_PLAYER || '',
-    playSimCode: data.playsim || data.PlaySim || data.PLAYSIM || '',
-    xcloudProvider: data.xcloud || data.XCLOUD || data.xcloud_provider || '',
+    username: data.username || '',
+    password: data.password || '',
+    expiresAt: data.expiresAtFormatted || data.expiresAt || '',
+    connections: String(data.connections || ''),
+    linkM3U,
+    assistPlusCode,
+    corePlayerCode,
+    playSimCode,
+    xcloudProvider,
   };
 };
 
