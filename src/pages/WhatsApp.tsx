@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useWhatsAppInstances, WhatsAppInstance } from '@/hooks/useWhatsAppInstances';
 import { useCampaigns, Campaign } from '@/hooks/useCampaigns';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -41,6 +41,7 @@ import {
   User,
   Settings,
   TestTube2,
+  Database,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WhatsAppTemplateManager } from '@/components/WhatsAppTemplateManager';
@@ -57,6 +58,9 @@ import { BulkDispatcher } from '@/components/BulkDispatcher';
 import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
 import { InstanceSettingsDialog } from '@/components/InstanceSettingsDialog';
 import { motion } from 'framer-motion';
+
+// Lazy load Contacts page
+const Contacts = lazy(() => import('@/pages/Contacts'));
 
 export default function WhatsApp() {
   const { 
@@ -323,10 +327,14 @@ export default function WhatsApp() {
         )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="w-full max-w-4xl grid grid-cols-7">
+        <TabsList className="w-full max-w-5xl grid grid-cols-8">
           <TabsTrigger value="dispatch" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Disparo</span>
+          </TabsTrigger>
+          <TabsTrigger value="contacts" className="gap-2">
+            <Database className="h-4 w-4" />
+            <span className="hidden sm:inline">Contatos</span>
           </TabsTrigger>
           <TabsTrigger value="status" className="gap-2">
             <CircleDot className="h-4 w-4" />
@@ -699,6 +707,17 @@ export default function WhatsApp() {
         {/* Status Tab */}
         <TabsContent value="status" className="space-y-6">
           <WhatsAppStatus instances={instances} />
+        </TabsContent>
+
+        {/* Contacts Tab */}
+        <TabsContent value="contacts" className="space-y-6">
+          <Suspense fallback={
+            <div className="flex items-center justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+            </div>
+          }>
+            <Contacts />
+          </Suspense>
         </TabsContent>
       </Tabs>
       </div>

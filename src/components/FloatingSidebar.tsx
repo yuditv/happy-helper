@@ -14,11 +14,10 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export type AppSection = "clients" | "contatos" | "whatsapp" | "filter-numbers" | "ai-agent" | "warm-chips" | "revenda" | "vpn" | "iptv" | "admin" | "atendimento";
+export type AppSection = "clients" | "whatsapp" | "filter-numbers" | "ai-agent" | "warm-chips" | "revenda" | "vpn" | "iptv" | "admin" | "atendimento";
 
 type PermissionKey = 
   | 'can_view_clients'
-  | 'can_view_contacts'
   | 'can_view_whatsapp'
   | 'can_view_warming'
   | 'can_view_ai_agent'
@@ -51,14 +50,6 @@ const menuItems: MenuItem[] = [
     color: "text-blue-500",
     bgColor: "bg-blue-500",
     permissionKey: "can_view_clients",
-  },
-  {
-    id: "contatos",
-    title: "Contatos",
-    icon: Contact,
-    color: "text-cyan-500",
-    bgColor: "bg-cyan-500",
-    permissionKey: "can_view_contacts",
   },
   {
     id: "whatsapp",

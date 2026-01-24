@@ -8,7 +8,6 @@ import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 
 // Lazy load heavy components
 const Index = lazy(() => import("@/pages/Index"));
-const Contacts = lazy(() => import("@/pages/Contacts"));
 const WhatsApp = lazy(() => import("@/pages/WhatsApp"));
 const FilterNumbers = lazy(() => import("@/pages/FilterNumbers"));
 const AIAgent = lazy(() => import("@/pages/AIAgent"));
@@ -49,7 +48,7 @@ export function MainLayout() {
 
   useEffect(() => {
     const section = searchParams.get('section') as AppSection;
-    if (section && ['clients', 'contatos', 'whatsapp', 'atendimento', 'filter-numbers', 'ai-agent', 'warm-chips'].includes(section)) {
+    if (section && ['clients', 'whatsapp', 'atendimento', 'filter-numbers', 'ai-agent', 'warm-chips'].includes(section)) {
       setActiveSection(section);
     }
   }, [searchParams]);
@@ -58,8 +57,6 @@ export function MainLayout() {
     switch (activeSection) {
       case "clients":
         return <Index />;
-      case "contatos":
-        return <Contacts />;
       case "whatsapp":
         return <WhatsApp />;
       case "filter-numbers":

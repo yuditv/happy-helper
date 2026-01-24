@@ -8,12 +8,11 @@ interface KeyboardShortcutsOptions {
 
 const sectionShortcuts: { key: string; section: AppSection; label: string }[] = [
   { key: '1', section: 'clients', label: 'Gerenciador' },
-  { key: '2', section: 'contatos', label: 'Contatos' },
-  { key: '3', section: 'whatsapp', label: 'WhatsApp' },
-  { key: '4', section: 'atendimento', label: 'Central de Atendimento' },
-  { key: '5', section: 'filter-numbers', label: 'Filtrar Números' },
-  { key: '6', section: 'ai-agent', label: 'Agente IA' },
-  { key: '7', section: 'warm-chips', label: 'Aquecer Chips' },
+  { key: '2', section: 'whatsapp', label: 'WhatsApp' },
+  { key: '3', section: 'atendimento', label: 'Central de Atendimento' },
+  { key: '4', section: 'filter-numbers', label: 'Filtrar Números' },
+  { key: '5', section: 'ai-agent', label: 'Agente IA' },
+  { key: '6', section: 'warm-chips', label: 'Aquecer Chips' },
 ];
 
 export function useKeyboardShortcuts({ onSectionChange, enabled = true }: KeyboardShortcutsOptions) {
