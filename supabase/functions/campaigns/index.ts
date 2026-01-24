@@ -17,16 +17,16 @@ class UazapiService {
   }
 
   async sendText(instanceKey: string, phone: string, message: string) {
+    // UAZAPI format: /sendText with token header and { number, text }
     const response = await fetch(`${this.baseUrl}/sendText`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.token}`,
+        "token": instanceKey,
       },
       body: JSON.stringify({
-        instanceKey,
-        phone: this.formatPhone(phone),
-        message,
+        number: this.formatPhone(phone),
+        text: message,
       }),
     });
 

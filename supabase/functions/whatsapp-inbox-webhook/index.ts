@@ -621,16 +621,22 @@ serve(async (req: Request) => {
                   metadata: { agent_id: agent.id, agent_name: agent.name }
                 });
 
-              // Send via UAZAPI - Wuzapi format: /chat/send/text with Token header and Phone/Body
-              await fetch(`${uazapiUrl}/chat/send/text`, {
+              // Format phone number
+              let formattedPhone = normalizedPhone;
+              if (!formattedPhone.startsWith('55')) {
+                formattedPhone = '55' + formattedPhone;
+              }
+
+              // Send via UAZAPI - format: /sendText with token header and { number, text }
+              await fetch(`${uazapiUrl}/sendText`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Token': instance.instance_key || uazapiToken
+                  'token': instance.instance_key || uazapiToken
                 },
                 body: JSON.stringify({
-                  Phone: normalizedPhone,
-                  Body: assistantResponse
+                  number: formattedPhone,
+                  text: assistantResponse
                 })
               });
 

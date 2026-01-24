@@ -144,35 +144,42 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Wuzapi/uazapiGO format: 
-        // - Endpoint: /chat/send/text (for text), /chat/send/image (for media)
-        // - Header: Token (PascalCase)
-        // - Body: Phone, Body (PascalCase)
+        // UAZAPI format: 
+        // - Endpoint: /sendText (for text), /sendImage (for media)
+        // - Header: token (lowercase)
+        // - Body: number, text (lowercase)
         
         let sendSuccess = false;
         let lastError = '';
 
+        // Format phone number
+        let formattedPhone = phone.replace(/\D/g, '');
+        if (!formattedPhone.startsWith('55')) {
+          formattedPhone = '55' + formattedPhone;
+        }
+
         // Determine if sending media or text
         if (mediaUrl && mediaType) {
-          // Media message - use Wuzapi format
-          let endpoint = '/chat/send/image';
-          const requestBody: Record<string, unknown> = { Phone: phone };
+          // Media message - use UAZAPI format
+          let endpoint = '/sendImage';
+          // deno-lint-ignore no-explicit-any
+          const requestBody: Record<string, any> = { number: formattedPhone };
           
           if (mediaType.startsWith('image/')) {
-            endpoint = '/chat/send/image';
-            requestBody.Image = mediaUrl;
-            requestBody.Caption = content || '';
+            endpoint = '/sendImage';
+            requestBody.url = mediaUrl;
+            requestBody.caption = content || '';
           } else if (mediaType.startsWith('video/')) {
-            endpoint = '/chat/send/video';
-            requestBody.Video = mediaUrl;
-            requestBody.Caption = content || '';
+            endpoint = '/sendVideo';
+            requestBody.url = mediaUrl;
+            requestBody.caption = content || '';
           } else if (mediaType.startsWith('audio/')) {
-            endpoint = '/chat/send/audio';
-            requestBody.Audio = mediaUrl;
+            endpoint = '/sendAudio';
+            requestBody.url = mediaUrl;
           } else {
-            endpoint = '/chat/send/document';
-            requestBody.Document = mediaUrl;
-            requestBody.FileName = 'file';
+            endpoint = '/sendDocument';
+            requestBody.url = mediaUrl;
+            requestBody.fileName = 'file';
           }
           
           console.log(`[Send Inbox] Sending media via ${endpoint}`);
@@ -182,7 +189,7 @@ serve(async (req: Request) => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Token': instanceToken
+              'token': instanceToken
             },
             body: JSON.stringify(requestBody)
           });
@@ -198,20 +205,20 @@ serve(async (req: Request) => {
             lastError = `${sendResponse.status}: ${responseText}`;
           }
         } else {
-          // Text message - use Wuzapi format /chat/send/text with Phone and Body
-          console.log(`[Send Inbox] Sending via /chat/send/text`);
-          console.log(`[Send Inbox] URL: ${uazapiUrl}/chat/send/text`);
-          console.log(`[Send Inbox] Phone: ${phone}`);
+          // Text message - use UAZAPI format /sendText with { number, text }
+          console.log(`[Send Inbox] Sending via /sendText`);
+          console.log(`[Send Inbox] URL: ${uazapiUrl}/sendText`);
+          console.log(`[Send Inbox] Phone: ${formattedPhone}`);
           
-          const sendResponse = await fetch(`${uazapiUrl}/chat/send/text`, {
+          const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Token': instanceToken
+              'token': instanceToken
             },
             body: JSON.stringify({
-              Phone: phone,
-              Body: content
+              number: formattedPhone,
+              text: content
             })
           });
           

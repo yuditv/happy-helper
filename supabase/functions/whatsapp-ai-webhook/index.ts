@@ -187,16 +187,22 @@ serve(async (req: Request) => {
         }
       });
 
-    // Send response back via UAZAPI - Wuzapi format: /chat/send/text with Token header and Phone/Body
-    const sendResponse = await fetch(`${uazapiUrl}/chat/send/text`, {
+    // Format phone number
+    let formattedPhone = phone.replace(/\D/g, '');
+    if (!formattedPhone.startsWith('55')) {
+      formattedPhone = '55' + formattedPhone;
+    }
+
+    // Send response back via UAZAPI - format: /sendText with token header and { number, text }
+    const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Token': instance.instance_key || uazapiToken
+        'token': instance.instance_key || uazapiToken
       },
       body: JSON.stringify({
-        Phone: phone.replace(/\D/g, ''),
-        Body: assistantResponse
+        number: formattedPhone,
+        text: assistantResponse
       })
     });
 
