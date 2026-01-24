@@ -608,7 +608,7 @@ export function ChatPanel({
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-3 border-t">
+      <div className="p-3 border-t flex-shrink-0">
         {/* Attachment Preview */}
         {attachment && (
           <div className="mb-2">
@@ -694,7 +694,7 @@ export function ChatPanel({
           </p>
         )}
       </div>
-      </div>
+    </div>
 
       {/* Client Info Panel */}
       {showClientPanel && (
