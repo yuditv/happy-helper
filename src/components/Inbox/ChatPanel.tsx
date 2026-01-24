@@ -825,7 +825,12 @@ export function ChatPanel({
                               <img 
                                 src={msg.media_url} 
                                 alt="Media" 
-                                className="rounded max-w-full max-h-64 object-cover"
+                                className={cn(
+                                  "rounded object-cover",
+                                  msg.media_type === 'image/webp' 
+                                    ? "max-w-32 max-h-32"
+                                    : "max-w-full max-h-64"
+                                )}
                               />
                             </button>
                           ) : msg.media_type?.startsWith('video/') ? (
