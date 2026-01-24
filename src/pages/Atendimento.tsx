@@ -238,8 +238,8 @@ export default function Atendimento() {
     setSelectedConversation(conversation);
   };
 
-  const handleSendMessage = async (content: string, isPrivate?: boolean) => {
-    return sendMessage(content, isPrivate);
+  const handleSendMessage = async (content: string, isPrivate?: boolean, mediaUrl?: string, mediaType?: string, fileName?: string) => {
+    return sendMessage(content, isPrivate || false, mediaUrl, mediaType, fileName);
   };
 
   const handleAssignToMe = () => {

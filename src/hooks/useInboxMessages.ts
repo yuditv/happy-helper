@@ -49,7 +49,7 @@ export function useInboxMessages(conversationId: string | null) {
     }
   }, [conversationId]);
 
-  const sendMessage = async (content: string, isPrivate = false, mediaUrl?: string, mediaType?: string, retryId?: string) => {
+  const sendMessage = async (content: string, isPrivate = false, mediaUrl?: string, mediaType?: string, fileName?: string, retryId?: string) => {
     if (!conversationId || (!content.trim() && !mediaUrl)) return false;
 
     // If retrying, remove the failed message first
@@ -94,7 +94,8 @@ export function useInboxMessages(conversationId: string | null) {
             content,
             isPrivate,
             mediaUrl,
-            mediaType
+            mediaType,
+            fileName
           })
         }
       );
@@ -130,7 +131,8 @@ export function useInboxMessages(conversationId: string | null) {
                 original_content: content,
                 original_is_private: isPrivate,
                 original_media_url: mediaUrl,
-                original_media_type: mediaType
+                original_media_type: mediaType,
+                original_file_name: fileName
               } 
             }
           : m
@@ -157,8 +159,9 @@ export function useInboxMessages(conversationId: string | null) {
     const isPrivate = (metadata.original_is_private as boolean) || failedMessage.is_private;
     const mediaUrl = (metadata.original_media_url as string) || failedMessage.media_url || undefined;
     const mediaType = (metadata.original_media_type as string) || failedMessage.media_type || undefined;
+    const fileName = (metadata.original_file_name as string) || undefined;
 
-    return sendMessage(content, isPrivate, mediaUrl, mediaType, messageId);
+    return sendMessage(content, isPrivate, mediaUrl, mediaType, fileName, messageId);
   };
 
   // Fetch messages when conversation changes
