@@ -50,9 +50,29 @@ export function useInboxMessages(conversationId: string | null) {
   }, [conversationId]);
 
   const sendMessage = async (content: string, isPrivate = false, mediaUrl?: string, mediaType?: string) => {
-    if (!conversationId || !content.trim()) return false;
+    if (!conversationId || (!content.trim() && !mediaUrl)) return false;
 
+    // Create optimistic message with 'sending' status
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticMessage: ChatMessage = {
+      id: optimisticId,
+      conversation_id: conversationId,
+      sender_type: 'agent',
+      sender_id: user?.id || null,
+      content: content.trim() || null,
+      media_url: mediaUrl || null,
+      media_type: mediaType || null,
+      is_private: isPrivate,
+      is_read: false,
+      metadata: { status: 'sending', sent_by: user?.email || 'Atendente' },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Add optimistic message immediately
+    setMessages(prev => [...prev, optimisticMessage]);
     setIsSending(true);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -80,10 +100,27 @@ export function useInboxMessages(conversationId: string | null) {
         throw new Error(result.error || 'Failed to send message');
       }
 
-      // Message will be added via realtime subscription
+      // Update optimistic message with 'sent' status
+      setMessages(prev => 
+        prev.map(m => m.id === optimisticId 
+          ? { ...m, metadata: { ...m.metadata, status: 'sent' } }
+          : m
+        )
+      );
+
+      // Real message will replace via realtime subscription
       return true;
     } catch (error: unknown) {
       console.error('Error sending message:', error);
+      
+      // Update optimistic message to show failure
+      setMessages(prev => 
+        prev.map(m => m.id === optimisticId 
+          ? { ...m, metadata: { ...m.metadata, status: 'failed', send_error: true } }
+          : m
+        )
+      );
+      
       toast({
         title: 'Erro ao enviar mensagem',
         description: error instanceof Error ? error.message : 'Tente novamente',

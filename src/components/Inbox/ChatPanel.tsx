@@ -57,6 +57,7 @@ interface ChatPanelProps {
   onAssignLabel: (labelId: string) => void;
   onRemoveLabel: (labelId: string) => void;
   onMarkAsRead: () => void;
+  onRegisterClient?: (phone: string, name?: string) => void;
 }
 
 interface AttachmentState {
@@ -78,7 +79,8 @@ export function ChatPanel({
   onToggleAI,
   onAssignLabel,
   onRemoveLabel,
-  onMarkAsRead
+  onMarkAsRead,
+  onRegisterClient
 }: ChatPanelProps) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
@@ -284,19 +286,24 @@ export function ChatPanel({
   };
 
   const getMessageStatus = (msg: ChatMessage): 'sending' | 'sent' | 'delivered' | 'read' | 'failed' => {
-    // Check for error in metadata
-    if (msg.metadata?.send_error) return 'failed';
+    // Check metadata status first (optimistic updates)
+    const metadataStatus = msg.metadata?.status as string | undefined;
+    if (metadataStatus === 'sending') return 'sending';
+    if (metadataStatus === 'failed' || msg.metadata?.send_error) return 'failed';
     
     // Check if read
     if (msg.is_read) return 'read';
     
-    // For now, assume delivered after 2 seconds from creation
-    const createdAt = new Date(msg.created_at).getTime();
-    const now = Date.now();
+    // Check metadata for delivered/sent status
+    if (metadataStatus === 'delivered') return 'delivered';
+    if (metadataStatus === 'sent') return 'sent';
     
-    if (now - createdAt < 1000) return 'sending';
-    if (now - createdAt < 2000) return 'sent';
+    // For temp messages (optimistic), use time-based logic
+    if (msg.id.startsWith('temp-')) {
+      return 'sending';
+    }
     
+    // For real messages without explicit status, assume delivered
     return 'delivered';
   };
 
@@ -706,6 +713,7 @@ export function ChatPanel({
               isLoading={isLoadingClient}
               phone={conversation.phone}
               contactName={conversation.contact_name || undefined}
+              onRegisterClient={onRegisterClient}
             />
           </div>
         </div>

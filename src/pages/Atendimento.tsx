@@ -15,6 +15,8 @@ import { ConversationList } from "@/components/Inbox/ConversationList";
 import { ChatPanel } from "@/components/Inbox/ChatPanel";
 import { InboxDashboard } from "@/components/Inbox/InboxDashboard";
 import { SubscriptionPlansDialog } from "@/components/SubscriptionPlansDialog";
+import { ClientForm } from "@/components/ClientForm";
+import { Client } from "@/types/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +36,8 @@ export default function Atendimento() {
   const [searchQuery, setSearchQuery] = useState("");
   const [lastProcessedMessageId, setLastProcessedMessageId] = useState<string | null>(null);
   const [showPlans, setShowPlans] = useState(false);
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [newClientData, setNewClientData] = useState<{ phone: string; name?: string } | null>(null);
 
   const { instances } = useWhatsAppInstances();
   const { isActive, isOnTrial, getRemainingDays } = useSubscription();
@@ -220,6 +224,53 @@ export default function Atendimento() {
     }
   };
 
+  const handleRegisterClient = (phone: string, name?: string) => {
+    setNewClientData({ phone, name });
+    setShowClientForm(true);
+  };
+
+  const handleClientFormSubmit = async (clientData: Omit<Client, 'id' | 'renewalHistory'>) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const { error } = await supabase
+        .from('clients')
+        .insert({
+          user_id: user.id,
+          name: clientData.name,
+          whatsapp: clientData.whatsapp,
+          email: clientData.email,
+          service: clientData.service,
+          plan: clientData.plan,
+          price: clientData.price,
+          notes: clientData.notes,
+          expires_at: clientData.expiresAt.toISOString(),
+          service_username: clientData.serviceUsername,
+          service_password: clientData.servicePassword,
+          app_name: clientData.appName,
+          device: clientData.device
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Cliente cadastrado',
+        description: 'O cliente foi cadastrado com sucesso!',
+      });
+
+      setShowClientForm(false);
+      setNewClientData(null);
+    } catch (error) {
+      console.error('Error creating client:', error);
+      toast({
+        title: 'Erro ao cadastrar cliente',
+        description: 'Tente novamente',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const statusColors = {
     online: 'bg-green-500',
     busy: 'bg-yellow-500',
@@ -379,6 +430,7 @@ export default function Atendimento() {
               onAssignLabel={handleAssignLabel}
               onRemoveLabel={handleRemoveLabel}
               onMarkAsRead={handleMarkAsRead}
+              onRegisterClient={handleRegisterClient}
             />
           </>
         )}
@@ -386,6 +438,33 @@ export default function Atendimento() {
 
       {/* Subscription Plans Dialog */}
       <SubscriptionPlansDialog open={showPlans} onOpenChange={setShowPlans} />
+
+      {/* Client Form Dialog */}
+      <ClientForm
+        open={showClientForm}
+        onOpenChange={(open) => {
+          setShowClientForm(open);
+          if (!open) setNewClientData(null);
+        }}
+        onSubmit={handleClientFormSubmit}
+        initialData={newClientData ? {
+          id: '',
+          name: newClientData.name || '',
+          whatsapp: newClientData.phone || '',
+          email: '',
+          service: 'IPTV' as const,
+          plan: 'monthly' as const,
+          price: null,
+          notes: null,
+          createdAt: new Date(),
+          expiresAt: new Date(),
+          renewalHistory: [],
+          serviceUsername: null,
+          servicePassword: null,
+          appName: null,
+          device: null
+        } : null}
+      />
     </div>
   );
 }
