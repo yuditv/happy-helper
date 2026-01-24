@@ -145,38 +145,35 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // UAZAPI Wuzapi format: Token in header, PascalCase body
-        let uazapiEndpoint = `${uazapiUrl}/chat/send/text`;
+        // UAZAPI zynk2 format: lowercase token header, lowercase body keys, single endpoint
+        const uazapiEndpoint = `${uazapiUrl}/chat/send`;
         let uazapiBody: Record<string, unknown> = {
-          Phone: phone,
-          Body: content
+          phone: phone,
+          message: content
         };
 
-        // Handle media with correct Wuzapi endpoints
+        // Handle media with same endpoint but different body keys
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/image`;
-            uazapiBody = { Phone: phone, Image: mediaUrl, Caption: content };
+            uazapiBody = { phone, image: mediaUrl, caption: content };
           } else if (mediaType.startsWith('video/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/video`;
-            uazapiBody = { Phone: phone, Video: mediaUrl, Caption: content };
+            uazapiBody = { phone, video: mediaUrl, caption: content };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/audio`;
-            uazapiBody = { Phone: phone, Audio: mediaUrl };
+            uazapiBody = { phone, audio: mediaUrl };
           } else {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/document`;
-            uazapiBody = { Phone: phone, Document: mediaUrl, FileName: 'file' };
+            uazapiBody = { phone, document: mediaUrl, fileName: 'file' };
           }
         }
 
         console.log(`[Send Inbox] UAZAPI endpoint: ${uazapiEndpoint}`);
         console.log(`[Send Inbox] Using token: ${instanceToken.substring(0, 8)}...`);
+        console.log(`[Send Inbox] Body:`, JSON.stringify(uazapiBody));
 
         const sendResponse = await fetch(uazapiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Token': instanceToken,
+            'token': instanceToken,
           },
           body: JSON.stringify(uazapiBody)
         });

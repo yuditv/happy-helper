@@ -69,49 +69,42 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedPhone = formatPhoneNumber(phone);
     console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
-    let endpoint: string;
     let body: Record<string, any>;
 
-    // Determine endpoint and body based on media type
-    // UAZAPI Wuzapi format: Token in header, PascalCase body keys
+    // UAZAPI zynk2 format: single endpoint, lowercase token header, lowercase body keys
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
-          endpoint = '/chat/send/image';
           body = {
-            Phone: formattedPhone,
-            Image: mediaUrl,
-            Caption: caption || message || ''
+            phone: formattedPhone,
+            image: mediaUrl,
+            caption: caption || message || ''
           };
           break;
         case 'video':
-          endpoint = '/chat/send/video';
           body = {
-            Phone: formattedPhone,
-            Video: mediaUrl,
-            Caption: caption || message || ''
+            phone: formattedPhone,
+            video: mediaUrl,
+            caption: caption || message || ''
           };
           break;
         case 'audio':
-          endpoint = '/chat/send/audio';
           body = {
-            Phone: formattedPhone,
-            Audio: mediaUrl
+            phone: formattedPhone,
+            audio: mediaUrl
           };
           break;
         case 'document':
-          endpoint = '/chat/send/document';
           body = {
-            Phone: formattedPhone,
-            Document: mediaUrl,
-            FileName: fileName || 'document'
+            phone: formattedPhone,
+            document: mediaUrl,
+            fileName: fileName || 'document'
           };
           break;
         default:
-          endpoint = '/chat/send/text';
           body = {
-            Phone: formattedPhone,
-            Body: message || ''
+            phone: formattedPhone,
+            message: message || ''
           };
       }
     } else {
@@ -125,16 +118,15 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-      endpoint = '/chat/send/text';
       body = {
-        Phone: formattedPhone,
-        Body: message
+        phone: formattedPhone,
+        message: message
       };
     }
 
-    // UAZAPI Wuzapi format: Token in header
-    const fullUrl = `${UAZAPI_URL}${endpoint}`;
-    console.log(`Calling UAZAPI endpoint: ${endpoint}`);
+    // UAZAPI zynk2 format: single endpoint /chat/send
+    const fullUrl = `${UAZAPI_URL}/chat/send`;
+    console.log(`Calling UAZAPI endpoint: /chat/send`);
     console.log(`Full URL: ${fullUrl}`);
     console.log(`Token (first 8 chars): ${instanceToken.substring(0, 8)}...`);
     console.log(`Request body:`, JSON.stringify(body));
@@ -143,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Token": instanceToken,
+        "token": instanceToken,
       },
       body: JSON.stringify(body),
     });
