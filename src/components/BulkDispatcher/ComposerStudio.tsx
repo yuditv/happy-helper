@@ -36,6 +36,8 @@ import { generatePreview, validateSpintax, SPINTAX_SUGGESTIONS } from '@/lib/spi
 import { cn } from '@/lib/utils';
 import { MediaUploader, MediaType } from './MediaUploader';
 import { SpintaxManager } from './SpintaxManager';
+import { InteractiveMenuComposer } from '@/components/Inbox/InteractiveMenuComposer';
+import { MediaCarouselComposer } from '@/components/Inbox/MediaCarouselComposer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -160,6 +162,8 @@ export function ComposerStudio({
   const [includeVariables, setIncludeVariables] = useState(true);
   const [aiQuantity, setAiQuantity] = useState<number>(1);
   const [showSpintaxManager, setShowSpintaxManager] = useState(false);
+  const [showInteractiveMenu, setShowInteractiveMenu] = useState(false);
+  const [showMediaCarousel, setShowMediaCarousel] = useState(false);
 
   const addMessage = () => {
     const newMessage: Message = {
@@ -413,38 +417,26 @@ export function ComposerStudio({
           </Popover>
           
           {/* Interactive Menu Button */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <SquareStack className="w-4 h-4" />
-                Menu
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="end">
-              <h4 className="font-medium text-sm mb-2">Menu Interativo</h4>
-              <p className="text-xs text-muted-foreground">
-                Crie botões, listas e enquetes interativas para envio em massa.
-              </p>
-              <Badge variant="secondary" className="mt-2">Em breve</Badge>
-            </PopoverContent>
-          </Popover>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1.5"
+            onClick={() => setShowInteractiveMenu(true)}
+          >
+            <SquareStack className="w-4 h-4" />
+            Menu
+          </Button>
           
           {/* Media Carousel Button */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <GalleryHorizontal className="w-4 h-4" />
-                Carrossel
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="end">
-              <h4 className="font-medium text-sm mb-2">Carrossel de Mídia</h4>
-              <p className="text-xs text-muted-foreground">
-                Crie carrosséis com múltiplas imagens e botões para envio em massa.
-              </p>
-              <Badge variant="secondary" className="mt-2">Em breve</Badge>
-            </PopoverContent>
-          </Popover>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1.5"
+            onClick={() => setShowMediaCarousel(true)}
+          >
+            <GalleryHorizontal className="w-4 h-4" />
+            Carrossel
+          </Button>
           
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button 
@@ -764,6 +756,24 @@ Use spintax {{ opção1 | opção2 }} para variações."
           onInsertSpintax={insertVariable}
         />
       )}
+
+      {/* Interactive Menu Composer */}
+      <InteractiveMenuComposer
+        open={showInteractiveMenu}
+        onOpenChange={setShowInteractiveMenu}
+        phone=""
+        instanceKey=""
+        onSent={() => toast.success('Menu interativo pronto para envio!')}
+      />
+
+      {/* Media Carousel Composer */}
+      <MediaCarouselComposer
+        open={showMediaCarousel}
+        onOpenChange={setShowMediaCarousel}
+        phone=""
+        instanceKey=""
+        onSent={() => toast.success('Carrossel de mídia pronto para envio!')}
+      />
     </div>
   );
 }
