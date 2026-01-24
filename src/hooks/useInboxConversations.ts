@@ -45,6 +45,8 @@ export interface InboxLabel {
   name: string;
   color: string;
   description: string | null;
+  whatsapp_label_id: string | null;
+  instance_id: string | null;
   created_at: string;
 }
 
@@ -175,11 +177,31 @@ export function useInboxConversations() {
 
   const assignLabel = async (conversationId: string, labelId: string) => {
     try {
+      // Get the conversation to find instance_id and phone
+      const conversation = conversations.find(c => c.id === conversationId);
+      const label = labels.find(l => l.id === labelId);
+
       const { error } = await supabase
         .from('conversation_labels')
         .insert({ conversation_id: conversationId, label_id: labelId });
 
       if (error && error.code !== '23505') throw error; // Ignore duplicate
+      
+      // Sync with WhatsApp if label is linked
+      if (conversation && label?.whatsapp_label_id) {
+        try {
+          await supabase.functions.invoke('whatsapp-instances', {
+            body: { 
+              action: 'assign_chat_labels', 
+              instanceId: conversation.instance_id,
+              phone: conversation.phone,
+              addLabelIds: [label.whatsapp_label_id]
+            }
+          });
+        } catch (e) {
+          console.warn('Could not sync label to WhatsApp:', e);
+        }
+      }
       
       await fetchConversations();
     } catch (error) {
@@ -189,6 +211,10 @@ export function useInboxConversations() {
 
   const removeLabel = async (conversationId: string, labelId: string) => {
     try {
+      // Get the conversation to find instance_id and phone
+      const conversation = conversations.find(c => c.id === conversationId);
+      const label = labels.find(l => l.id === labelId);
+
       const { error } = await supabase
         .from('conversation_labels')
         .delete()
@@ -196,6 +222,23 @@ export function useInboxConversations() {
         .eq('label_id', labelId);
 
       if (error) throw error;
+
+      // Sync with WhatsApp if label is linked
+      if (conversation && label?.whatsapp_label_id) {
+        try {
+          await supabase.functions.invoke('whatsapp-instances', {
+            body: { 
+              action: 'assign_chat_labels', 
+              instanceId: conversation.instance_id,
+              phone: conversation.phone,
+              removeLabelIds: [label.whatsapp_label_id]
+            }
+          });
+        } catch (e) {
+          console.warn('Could not sync label removal to WhatsApp:', e);
+        }
+      }
+
       await fetchConversations();
     } catch (error) {
       console.error('Error removing label:', error);

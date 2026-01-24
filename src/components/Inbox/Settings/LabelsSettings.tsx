@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, RefreshCw, CloudDownload, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -22,21 +23,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useInboxLabels, InboxLabel } from "@/hooks/useInboxLabels";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useInboxLabels, InboxLabel, UAZAPI_COLORS } from "@/hooks/useInboxLabels";
+import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import { useToast } from "@/hooks/use-toast";
 
-const PRESET_COLORS = [
-  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16",
-  "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
-  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
-  "#ec4899", "#f43f5e", "#64748b", "#78716c", "#737373",
-];
-
 export function LabelsSettings() {
-  const { labels, isLoading, createLabel, updateLabel, deleteLabel } = useInboxLabels();
+  const { 
+    labels, 
+    isLoading, 
+    isSyncing,
+    createLabel, 
+    updateLabel, 
+    deleteLabel,
+    syncFromWhatsApp 
+  } = useInboxLabels();
+  const { instances } = useWhatsAppInstances();
   const { toast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLabel, setEditingLabel] = useState<InboxLabel | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -44,16 +56,25 @@ export function LabelsSettings() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    color: "#3b82f6",
+    color: "#00a884",
+    colorCode: 0,
   });
 
-  const filteredLabels = labels.filter(l => 
-    l.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter labels by search and optionally by instance
+  const filteredLabels = labels.filter(l => {
+    const matchesSearch = l.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesInstance = !selectedInstanceId || 
+      l.instance_id === selectedInstanceId || 
+      !l.instance_id; // Include global labels
+    return matchesSearch && matchesInstance;
+  });
+
+  // Get connected instances
+  const connectedInstances = instances.filter(i => i.status === 'connected');
 
   const handleOpenCreate = () => {
     setEditingLabel(null);
-    setFormData({ name: "", description: "", color: "#3b82f6" });
+    setFormData({ name: "", description: "", color: "#00a884", colorCode: 0 });
     setIsDialogOpen(true);
   };
 
@@ -63,8 +84,13 @@ export function LabelsSettings() {
       name: label.name,
       description: label.description || "",
       color: label.color,
+      colorCode: label.color_code ?? 0,
     });
     setIsDialogOpen(true);
+  };
+
+  const handleColorSelect = (code: number, hex: string) => {
+    setFormData(prev => ({ ...prev, color: hex, colorCode: code }));
   };
 
   const handleSave = async () => {
@@ -79,10 +105,21 @@ export function LabelsSettings() {
 
     try {
       if (editingLabel) {
-        await updateLabel(editingLabel.id, formData);
+        await updateLabel(editingLabel.id, {
+          name: formData.name,
+          description: formData.description,
+          color: formData.color,
+          colorCode: formData.colorCode,
+        });
         toast({ title: "Etiqueta atualizada com sucesso" });
       } else {
-        await createLabel(formData);
+        await createLabel({
+          name: formData.name,
+          description: formData.description,
+          color: formData.color,
+          colorCode: formData.colorCode,
+          instanceId: selectedInstanceId || undefined,
+        });
         toast({ title: "Etiqueta criada com sucesso" });
       }
       setIsDialogOpen(false);
@@ -111,13 +148,76 @@ export function LabelsSettings() {
     setDeleteId(null);
   };
 
+  const handleSyncFromWhatsApp = async () => {
+    if (!selectedInstanceId) {
+      toast({
+        title: "Selecione uma instância",
+        description: "Escolha uma instância WhatsApp para sincronizar as etiquetas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const result = await syncFromWhatsApp(selectedInstanceId);
+      toast({
+        title: "Sincronização concluída",
+        description: `${result.imported} novas etiquetas importadas de ${result.total} encontradas`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao sincronizar",
+        description: error instanceof Error ? error.message : "Tente novamente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getInstanceName = (instanceId: string | null) => {
+    if (!instanceId) return null;
+    return instances.find(i => i.id === instanceId)?.instance_name;
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Etiquetas</h2>
         <p className="text-muted-foreground">
-          Crie etiquetas coloridas para organizar suas conversas.
+          Crie etiquetas coloridas para organizar suas conversas. Sincronize com o WhatsApp para usar as mesmas etiquetas no app oficial.
         </p>
+      </div>
+
+      {/* Instance Selector + Actions */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+          <SelectTrigger className="w-full sm:w-[250px]">
+            <SelectValue placeholder="Todas as instâncias" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas as instâncias</SelectItem>
+            {connectedInstances.map((instance) => (
+              <SelectItem key={instance.id} value={instance.id}>
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4" />
+                  {instance.instance_name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Button
+          variant="outline"
+          onClick={handleSyncFromWhatsApp}
+          disabled={!selectedInstanceId || isSyncing}
+        >
+          {isSyncing ? (
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <CloudDownload className="h-4 w-4 mr-2" />
+          )}
+          Sincronizar do WhatsApp
+        </Button>
       </div>
 
       {/* Search and Add */}
@@ -150,7 +250,7 @@ export function LabelsSettings() {
             </div>
             <h3 className="font-medium">Nenhuma etiqueta encontrada</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {searchQuery ? "Tente outro termo de busca" : "Crie sua primeira etiqueta"}
+              {searchQuery ? "Tente outro termo de busca" : "Crie sua primeira etiqueta ou sincronize do WhatsApp"}
             </p>
           </CardContent>
         </Card>
@@ -166,11 +266,26 @@ export function LabelsSettings() {
                   className="h-4 w-4 rounded-full shrink-0"
                   style={{ backgroundColor: label.color }}
                 />
-                <div>
-                  <div className="font-medium text-sm">{label.name}</div>
-                  {label.description && (
-                    <div className="text-xs text-muted-foreground">{label.description}</div>
-                  )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{label.name}</span>
+                    {label.whatsapp_label_id && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Smartphone className="h-3 w-3 mr-1" />
+                        WhatsApp
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {label.description && (
+                      <span className="truncate max-w-[200px]">{label.description}</span>
+                    )}
+                    {label.instance_id && getInstanceName(label.instance_id) && (
+                      <span className="text-muted-foreground/70">
+                        • {getInstanceName(label.instance_id)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -202,7 +317,10 @@ export function LabelsSettings() {
               {editingLabel ? "Editar Etiqueta" : "Nova Etiqueta"}
             </DialogTitle>
             <DialogDescription>
-              Crie uma etiqueta para categorizar suas conversas.
+              {editingLabel 
+                ? "Atualize os dados da etiqueta."
+                : "Crie uma etiqueta para categorizar suas conversas. Se uma instância estiver selecionada, a etiqueta será sincronizada com o WhatsApp."
+              }
             </DialogDescription>
           </DialogHeader>
 
@@ -228,21 +346,36 @@ export function LabelsSettings() {
             </div>
 
             <div className="space-y-2">
-              <Label>Cor</Label>
+              <Label>Cor (compatível com WhatsApp)</Label>
               <div className="flex flex-wrap gap-2">
-                {PRESET_COLORS.map((color) => (
+                {UAZAPI_COLORS.map((colorOption) => (
                   <button
-                    key={color}
+                    key={colorOption.code}
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, color }))}
+                    onClick={() => handleColorSelect(colorOption.code, colorOption.hex)}
                     className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                      formData.color === color ? "border-foreground scale-110" : "border-transparent"
+                      formData.colorCode === colorOption.code 
+                        ? "border-foreground scale-110 ring-2 ring-offset-2 ring-primary" 
+                        : "border-transparent"
                     }`}
-                    style={{ backgroundColor: color }}
+                    style={{ backgroundColor: colorOption.hex }}
+                    title={colorOption.name}
                   />
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Cor selecionada: {UAZAPI_COLORS.find(c => c.code === formData.colorCode)?.name || "Verde"}
+              </p>
             </div>
+
+            {selectedInstanceId && !editingLabel && (
+              <div className="p-3 bg-muted rounded-lg text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Smartphone className="h-4 w-4" />
+                  A etiqueta será criada também no WhatsApp
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -262,7 +395,7 @@ export function LabelsSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir etiqueta?</AlertDialogTitle>
             <AlertDialogDescription>
-              A etiqueta será removida de todas as conversas. Esta ação não pode ser desfeita.
+              A etiqueta será removida de todas as conversas. Se estiver sincronizada com o WhatsApp, será excluída de lá também. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

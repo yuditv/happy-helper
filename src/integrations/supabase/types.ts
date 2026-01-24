@@ -882,32 +882,49 @@ export type Database = {
       inbox_labels: {
         Row: {
           color: string
+          color_code: number | null
           created_at: string
           description: string | null
           id: string
+          instance_id: string | null
           name: string
           updated_at: string
           user_id: string
+          whatsapp_label_id: string | null
         }
         Insert: {
           color?: string
+          color_code?: number | null
           created_at?: string
           description?: string | null
           id?: string
+          instance_id?: string | null
           name: string
           updated_at?: string
           user_id: string
+          whatsapp_label_id?: string | null
         }
         Update: {
           color?: string
+          color_code?: number | null
           created_at?: string
           description?: string | null
           id?: string
+          instance_id?: string | null
           name?: string
           updated_at?: string
           user_id?: string
+          whatsapp_label_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inbox_labels_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inbox_macros: {
         Row: {
