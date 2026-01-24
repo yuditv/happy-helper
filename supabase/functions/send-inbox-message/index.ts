@@ -12,6 +12,14 @@ interface SendMessageRequest {
   isPrivate?: boolean;
   mediaUrl?: string;
   mediaType?: string;
+  fileName?: string;
+}
+
+function getMediaType(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  return 'document';
 }
 
 serve(async (req: Request) => {
@@ -48,7 +56,7 @@ serve(async (req: Request) => {
     }
 
     const body: SendMessageRequest = await req.json();
-    const { conversationId, content, isPrivate = false, mediaUrl, mediaType } = body;
+    const { conversationId, content, isPrivate = false, mediaUrl, mediaType, fileName } = body;
 
     if (!conversationId || !content) {
       return new Response(
@@ -160,32 +168,31 @@ serve(async (req: Request) => {
 
         // Determine if sending media or text
         if (mediaUrl && mediaType) {
-          // Media message - use UAZAPI format
-          let endpoint = '/send/image';
-          // deno-lint-ignore no-explicit-any
-          const requestBody: Record<string, any> = { number: formattedPhone };
+          // Media message - use UAZAPI v2 unified /send/media endpoint
+          const mediaTypeString = getMediaType(mediaType);
           
-          if (mediaType.startsWith('image/')) {
-            endpoint = '/send/image';
-            requestBody.url = mediaUrl;
-            requestBody.caption = content || '';
-          } else if (mediaType.startsWith('video/')) {
-            endpoint = '/send/video';
-            requestBody.url = mediaUrl;
-            requestBody.caption = content || '';
-          } else if (mediaType.startsWith('audio/')) {
-            endpoint = '/send/audio';
-            requestBody.url = mediaUrl;
-          } else {
-            endpoint = '/send/document';
-            requestBody.url = mediaUrl;
-            requestBody.fileName = 'file';
+          // deno-lint-ignore no-explicit-any
+          const requestBody: Record<string, any> = {
+            number: formattedPhone,
+            type: mediaTypeString,
+            file: mediaUrl
+          };
+          
+          // Add caption/text if provided
+          if (content && content.trim()) {
+            requestBody.text = content;
           }
           
-          console.log(`[Send Inbox] Sending media via ${endpoint}`);
-          console.log(`[Send Inbox] URL: ${uazapiUrl}${endpoint}`);
+          // Add document name for document type
+          if (mediaTypeString === 'document' && fileName) {
+            requestBody.docName = fileName;
+          }
           
-          const sendResponse = await fetch(`${uazapiUrl}${endpoint}`, {
+          console.log(`[Send Inbox] Sending ${mediaTypeString} via /send/media`);
+          console.log(`[Send Inbox] URL: ${uazapiUrl}/send/media`);
+          console.log(`[Send Inbox] Request body:`, JSON.stringify(requestBody));
+          
+          const sendResponse = await fetch(`${uazapiUrl}/send/media`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -199,7 +206,7 @@ serve(async (req: Request) => {
           console.log(`[Send Inbox] Response: ${responseText}`);
           
           if (sendResponse.ok) {
-            console.log('[Send Inbox] ✅ Media sent successfully!');
+            console.log(`[Send Inbox] ✅ ${mediaTypeString} sent successfully!`);
             sendSuccess = true;
           } else {
             lastError = `${sendResponse.status}: ${responseText}`;

@@ -49,7 +49,7 @@ interface ChatPanelProps {
   labels: InboxLabel[];
   isLoading: boolean;
   isSending: boolean;
-  onSendMessage: (content: string, isPrivate?: boolean, mediaUrl?: string, mediaType?: string) => Promise<boolean>;
+  onSendMessage: (content: string, isPrivate?: boolean, mediaUrl?: string, mediaType?: string, fileName?: string) => Promise<boolean>;
   onAssignToMe: () => void;
   onResolve: () => void;
   onReopen: () => void;
@@ -178,7 +178,8 @@ export function ChatPanel({
       message.trim(), 
       isPrivate,
       attachment?.url,
-      attachment?.type
+      attachment?.type,
+      attachment?.fileName
     );
     
     if (success) {
