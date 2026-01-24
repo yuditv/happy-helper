@@ -388,6 +388,9 @@ export type Database = {
           created_at: string
           id: string
           is_global: boolean | null
+          media_name: string | null
+          media_type: string | null
+          media_url: string | null
           short_code: string
           updated_at: string
           user_id: string
@@ -397,6 +400,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_global?: boolean | null
+          media_name?: string | null
+          media_type?: string | null
+          media_url?: string | null
           short_code: string
           updated_at?: string
           user_id: string
@@ -406,6 +412,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_global?: boolean | null
+          media_name?: string | null
+          media_type?: string | null
+          media_url?: string | null
           short_code?: string
           updated_at?: string
           user_id?: string

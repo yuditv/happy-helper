@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Edit, Search, Loader2, Globe, User, MessageSquareText, PanelRightClose } from "lucide-react";
+import { Send, Edit, Search, Loader2, Globe, User, MessageSquareText, PanelRightClose, Image, Video, Music, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,26 @@ import { cn } from "@/lib/utils";
 interface QuickMessagesPanelProps {
   responses: CannedResponse[];
   isLoading: boolean;
-  onSendMessage: (content: string) => Promise<boolean>;
+  onSendMessage: (content: string, mediaUrl?: string, mediaType?: string) => Promise<boolean>;
   onEditMessage: (content: string) => void;
   contactName?: string | null;
   phone?: string;
   onClose: () => void;
 }
+
+const MEDIA_TYPE_ICONS: Record<string, React.ElementType> = {
+  image: Image,
+  video: Video,
+  audio: Music,
+  document: FileText,
+};
+
+const MEDIA_TYPE_LABELS: Record<string, string> = {
+  image: 'Imagem',
+  video: 'Vídeo',
+  audio: 'Áudio',
+  document: 'Arquivo',
+};
 
 export function QuickMessagesPanel({
   responses,
@@ -52,7 +66,7 @@ export function QuickMessagesPanel({
   const handleQuickSend = async (response: CannedResponse) => {
     setSendingId(response.id);
     const content = replaceVariables(response.content);
-    await onSendMessage(content);
+    await onSendMessage(content, response.media_url || undefined, response.media_type || undefined);
     setSendingId(null);
   };
 
@@ -116,73 +130,114 @@ export function QuickMessagesPanel({
               </p>
             </div>
           ) : (
-            filteredResponses.map((response) => (
-              <div
-                key={response.id}
-                className={cn(
-                  "p-3 rounded-lg border bg-card transition-colors hover:bg-muted/50",
-                  sendingId === response.id && "opacity-70"
-                )}
-              >
-                {/* Header with short code and badge */}
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <Badge variant="secondary" className="font-mono text-xs">
-                    /{response.short_code}
-                  </Badge>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      {response.is_global ? (
-                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                      ) : (
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+            filteredResponses.map((response) => {
+              const MediaIcon = response.media_type ? MEDIA_TYPE_ICONS[response.media_type] : null;
+              
+              return (
+                <div
+                  key={response.id}
+                  className={cn(
+                    "p-3 rounded-lg border bg-card transition-colors hover:bg-muted/50",
+                    sendingId === response.id && "opacity-70"
+                  )}
+                >
+                  {/* Header with short code and badges */}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        {response.short_code}
+                      </Badge>
+                      {response.media_type && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+                          {MediaIcon && <MediaIcon className="h-2.5 w-2.5" />}
+                          {MEDIA_TYPE_LABELS[response.media_type]}
+                        </Badge>
                       )}
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {response.is_global ? "Global" : "Pessoal"}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        {response.is_global ? (
+                          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {response.is_global ? "Global" : "Pessoal"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
 
-                {/* Content preview */}
-                <p className="text-xs text-muted-foreground line-clamp-2 mb-2.5">
-                  {response.content.length > 80
-                    ? `${response.content.substring(0, 80)}...`
-                    : response.content}
-                </p>
+                  {/* Media preview */}
+                  {response.media_url && (
+                    <div className="mb-2">
+                      {response.media_type === 'image' ? (
+                        <img 
+                          src={response.media_url} 
+                          alt="" 
+                          className="w-full h-16 object-cover rounded-md" 
+                        />
+                      ) : response.media_type === 'video' ? (
+                        <video 
+                          src={response.media_url} 
+                          className="w-full h-16 object-cover rounded-md" 
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                          {MediaIcon && <MediaIcon className="h-4 w-4 text-muted-foreground" />}
+                          <span className="text-xs text-muted-foreground truncate">
+                            {response.media_name || 'Arquivo anexado'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                {/* Action buttons */}
-                <div className="flex gap-1.5">
-                  <Button
-                    size="sm"
-                    className="flex-1 h-7 text-xs"
-                    onClick={() => handleQuickSend(response)}
-                    disabled={sendingId === response.id}
-                  >
-                    {sendingId === response.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <Send className="h-3 w-3 mr-1" />
+                  {/* Content preview */}
+                  {response.content && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2.5">
+                      {response.content.length > 80
+                        ? `${response.content.substring(0, 80)}...`
+                        : response.content}
+                    </p>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      className="flex-1 h-7 text-xs"
+                      onClick={() => handleQuickSend(response)}
+                      disabled={sendingId === response.id}
+                    >
+                      {sendingId === response.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <Send className="h-3 w-3 mr-1" />
+                      )}
+                      Enviar
+                    </Button>
+                    
+                    {!response.media_url && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleEdit(response)}
+                            disabled={sendingId === response.id}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Editar antes de enviar</TooltipContent>
+                      </Tooltip>
                     )}
-                    Enviar
-                  </Button>
-                  
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleEdit(response)}
-                        disabled={sendingId === response.id}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Editar antes de enviar</TooltipContent>
-                  </Tooltip>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </ScrollArea>

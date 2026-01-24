@@ -315,8 +315,11 @@ export function ChatPanel({
     }
   };
 
-  // Handler for quick send (bypasses input)
-  const handleQuickSend = async (content: string) => {
+  // Handler for quick send (bypasses input, supports media)
+  const handleQuickSend = async (content: string, mediaUrl?: string, mediaType?: string) => {
+    if (mediaUrl && mediaType) {
+      return await onSendMessage(content, false, mediaUrl, mediaType, undefined);
+    }
     return await onSendMessage(content, false);
   };
 
