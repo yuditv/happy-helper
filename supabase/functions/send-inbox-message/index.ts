@@ -142,30 +142,30 @@ serve(async (req: Request) => {
       const phone = conversation.phone;
       const instanceToken = instance.instance_key;
 
-      console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.name}`);
+      console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Use UAZAPI v2 format: {base_url}/{token}/sendText
-        let uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send`;
+        // Use UAZAPI v2/Wuzapi format: {base_url}/{token}/chat/send/text
+        let uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/text`;
         let uazapiBody: Record<string, unknown> = {
-          phone,
-          message: content
+          Phone: phone,
+          Body: content
         };
 
-        // Handle media
+        // Handle media with correct UAZAPI v2 endpoints
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendImage`;
-            uazapiBody = { phone, image: mediaUrl, caption: content };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/image`;
+            uazapiBody = { Phone: phone, Image: mediaUrl, Caption: content };
           } else if (mediaType.startsWith('video/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendVideo`;
-            uazapiBody = { phone, video: mediaUrl, caption: content };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/video`;
+            uazapiBody = { Phone: phone, Video: mediaUrl, Caption: content };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendAudio`;
-            uazapiBody = { phone, audio: mediaUrl };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/audio`;
+            uazapiBody = { Phone: phone, Audio: mediaUrl };
           } else {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendDocument`;
-            uazapiBody = { phone, document: mediaUrl, fileName: 'file' };
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send/document`;
+            uazapiBody = { Phone: phone, Document: mediaUrl, FileName: 'file' };
           }
         }
 
