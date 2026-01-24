@@ -15,7 +15,8 @@ import {
   Lock,
   PanelRightOpen,
   PanelRightClose,
-  Play
+  Play,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ interface ChatPanelProps {
   labels: InboxLabel[];
   isLoading: boolean;
   isSending: boolean;
+  isSyncing?: boolean;
   onSendMessage: (content: string, isPrivate?: boolean, mediaUrl?: string, mediaType?: string, fileName?: string) => Promise<boolean>;
   onAssignToMe: () => void;
   onResolve: () => void;
@@ -62,6 +64,7 @@ interface ChatPanelProps {
   onMarkAsRead: () => void;
   onRegisterClient?: (phone: string, name?: string) => void;
   onRetryMessage?: (messageId: string) => Promise<boolean>;
+  onSyncMessages?: () => void;
 }
 
 interface AttachmentState {
@@ -76,6 +79,7 @@ export function ChatPanel({
   labels,
   isLoading,
   isSending,
+  isSyncing,
   onSendMessage,
   onAssignToMe,
   onResolve,
@@ -85,7 +89,8 @@ export function ChatPanel({
   onRemoveLabel,
   onMarkAsRead,
   onRegisterClient,
-  onRetryMessage
+  onRetryMessage,
+  onSyncMessages
 }: ChatPanelProps) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
@@ -386,6 +391,23 @@ export function ChatPanel({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Sync Messages */}
+          {onSyncMessages && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={onSyncMessages}
+                  disabled={isSyncing}
+                >
+                  <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sincronizar mensagens</TooltipContent>
+            </Tooltip>
+          )}
+
           {/* AI Toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
