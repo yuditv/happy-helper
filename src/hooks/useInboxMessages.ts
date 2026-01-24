@@ -49,8 +49,13 @@ export function useInboxMessages(conversationId: string | null) {
     }
   }, [conversationId]);
 
-  const sendMessage = async (content: string, isPrivate = false, mediaUrl?: string, mediaType?: string) => {
+  const sendMessage = async (content: string, isPrivate = false, mediaUrl?: string, mediaType?: string, retryId?: string) => {
     if (!conversationId || (!content.trim() && !mediaUrl)) return false;
+
+    // If retrying, remove the failed message first
+    if (retryId) {
+      setMessages(prev => prev.filter(m => m.id !== retryId));
+    }
 
     // Create optimistic message with 'sending' status
     const optimisticId = `temp-${Date.now()}`;
@@ -113,10 +118,21 @@ export function useInboxMessages(conversationId: string | null) {
     } catch (error: unknown) {
       console.error('Error sending message:', error);
       
-      // Update optimistic message to show failure
+      // Update optimistic message to show failure with original content for retry
       setMessages(prev => 
         prev.map(m => m.id === optimisticId 
-          ? { ...m, metadata: { ...m.metadata, status: 'failed', send_error: true } }
+          ? { 
+              ...m, 
+              metadata: { 
+                ...m.metadata, 
+                status: 'failed', 
+                send_error: true,
+                original_content: content,
+                original_is_private: isPrivate,
+                original_media_url: mediaUrl,
+                original_media_type: mediaType
+              } 
+            }
           : m
         )
       );
@@ -130,6 +146,19 @@ export function useInboxMessages(conversationId: string | null) {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const retryMessage = async (messageId: string) => {
+    const failedMessage = messages.find(m => m.id === messageId);
+    if (!failedMessage) return false;
+
+    const metadata = failedMessage.metadata;
+    const content = (metadata.original_content as string) || failedMessage.content || '';
+    const isPrivate = (metadata.original_is_private as boolean) || failedMessage.is_private;
+    const mediaUrl = (metadata.original_media_url as string) || failedMessage.media_url || undefined;
+    const mediaType = (metadata.original_media_type as string) || failedMessage.media_type || undefined;
+
+    return sendMessage(content, isPrivate, mediaUrl, mediaType, messageId);
   };
 
   // Fetch messages when conversation changes
@@ -198,6 +227,7 @@ export function useInboxMessages(conversationId: string | null) {
     isLoading,
     isSending,
     sendMessage,
+    retryMessage,
     refetch: fetchMessages
   };
 }
