@@ -325,11 +325,11 @@ export function ChatPanel({
   const availableLabels = labels.filter(l => !assignedLabels.some(al => al?.id === l.id));
 
   return (
-    <div className="flex-1 flex h-full bg-background overflow-hidden">
+    <div className="flex-1 flex h-full inbox-container overflow-hidden">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden inbox-chat-area">
         {/* Header */}
-        <div className="p-3 border-b flex items-center justify-between">
+        <div className="p-3 inbox-header flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={conversation.contact_avatar || undefined} />
@@ -472,7 +472,7 @@ export function ChatPanel({
       )}
 
       {/* Messages */}
-      <ScrollArea ref={scrollRef} className="flex-1 p-4 min-h-0">
+      <ScrollArea ref={scrollRef} className="flex-1 p-4 min-h-0 inbox-scroll">
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
@@ -518,13 +518,13 @@ export function ChatPanel({
                     isOutgoing ? "justify-end" : "justify-start"
                   )}>
                     <div className={cn(
-                      "max-w-[70%] rounded-lg p-3",
+                      "max-w-[70%] rounded-2xl px-4 py-2.5 transition-colors",
                       isOutgoing 
                         ? msg.sender_type === 'ai'
-                          ? "bg-primary/20 text-foreground"
-                          : "bg-primary text-primary-foreground"
-                        : "bg-muted",
-                      msg.is_private && "border-2 border-dashed border-yellow-500"
+                          ? "bg-primary/15 text-foreground dark:bg-primary/10"
+                          : "bg-inbox-message-sent text-foreground rounded-br-sm"
+                        : "bg-inbox-message-received border border-border/50 rounded-bl-sm",
+                      msg.is_private && "inbox-message-private border border-dashed !border-amber-500/40"
                     )}>
                       {/* Sender info */}
                       <div className={cn(
@@ -608,7 +608,7 @@ export function ChatPanel({
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-3 border-t flex-shrink-0">
+      <div className="p-3 inbox-input-area flex-shrink-0">
         {/* Attachment Preview */}
         {attachment && (
           <div className="mb-2">
@@ -646,8 +646,9 @@ export function ChatPanel({
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               className={cn(
-                "min-h-[44px] max-h-32 resize-none pr-20",
-                isPrivate && "border-yellow-500"
+                "min-h-[44px] max-h-32 resize-none pr-20 inbox-input-field",
+                "bg-inbox-input dark:bg-inbox-input",
+                isPrivate && "!border-amber-500/50 dark:!border-amber-500/40"
               )}
               rows={1}
             />

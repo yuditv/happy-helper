@@ -68,66 +68,92 @@
     --sidebar-accent-foreground: 220 20% 20%;
     --sidebar-border: 220 15% 92%;
     --sidebar-ring: 0 85% 55%;
+
+    /* Inbox-specific tokens (light mode) */
+    --inbox-bg: 220 15% 97%;
+    --inbox-sidebar-bg: 0 0% 100%;
+    --inbox-chat-bg: 220 15% 98%;
+    --inbox-message-sent: 220 15% 95%;
+    --inbox-message-received: 0 0% 100%;
+    --inbox-message-private: 45 85% 95%;
+    --inbox-header-bg: 0 0% 100%;
+    --inbox-input-bg: 220 15% 96%;
+    --inbox-hover: 220 15% 94%;
+    --inbox-active: 220 15% 92%;
+    --inbox-unread: 0 85% 55%;
   }
 
   .dark {
-    /* Dark theme - Premium Dark Glass */
-    --background: 240 15% 6%;
-    --foreground: 220 15% 95%;
+    /* Dark theme - Premium Dark Glass - IMPROVED for reduced eye strain */
+    --background: 230 18% 8%;
+    --foreground: 220 12% 88%;
 
-    --card: 240 15% 9%;
-    --card-foreground: 220 15% 95%;
+    --card: 230 16% 11%;
+    --card-foreground: 220 12% 88%;
 
-    --popover: 240 15% 9%;
-    --popover-foreground: 220 15% 95%;
+    --popover: 230 16% 11%;
+    --popover-foreground: 220 12% 88%;
 
-    --primary: 0 90% 60%;
+    --primary: 0 72% 58%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 15% 14%;
-    --secondary-foreground: 220 15% 90%;
+    --secondary: 230 14% 16%;
+    --secondary-foreground: 220 12% 82%;
 
-    --muted: 240 12% 16%;
-    --muted-foreground: 220 10% 55%;
+    --muted: 230 12% 18%;
+    --muted-foreground: 220 8% 52%;
 
-    --accent: 15 95% 58%;
+    --accent: 15 70% 52%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 65% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 15% 18%;
-    --input: 240 15% 14%;
-    --ring: 0 90% 60%;
+    --border: 230 12% 20%;
+    --input: 230 14% 14%;
+    --ring: 0 72% 58%;
 
-    /* Plan colors */
-    --plan-monthly: 350 95% 58%;
-    --plan-quarterly: 15 95% 55%;
-    --plan-semiannual: 145 75% 50%;
-    --plan-annual: 45 95% 55%;
+    /* Plan colors - softer */
+    --plan-monthly: 350 75% 55%;
+    --plan-quarterly: 15 75% 52%;
+    --plan-semiannual: 145 60% 45%;
+    --plan-annual: 45 75% 52%;
 
-    /* Dark glass effects */
-    --glass-bg: 240 20% 12% / 0.85;
-    --glass-border: 0 0% 100% / 0.08;
-    --glass-shadow: 0 8px 32px hsl(0 0% 0% / 0.3);
+    /* Dark glass effects - softer */
+    --glass-bg: 230 18% 13% / 0.9;
+    --glass-border: 220 15% 30% / 0.15;
+    --glass-shadow: 0 8px 32px hsl(0 0% 0% / 0.25);
     --glass-blur: 24px;
 
-    /* Dark shadows with glow */
-    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.2);
-    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.25);
-    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.3);
-    --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.4);
-    --shadow-glow: 0 0 60px hsl(0 90% 60% / 0.2);
+    /* Dark shadows - reduced intensity */
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.15);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.25);
+    --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 50px hsl(0 72% 58% / 0.12);
 
-    /* Sidebar */
-    --sidebar-background: 240 20% 10% / 0.9;
-    --sidebar-foreground: 220 15% 92%;
-    --sidebar-primary: 0 90% 60%;
+    /* Sidebar - softer */
+    --sidebar-background: 230 18% 11% / 0.95;
+    --sidebar-foreground: 220 12% 85%;
+    --sidebar-primary: 0 72% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 15% 16%;
-    --sidebar-accent-foreground: 220 15% 92%;
-    --sidebar-border: 240 15% 20%;
-    --sidebar-ring: 0 90% 60%;
+    --sidebar-accent: 230 14% 18%;
+    --sidebar-accent-foreground: 220 12% 85%;
+    --sidebar-border: 230 12% 22%;
+    --sidebar-ring: 0 72% 58%;
+
+    /* Inbox-specific tokens for reduced eye strain */
+    --inbox-bg: 230 18% 9%;
+    --inbox-sidebar-bg: 230 16% 11%;
+    --inbox-chat-bg: 230 18% 8%;
+    --inbox-message-sent: 230 14% 16%;
+    --inbox-message-received: 230 12% 13%;
+    --inbox-message-private: 45 30% 15%;
+    --inbox-header-bg: 230 16% 10%;
+    --inbox-input-bg: 230 14% 12%;
+    --inbox-hover: 230 14% 14%;
+    --inbox-active: 230 12% 18%;
+    --inbox-unread: 0 65% 55%;
   }
 }
 
@@ -523,6 +549,145 @@
       linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
     background-size: 40px 40px;
+  }
+
+  /* ============================================
+     INBOX / CENTRAL DE ATENDIMENTO STYLES
+     Eye-friendly dark mode with softer colors
+     ============================================ */
+  .inbox-container {
+    background: hsl(var(--inbox-bg));
+  }
+
+  .inbox-sidebar {
+    background: hsl(var(--inbox-sidebar-bg));
+    @apply border-r border-border;
+  }
+
+  .inbox-chat-area {
+    background: hsl(var(--inbox-chat-bg));
+  }
+
+  .inbox-header {
+    background: hsl(var(--inbox-header-bg));
+    @apply border-b border-border;
+  }
+
+  .inbox-input-area {
+    background: hsl(var(--inbox-input-bg));
+    @apply border-t border-border;
+  }
+
+  /* Conversation list item */
+  .inbox-conversation-item {
+    @apply px-3 py-3 cursor-pointer transition-all duration-200;
+    @apply border-b border-border/50;
+  }
+
+  .inbox-conversation-item:hover {
+    background: hsl(var(--inbox-hover));
+  }
+
+  .inbox-conversation-item.active {
+    background: hsl(var(--inbox-active));
+    @apply border-l-2 border-l-primary;
+  }
+
+  .inbox-conversation-item.unread {
+    @apply font-medium;
+  }
+
+  .inbox-conversation-item.unread::before {
+    content: '';
+    @apply absolute left-2 top-1/2 -translate-y-1/2;
+    @apply w-2 h-2 rounded-full;
+    background: hsl(var(--inbox-unread));
+    box-shadow: 0 0 8px hsl(var(--inbox-unread) / 0.5);
+  }
+
+  /* Message bubbles */
+  .inbox-message {
+    @apply max-w-[75%] rounded-2xl px-4 py-2.5;
+    @apply transition-all duration-200;
+  }
+
+  .inbox-message-sent {
+    background: hsl(var(--inbox-message-sent));
+    @apply rounded-br-sm ml-auto;
+  }
+
+  .inbox-message-received {
+    background: hsl(var(--inbox-message-received));
+    @apply rounded-bl-sm mr-auto;
+    @apply border border-border/50;
+  }
+
+  .inbox-message-private {
+    background: hsl(var(--inbox-message-private));
+    @apply border border-amber-500/30;
+  }
+
+  /* Dark mode specific improvements for Inbox */
+  .dark .inbox-container {
+    /* Subtle gradient background for depth */
+    background: 
+      radial-gradient(ellipse 80% 50% at 50% 0%, hsl(230 18% 12%) 0%, transparent 50%),
+      hsl(var(--inbox-bg));
+  }
+
+  .dark .inbox-sidebar {
+    /* Slightly elevated sidebar */
+    background: hsl(var(--inbox-sidebar-bg));
+    box-shadow: inset -1px 0 0 hsl(var(--border));
+  }
+
+  .dark .inbox-message-sent {
+    /* Softer sent message color */
+    background: hsl(230 14% 18%);
+    color: hsl(220 12% 90%);
+  }
+
+  .dark .inbox-message-received {
+    /* Slightly warmer received message */
+    background: hsl(230 12% 14%);
+    border-color: hsl(230 12% 22%);
+    color: hsl(220 12% 88%);
+  }
+
+  .dark .inbox-message-private {
+    /* Amber tinted private notes */
+    background: hsl(40 25% 14%);
+    border-color: hsl(40 50% 30% / 0.4);
+    color: hsl(45 30% 85%);
+  }
+
+  .dark .inbox-input-area {
+    background: hsl(230 16% 11%);
+  }
+
+  .dark .inbox-header {
+    background: hsl(230 16% 10%);
+    border-color: hsl(230 12% 18%);
+  }
+
+  /* Input field in dark mode */
+  .dark .inbox-input-field {
+    background: hsl(230 14% 14%);
+    border: 1px solid hsl(230 12% 22%);
+    @apply focus:border-primary/50 focus:ring-1 focus:ring-primary/20;
+  }
+
+  .dark .inbox-input-field::placeholder {
+    color: hsl(220 8% 45%);
+  }
+
+  /* Scrollbar for inbox in dark mode */
+  .dark .inbox-scroll::-webkit-scrollbar-thumb {
+    background: hsl(230 12% 25%);
+  }
+
+  .dark .inbox-scroll::-webkit-scrollbar-thumb:hover {
+    background: hsl(230 12% 35%);
   }
 }
 
