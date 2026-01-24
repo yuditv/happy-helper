@@ -31,7 +31,8 @@ import {
   Pencil,
   BookUser,
   SquareStack,
-  GalleryHorizontal
+  GalleryHorizontal,
+  FlaskConical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,7 @@ import { SyncOptionsDialog } from "./SyncOptionsDialog";
 import { DeleteMessageDialog } from "./DeleteMessageDialog";
 import { InteractiveMenuComposer } from "./InteractiveMenuComposer";
 import { MediaCarouselComposer } from "./MediaCarouselComposer";
+import { TestGeneratorDialog } from "./TestGeneratorDialog";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -171,6 +173,7 @@ export function ChatPanel({
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [showInteractiveMenu, setShowInteractiveMenu] = useState(false);
   const [showMediaCarousel, setShowMediaCarousel] = useState(false);
+  const [showTestGenerator, setShowTestGenerator] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -653,6 +656,21 @@ export function ChatPanel({
               </Button>
             </TooltipTrigger>
             <TooltipContent>{showCRMPanel ? 'Ocultar CRM' : 'Dados do Lead'}</TooltipContent>
+          </Tooltip>
+
+          {/* Test Generator Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowTestGenerator(true)}
+              >
+                <FlaskConical className="h-4 w-4 mr-1" />
+                Teste
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Gerar Teste Automático</TooltipContent>
           </Tooltip>
 
           {/* Quick Messages Panel toggle removed - management moved to Settings */}
@@ -1452,6 +1470,12 @@ export function ChatPanel({
           }}
         />
       )}
+
+      {/* Test Generator Dialog */}
+      <TestGeneratorDialog
+        open={showTestGenerator}
+        onOpenChange={setShowTestGenerator}
+      />
     </div>
   );
 }
