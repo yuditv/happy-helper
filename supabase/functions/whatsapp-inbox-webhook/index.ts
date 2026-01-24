@@ -621,12 +621,12 @@ serve(async (req: Request) => {
                   metadata: { agent_id: agent.id, agent_name: agent.name }
                 });
 
-              // Send via UAZAPI
-              await fetch(`${uazapiUrl}/chat/send`, {
+              // Send via UAZAPI - use /sendText with Bearer auth (same as working functions)
+              await fetch(`${uazapiUrl}/sendText`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'token': instance.instance_key || uazapiToken
+                  'Authorization': `Bearer ${instance.instance_key || uazapiToken}`
                 },
                 body: JSON.stringify({
                   phone: normalizedPhone,
