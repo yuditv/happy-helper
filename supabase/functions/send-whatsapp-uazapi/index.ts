@@ -73,46 +73,46 @@ const handler = async (req: Request): Promise<Response> => {
     let body: Record<string, any>;
 
     // Determine endpoint and body based on media type
-    // UAZAPI v2 uses /sendText, /sendImage, etc endpoints
+    // wuzapi/UAZAPI uses /chat/send/text with capitalized keys (Phone, Body)
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
-          endpoint = '/sendImage';
+          endpoint = '/chat/send/image';
           body = {
-            phone: formattedPhone,
-            image: mediaUrl,
-            caption: caption || message || ''
+            Phone: formattedPhone,
+            Image: mediaUrl,
+            Caption: caption || message || ''
           };
           break;
         case 'video':
-          endpoint = '/sendVideo';
+          endpoint = '/chat/send/video';
           body = {
-            phone: formattedPhone,
-            video: mediaUrl,
-            caption: caption || message || ''
+            Phone: formattedPhone,
+            Video: mediaUrl,
+            Caption: caption || message || ''
           };
           break;
         case 'audio':
-          endpoint = '/sendAudio';
+          endpoint = '/chat/send/audio';
           body = {
-            phone: formattedPhone,
-            audio: mediaUrl,
-            ptt: true
+            Phone: formattedPhone,
+            Audio: mediaUrl,
+            Ptt: true
           };
           break;
         case 'document':
-          endpoint = '/sendDocument';
+          endpoint = '/chat/send/document';
           body = {
-            phone: formattedPhone,
-            document: mediaUrl,
-            filename: fileName || 'document'
+            Phone: formattedPhone,
+            Document: mediaUrl,
+            FileName: fileName || 'document'
           };
           break;
         default:
-          endpoint = '/sendText';
+          endpoint = '/chat/send/text';
           body = {
-            phone: formattedPhone,
-            message: message || ''
+            Phone: formattedPhone,
+            Body: message || ''
           };
       }
     } else {
@@ -126,10 +126,10 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-      endpoint = '/sendText';
+      endpoint = '/chat/send/text';
       body = {
-        phone: formattedPhone,
-        message: message
+        Phone: formattedPhone,
+        Body: message
       };
     }
 
