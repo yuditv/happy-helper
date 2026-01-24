@@ -145,112 +145,87 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Wuzapi Official Format - PascalCase headers and body keys
-        // Based on official Wuzapi documentation
-        const endpoints = [
-          // Wuzapi Official - PascalCase (most likely to work)
-          { 
-            url: `${uazapiUrl}/chat/send/text`, 
-            header: 'Token',
-            bodyFormat: 'pascalCase'
-          },
-          // Alternative Wuzapi path
-          { 
-            url: `${uazapiUrl}/send/text`, 
-            header: 'Token',
-            bodyFormat: 'pascalCase'
-          },
-          // UAZAPI v2 format - lowercase
-          { 
-            url: `${uazapiUrl}/chat/send`, 
-            header: 'token',
-            bodyFormat: 'lowercase'
-          },
-          // Z-API format
-          { 
-            url: `${uazapiUrl}/send-text`, 
-            header: 'token',
-            bodyFormat: 'lowercase'
-          },
-        ];
-
-        let lastError = '';
+        // Use same format as warming-worker/campaigns (which work!)
+        // /sendText endpoint with Authorization: Bearer header
+        console.log(`[Send Inbox] Sending via /sendText with Bearer auth`);
+        console.log(`[Send Inbox] URL: ${uazapiUrl}/sendText`);
+        console.log(`[Send Inbox] Phone: ${phone}`);
+        
         let sendSuccess = false;
+        let lastError = '';
 
-        // Try each endpoint until one works
-        for (const endpoint of endpoints) {
-          // Build body based on format
-          let uazapiBody: Record<string, unknown>;
+        // Determine if sending media or text
+        if (mediaUrl && mediaType) {
+          // Media message
+          let endpoint = '/sendImage';
+          const body: Record<string, unknown> = { phone };
           
-          if (endpoint.bodyFormat === 'pascalCase') {
-            // Wuzapi Official format - PascalCase keys
-            if (mediaUrl && mediaType) {
-              if (mediaType.startsWith('image/')) {
-                uazapiBody = { Phone: phone, Image: mediaUrl, Caption: content || '' };
-              } else if (mediaType.startsWith('video/')) {
-                uazapiBody = { Phone: phone, Video: mediaUrl, Caption: content || '' };
-              } else if (mediaType.startsWith('audio/')) {
-                uazapiBody = { Phone: phone, Audio: mediaUrl };
-              } else {
-                uazapiBody = { Phone: phone, Document: mediaUrl, FileName: 'file' };
-              }
-            } else {
-              uazapiBody = { Phone: phone, Body: content };
-            }
+          if (mediaType.startsWith('image/')) {
+            endpoint = '/sendImage';
+            body.image = mediaUrl;
+            body.caption = content || '';
+          } else if (mediaType.startsWith('video/')) {
+            endpoint = '/sendVideo';
+            body.video = mediaUrl;
+            body.caption = content || '';
+          } else if (mediaType.startsWith('audio/')) {
+            endpoint = '/sendAudio';
+            body.audio = mediaUrl;
           } else {
-            // lowercase format
-            if (mediaUrl && mediaType) {
-              if (mediaType.startsWith('image/')) {
-                uazapiBody = { phone, image: mediaUrl, caption: content || '' };
-              } else if (mediaType.startsWith('video/')) {
-                uazapiBody = { phone, video: mediaUrl, caption: content || '' };
-              } else if (mediaType.startsWith('audio/')) {
-                uazapiBody = { phone, audio: mediaUrl };
-              } else {
-                uazapiBody = { phone, document: mediaUrl, filename: 'file' };
-              }
-            } else {
-              uazapiBody = { phone, message: content };
-            }
+            endpoint = '/sendDocument';
+            body.document = mediaUrl;
+            body.filename = 'file';
           }
-
-          console.log(`[Send Inbox] ========== ATTEMPT ==========`);
-          console.log(`[Send Inbox] URL: ${endpoint.url}`);
-          console.log(`[Send Inbox] Header: ${endpoint.header}=${instanceToken.substring(0, 12)}...`);
-          console.log(`[Send Inbox] Body Format: ${endpoint.bodyFormat}`);
-          console.log(`[Send Inbox] Body:`, JSON.stringify(uazapiBody));
-
-          try {
-            const sendResponse = await fetch(endpoint.url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                [endpoint.header]: instanceToken
-              },
-              body: JSON.stringify(uazapiBody)
-            });
-
-            const responseText = await sendResponse.text();
-            console.log(`[Send Inbox] Status: ${sendResponse.status}`);
-            console.log(`[Send Inbox] Response Headers:`, JSON.stringify(Object.fromEntries(sendResponse.headers.entries())));
-            console.log(`[Send Inbox] Response Body: ${responseText}`);
-
-            if (sendResponse.ok || sendResponse.status === 200 || sendResponse.status === 201) {
-              console.log('[Send Inbox] ✅ SUCCESS - Message sent!');
-              sendSuccess = true;
-              break;
-            } else {
-              console.log(`[Send Inbox] ❌ FAILED - Status ${sendResponse.status}`);
-              lastError = `${sendResponse.status}: ${responseText}`;
-            }
-          } catch (fetchError) {
-            console.error(`[Send Inbox] ❌ FETCH ERROR:`, fetchError);
-            lastError = String(fetchError);
+          
+          console.log(`[Send Inbox] Sending media via ${endpoint}`);
+          
+          const sendResponse = await fetch(`${uazapiUrl}${endpoint}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${instanceToken}`
+            },
+            body: JSON.stringify(body)
+          });
+          
+          const responseText = await sendResponse.text();
+          console.log(`[Send Inbox] Status: ${sendResponse.status}`);
+          console.log(`[Send Inbox] Response: ${responseText}`);
+          
+          if (sendResponse.ok) {
+            console.log('[Send Inbox] ✅ Media sent successfully!');
+            sendSuccess = true;
+          } else {
+            lastError = `${sendResponse.status}: ${responseText}`;
+          }
+        } else {
+          // Text message - use /sendText
+          const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${instanceToken}`
+            },
+            body: JSON.stringify({
+              phone,
+              message: content
+            })
+          });
+          
+          const responseText = await sendResponse.text();
+          console.log(`[Send Inbox] Status: ${sendResponse.status}`);
+          console.log(`[Send Inbox] Response: ${responseText}`);
+          
+          if (sendResponse.ok) {
+            console.log('[Send Inbox] ✅ Message sent successfully!');
+            sendSuccess = true;
+          } else {
+            lastError = `${sendResponse.status}: ${responseText}`;
           }
         }
 
         if (!sendSuccess) {
-          console.error('[Send Inbox] All endpoints failed. Last error:', lastError);
+          console.error('[Send Inbox] Failed to send. Error:', lastError);
           
           // Update message with error status
           await supabaseAdmin

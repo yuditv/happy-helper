@@ -80,131 +80,107 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Wuzapi Official Format - PascalCase headers and body keys
-    const endpoints = [
-      // Wuzapi Official - PascalCase (most likely to work)
-      { 
-        url: `${UAZAPI_URL}/chat/send/text`, 
-        header: 'Token',
-        bodyFormat: 'pascalCase'
-      },
-      // Alternative Wuzapi path
-      { 
-        url: `${UAZAPI_URL}/send/text`, 
-        header: 'Token',
-        bodyFormat: 'pascalCase'
-      },
-      // UAZAPI v2 format - lowercase
-      { 
-        url: `${UAZAPI_URL}/chat/send`, 
-        header: 'token',
-        bodyFormat: 'lowercase'
-      },
-      // Z-API format
-      { 
-        url: `${UAZAPI_URL}/send-text`, 
-        header: 'token',
-        bodyFormat: 'lowercase'
-      },
-    ];
+    // Use same format as warming-worker/campaigns (which work!)
+    // /sendText endpoint with Authorization: Bearer header
+    console.log(`Sending via /sendText with Bearer auth`);
+    console.log(`URL: ${UAZAPI_URL}/sendText`);
+    console.log(`Phone: ${formattedPhone}`);
 
+    // deno-lint-ignore no-explicit-any
     let responseData: any = null;
     let lastError = '';
 
-    // Try each endpoint until one works
-    for (const endpoint of endpoints) {
-      // Build body based on format
-      let body: Record<string, any>;
+    // Determine endpoint based on media type
+    if (mediaType && mediaType !== 'none' && mediaUrl) {
+      // Media message
+      let endpoint = '/sendImage';
+      // deno-lint-ignore no-explicit-any
+      const body: Record<string, any> = { phone: formattedPhone };
       
-      if (endpoint.bodyFormat === 'pascalCase') {
-        // Wuzapi Official format - PascalCase keys
-        if (mediaType && mediaType !== 'none' && mediaUrl) {
-          switch (mediaType) {
-            case 'image':
-              body = { Phone: formattedPhone, Image: mediaUrl, Caption: caption || message || '' };
-              break;
-            case 'video':
-              body = { Phone: formattedPhone, Video: mediaUrl, Caption: caption || message || '' };
-              break;
-            case 'audio':
-              body = { Phone: formattedPhone, Audio: mediaUrl };
-              break;
-            case 'document':
-              body = { Phone: formattedPhone, Document: mediaUrl, FileName: fileName || 'document' };
-              break;
-            default:
-              body = { Phone: formattedPhone, Body: message || '' };
-          }
-        } else {
-          body = { Phone: formattedPhone, Body: message };
-        }
-      } else {
-        // lowercase format
-        if (mediaType && mediaType !== 'none' && mediaUrl) {
-          switch (mediaType) {
-            case 'image':
-              body = { phone: formattedPhone, image: mediaUrl, caption: caption || message || '' };
-              break;
-            case 'video':
-              body = { phone: formattedPhone, video: mediaUrl, caption: caption || message || '' };
-              break;
-            case 'audio':
-              body = { phone: formattedPhone, audio: mediaUrl };
-              break;
-            case 'document':
-              body = { phone: formattedPhone, document: mediaUrl, filename: fileName || 'document' };
-              break;
-            default:
-              body = { phone: formattedPhone, message: message || '' };
-          }
-        } else {
-          body = { phone: formattedPhone, message };
-        }
-      }
-
-      console.log(`========== ATTEMPT ==========`);
-      console.log(`URL: ${endpoint.url}`);
-      console.log(`Header: ${endpoint.header}=${instanceToken.substring(0, 12)}...`);
-      console.log(`Body Format: ${endpoint.bodyFormat}`);
-      console.log(`Body:`, JSON.stringify(body));
-
-      try {
-        const response = await fetch(endpoint.url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            [endpoint.header]: instanceToken
-          },
-          body: JSON.stringify(body),
-        });
-
-        const respText = await response.text();
-        console.log(`Status: ${response.status}`);
-        console.log(`Response Headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
-        console.log(`Response Body: ${respText}`);
-
-        if (response.ok || response.status === 200 || response.status === 201) {
-          try {
-            responseData = JSON.parse(respText);
-          } catch {
-            responseData = { raw: respText };
-          }
-          console.log("✅ SUCCESS - Message sent!");
+      switch (mediaType) {
+        case 'image':
+          endpoint = '/sendImage';
+          body.image = mediaUrl;
+          body.caption = caption || message || '';
           break;
-        } else {
-          console.log(`❌ FAILED - Status ${response.status}`);
-          lastError = `${response.status}: ${respText}`;
+        case 'video':
+          endpoint = '/sendVideo';
+          body.video = mediaUrl;
+          body.caption = caption || message || '';
+          break;
+        case 'audio':
+          endpoint = '/sendAudio';
+          body.audio = mediaUrl;
+          break;
+        case 'document':
+          endpoint = '/sendDocument';
+          body.document = mediaUrl;
+          body.filename = fileName || 'document';
+          break;
+        default:
+          endpoint = '/sendText';
+          body.message = message || '';
+      }
+      
+      console.log(`Sending media via ${endpoint}`);
+      
+      const response = await fetch(`${UAZAPI_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${instanceToken}`
+        },
+        body: JSON.stringify(body),
+      });
+      
+      const respText = await response.text();
+      console.log(`Status: ${response.status}`);
+      console.log(`Response: ${respText}`);
+      
+      if (response.ok) {
+        try {
+          responseData = JSON.parse(respText);
+        } catch {
+          responseData = { raw: respText };
         }
-      } catch (fetchError) {
-        console.error(`❌ FETCH ERROR:`, fetchError);
-        lastError = String(fetchError);
+        console.log("✅ Media sent successfully!");
+      } else {
+        lastError = `${response.status}: ${respText}`;
+      }
+    } else {
+      // Text message - use /sendText
+      const response = await fetch(`${UAZAPI_URL}/sendText`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${instanceToken}`
+        },
+        body: JSON.stringify({
+          phone: formattedPhone,
+          message
+        }),
+      });
+      
+      const respText = await response.text();
+      console.log(`Status: ${response.status}`);
+      console.log(`Response: ${respText}`);
+      
+      if (response.ok) {
+        try {
+          responseData = JSON.parse(respText);
+        } catch {
+          responseData = { raw: respText };
+        }
+        console.log("✅ Message sent successfully!");
+      } else {
+        lastError = `${response.status}: ${respText}`;
       }
     }
 
     if (!responseData) {
-      console.error("All endpoints failed. Last error:", lastError);
+      console.error("Failed to send. Error:", lastError);
       return new Response(
-        JSON.stringify({ error: lastError || "Failed to send message via all endpoints" }),
+        JSON.stringify({ error: lastError || "Failed to send message" }),
         {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },

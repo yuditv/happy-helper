@@ -187,12 +187,12 @@ serve(async (req: Request) => {
         }
       });
 
-    // Send response back via UAZAPI
-    const sendResponse = await fetch(`${uazapiUrl}/chat/send`, {
+    // Send response back via UAZAPI - use /sendText with Bearer auth (same as working functions)
+    const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'token': instance.instance_key || uazapiToken
+        'Authorization': `Bearer ${instance.instance_key || uazapiToken}`
       },
       body: JSON.stringify({
         phone: phone.replace(/\D/g, ''),
