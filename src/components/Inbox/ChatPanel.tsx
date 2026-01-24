@@ -17,7 +17,8 @@ import {
   PanelRightClose,
   Play,
   RefreshCw,
-  Camera
+  Camera,
+  Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -34,6 +36,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Conversation, InboxLabel } from "@/hooks/useInboxConversations";
 import { ChatMessage } from "@/hooks/useInboxMessages";
 import { useAuth } from "@/hooks/useAuth";
@@ -68,6 +80,7 @@ interface ChatPanelProps {
   onRegisterClient?: (phone: string, name?: string) => void;
   onRetryMessage?: (messageId: string) => Promise<boolean>;
   onSyncMessages?: () => void;
+  onDeleteConversation?: (conversationId: string, deleteFromWhatsApp: boolean) => Promise<boolean>;
 }
 
 interface AttachmentState {
@@ -93,7 +106,8 @@ export function ChatPanel({
   onMarkAsRead,
   onRegisterClient,
   onRetryMessage,
-  onSyncMessages
+  onSyncMessages,
+  onDeleteConversation
 }: ChatPanelProps) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
@@ -106,6 +120,9 @@ export function ChatPanel({
   const [galleryInitialId, setGalleryInitialId] = useState<string | undefined>();
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [contactAvatarUrl, setContactAvatarUrl] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteFromWhatsApp, setDeleteFromWhatsApp] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -277,6 +294,19 @@ export function ChatPanel({
   const openMediaGallery = (messageId: string) => {
     setGalleryInitialId(messageId);
     setShowGallery(true);
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!conversation || !onDeleteConversation) return;
+    
+    setIsDeleting(true);
+    const success = await onDeleteConversation(conversation.id, deleteFromWhatsApp);
+    setIsDeleting(false);
+    
+    if (success) {
+      setShowDeleteDialog(false);
+      setDeleteFromWhatsApp(false);
+    }
   };
 
   const formatPhone = (phone: string) => {
@@ -511,6 +541,14 @@ export function ChatPanel({
                   <DropdownMenuSeparator />
                 </>
               )}
+              {/* Delete conversation */}
+              <DropdownMenuItem 
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Deletar conversa
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -859,6 +897,43 @@ export function ChatPanel({
           }}
         />
       )}
+
+      {/* Delete Conversation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deletar conversa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está prestes a deletar a conversa com{' '}
+              <strong>{conversation?.contact_name || formatPhone(conversation?.phone || '')}</strong>.
+              <br /><br />
+              Esta ação irá remover todas as mensagens e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="flex items-center space-x-2 py-4">
+            <Checkbox 
+              id="delete-whatsapp" 
+              checked={deleteFromWhatsApp}
+              onCheckedChange={(checked) => setDeleteFromWhatsApp(checked === true)}
+            />
+            <label htmlFor="delete-whatsapp" className="text-sm text-muted-foreground cursor-pointer">
+              Deletar também do WhatsApp
+            </label>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConversation}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deletando...' : 'Deletar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

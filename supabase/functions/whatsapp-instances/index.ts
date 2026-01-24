@@ -905,6 +905,111 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // DELETE-CHAT - Delete conversation from UAZAPI and local database
+    if (action === "delete-chat" && entityId) {
+      const conversationId = entityId;
+      const deleteFromWhatsApp = body.deleteFromWhatsApp === true;
+
+      // Use admin client to bypass RLS
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!);
+
+      // Fetch conversation with phone number
+      const { data: conversation, error: convError } = await supabaseAdmin
+        .from("conversations")
+        .select("id, phone, instance_id")
+        .eq("id", conversationId)
+        .single();
+
+      if (convError || !conversation) {
+        console.error("[Delete Chat] Conversation not found:", convError);
+        return new Response(
+          JSON.stringify({ error: "Conversa não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Delete Chat] Deleting conversation ${conversationId} for phone ${conversation.phone}`);
+
+      // Fetch instance for API call
+      const { data: instance } = await supabaseAdmin
+        .from("whatsapp_instances")
+        .select("id, instance_key")
+        .eq("id", conversation.instance_id)
+        .single();
+
+      // Call UAZAPI /chat/delete if instance has key
+      if (instance?.instance_key) {
+        try {
+          console.log(`[Delete Chat] Calling UAZAPI /chat/delete for phone: ${conversation.phone}`);
+          
+          const deleteResponse = await fetch(`${uazapiUrl}/chat/delete`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "token": instance.instance_key,
+            },
+            body: JSON.stringify({
+              number: conversation.phone,
+              deleteChatDB: true,
+              deleteMessagesDB: true,
+              deleteChatWhatsApp: deleteFromWhatsApp,
+            }),
+          });
+
+          console.log("[Delete Chat] UAZAPI response status:", deleteResponse.status);
+          const deleteData = await deleteResponse.json();
+          console.log("[Delete Chat] UAZAPI response:", JSON.stringify(deleteData));
+        } catch (e) {
+          console.error("[Delete Chat] UAZAPI error:", e);
+          // Continue to delete locally even if UAZAPI fails
+        }
+      } else {
+        console.log("[Delete Chat] No instance key, skipping UAZAPI call");
+      }
+
+      // Delete conversation labels first (due to foreign key constraints)
+      const { error: labelDeleteError } = await supabaseAdmin
+        .from("conversation_labels")
+        .delete()
+        .eq("conversation_id", conversationId);
+
+      if (labelDeleteError) {
+        console.error("[Delete Chat] Error deleting labels:", labelDeleteError);
+      }
+
+      // Delete local messages
+      const { error: msgDeleteError } = await supabaseAdmin
+        .from("chat_inbox_messages")
+        .delete()
+        .eq("conversation_id", conversationId);
+
+      if (msgDeleteError) {
+        console.error("[Delete Chat] Error deleting messages:", msgDeleteError);
+      }
+
+      // Delete local conversation
+      const { error: convDeleteError } = await supabaseAdmin
+        .from("conversations")
+        .delete()
+        .eq("id", conversationId);
+
+      if (convDeleteError) {
+        console.error("[Delete Chat] Error deleting conversation:", convDeleteError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao deletar conversa", details: convDeleteError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Delete Chat] Successfully deleted conversation ${conversationId}`);
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Conversa deletada com sucesso" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
