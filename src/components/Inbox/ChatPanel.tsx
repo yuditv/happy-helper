@@ -86,8 +86,6 @@ import { useCRMLead, CRM_STATUSES } from "@/hooks/useCRMLead";
 import { MessageSearchDialog } from "./MessageSearchDialog";
 import { SyncOptionsDialog } from "./SyncOptionsDialog";
 import { DeleteMessageDialog } from "./DeleteMessageDialog";
-import { InteractiveMenuComposer } from "./InteractiveMenuComposer";
-import { MediaCarouselComposer } from "./MediaCarouselComposer";
 import { TestGeneratorDialog } from "./TestGeneratorDialog";
 
 interface ChatPanelProps {
@@ -171,8 +169,6 @@ export function ChatPanel({
   const [showSaveContactDialog, setShowSaveContactDialog] = useState(false);
   const [newContactName, setNewContactName] = useState("");
   const [isSavingContact, setIsSavingContact] = useState(false);
-  const [showInteractiveMenu, setShowInteractiveMenu] = useState(false);
-  const [showMediaCarousel, setShowMediaCarousel] = useState(false);
   const [showTestGenerator, setShowTestGenerator] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1137,38 +1133,6 @@ export function ChatPanel({
                 disabled={isSending}
               />
 
-              {/* Interactive Menu Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setShowInteractiveMenu(true)}
-                    disabled={!instanceKey}
-                  >
-                    <SquareStack className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Menu Interativo</TooltipContent>
-              </Tooltip>
-
-              {/* Media Carousel Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setShowMediaCarousel(true)}
-                    disabled={!instanceKey}
-                  >
-                    <GalleryHorizontal className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Carrossel de Mídia</TooltipContent>
-              </Tooltip>
-
               <Tooltip>
                 <TooltipTrigger asChild>
                   <AudioRecorder
@@ -1419,31 +1383,6 @@ export function ChatPanel({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Interactive Menu Composer */}
-      {conversation && instanceKey && (
-        <InteractiveMenuComposer
-          open={showInteractiveMenu}
-          onOpenChange={setShowInteractiveMenu}
-          phone={conversation.phone}
-          instanceKey={instanceKey}
-          onSent={() => {
-            // Refresh messages after sending
-          }}
-        />
-      )}
-
-      {/* Media Carousel Composer */}
-      {conversation && instanceKey && (
-        <MediaCarouselComposer
-          open={showMediaCarousel}
-          onOpenChange={setShowMediaCarousel}
-          phone={conversation.phone}
-          instanceKey={instanceKey}
-          onSent={() => {
-            // Refresh messages after sending
-          }}
-        />
-      )}
 
       {/* Test Generator Dialog */}
       <TestGeneratorDialog

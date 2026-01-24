@@ -29,7 +29,8 @@ import {
 import { 
   MessageSquare, Plus, Trash2, Bold, Italic, 
   Sparkles, Wand2, Shuffle, Zap, Loader2,
-  Image, Video, FileAudio, FileText, Type, File, Copy
+  Image, Video, FileAudio, FileText, Type, File, Copy,
+  SquareStack, GalleryHorizontal
 } from 'lucide-react';
 import { generatePreview, validateSpintax, SPINTAX_SUGGESTIONS } from '@/lib/spintaxParser';
 import { cn } from '@/lib/utils';
@@ -410,6 +411,41 @@ export function ComposerStudio({
               </ScrollArea>
             </PopoverContent>
           </Popover>
+          
+          {/* Interactive Menu Button */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <SquareStack className="w-4 h-4" />
+                Menu
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3" align="end">
+              <h4 className="font-medium text-sm mb-2">Menu Interativo</h4>
+              <p className="text-xs text-muted-foreground">
+                Crie botões, listas e enquetes interativas para envio em massa.
+              </p>
+              <Badge variant="secondary" className="mt-2">Em breve</Badge>
+            </PopoverContent>
+          </Popover>
+          
+          {/* Media Carousel Button */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <GalleryHorizontal className="w-4 h-4" />
+                Carrossel
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3" align="end">
+              <h4 className="font-medium text-sm mb-2">Carrossel de Mídia</h4>
+              <p className="text-xs text-muted-foreground">
+                Crie carrosséis com múltiplas imagens e botões para envio em massa.
+              </p>
+              <Badge variant="secondary" className="mt-2">Em breve</Badge>
+            </PopoverContent>
+          </Popover>
+          
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button 
               variant="outline" 
