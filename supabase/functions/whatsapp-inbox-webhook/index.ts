@@ -207,6 +207,7 @@ interface ExtractedMessageData {
   hasMedia?: boolean;
   mimetype?: string;
   caption?: string;
+  fromMe?: boolean;  // Indicates if message was sent by us (from device or system)
 }
 
 function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | null {
@@ -214,11 +215,8 @@ function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | 
   if ((body.EventType === 'messages' || body.event === 'messages') && body.message && typeof body.message === 'object') {
     const msgObj = body.message;
     
-    // Skip if message is from us
-    if (msgObj.fromMe) {
-      console.log("[Inbox Webhook] Skipping outgoing message (fromMe=true)");
-      return null;
-    }
+    // Capture fromMe flag - we now process both incoming and outgoing messages
+    const fromMe = msgObj.fromMe === true;
     
     // Skip group messages for now (Central de Atendimento focuses on 1:1 conversations)
     if (msgObj.isGroup) {
@@ -226,8 +224,15 @@ function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | 
       return null;
     }
     
-    // Extract phone from sender_pn (format: 559187459963@s.whatsapp.net)
-    const phone = msgObj.sender_pn?.replace('@s.whatsapp.net', '').replace('@g.us', '') || '';
+    // Extract phone from sender_pn or chatid (for outgoing messages, use chatid)
+    let phone = '';
+    if (fromMe) {
+      // For outgoing messages, extract destination from chatid
+      phone = msgObj.chatid?.replace('@s.whatsapp.net', '').replace('@g.us', '') || '';
+    } else {
+      // For incoming messages, use sender_pn
+      phone = msgObj.sender_pn?.replace('@s.whatsapp.net', '').replace('@g.us', '') || '';
+    }
     
     // Extract message text (use caption for media messages)
     const message = msgObj.text || msgObj.content?.text || msgObj.caption || '';
@@ -265,22 +270,20 @@ function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | 
     
     console.log(`[Inbox Webhook] UAZAPI v2 format detected:`);
     console.log(`[Inbox Webhook]   - phone: ${phone}`);
+    console.log(`[Inbox Webhook]   - fromMe: ${fromMe}`);
     console.log(`[Inbox Webhook]   - messageType: ${messageType}`);
     console.log(`[Inbox Webhook]   - hasMedia: ${hasMedia}`);
     console.log(`[Inbox Webhook]   - mediaType: ${mediaType}`);
     console.log(`[Inbox Webhook]   - messageId: ${messageId}`);
     
-    return { phone, message, contactName, mediaUrl, mediaType, messageId, hasMedia, mimetype, caption };
+    return { phone, message, contactName, mediaUrl, mediaType, messageId, hasMedia, mimetype, caption, fromMe };
   }
   
   // Try legacy UAZAPI webhook format with data wrapper
   if (body.data?.key?.remoteJid) {
     const remoteJid = body.data.key.remoteJid;
-    // Skip if message is from us
-    if (body.data.key.fromMe) {
-      console.log("[Inbox Webhook] Skipping outgoing message (fromMe=true)");
-      return null;
-    }
+    // Capture fromMe flag - we now process both incoming and outgoing messages
+    const fromMe = body.data.key.fromMe === true;
     
     // Extract phone from remoteJid (format: 5591999999999@s.whatsapp.net)
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
@@ -337,8 +340,8 @@ function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | 
     
     const contactName = body.data.pushName || phone;
     
-    console.log(`[Inbox Webhook] Legacy UAZAPI format detected - phone: ${phone}, hasMedia: ${hasMedia}`);
-    return { phone, message, contactName, mediaUrl, mediaType, messageId, hasMedia, mimetype, caption };
+    console.log(`[Inbox Webhook] Legacy UAZAPI format detected - phone: ${phone}, fromMe: ${fromMe}, hasMedia: ${hasMedia}`);
+    return { phone, message, contactName, mediaUrl, mediaType, messageId, hasMedia, mimetype, caption, fromMe };
   }
   
   // Try alternative UAZAPI formats
@@ -728,6 +731,8 @@ serve(async (req: Request) => {
     let mimetype: string | undefined;
     let caption: string | undefined;
 
+    let fromMe = false;  // Track if message is from us (device or system)
+
     if (extractedData) {
       // UAZAPI format
       phone = extractedData.phone;
@@ -740,6 +745,7 @@ serve(async (req: Request) => {
       hasMedia = extractedData.hasMedia || false;
       mimetype = extractedData.mimetype;
       caption = extractedData.caption;
+      fromMe = extractedData.fromMe || false;
     } else if (standardFormat.phone && standardFormat.message) {
       // Standard format from our internal calls
       phone = standardFormat.phone;
@@ -757,7 +763,7 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`[Inbox Webhook] Received message from: ${phone}, instanceKey: ${instanceKey || 'none'}, hasMedia: ${hasMedia}, messageId: ${messageId}`);
+    console.log(`[Inbox Webhook] Received message from: ${phone}, instanceKey: ${instanceKey || 'none'}, hasMedia: ${hasMedia}, messageId: ${messageId}, fromMe: ${fromMe}`);
 
     // For messages with media, we need either a URL or phone/message content
     if (!phone) {
@@ -894,40 +900,84 @@ serve(async (req: Request) => {
       console.log(`[Inbox Webhook] Created new conversation: ${conversation.id}`);
     } else {
       // Update existing conversation
+      // For outgoing messages (fromMe), don't increment unread_count
+      const updateData: Record<string, unknown> = {
+        last_message_at: new Date().toISOString(),
+        last_message_preview: previewMessage.substring(0, 100),
+      };
+      
+      // Only update these for incoming messages
+      if (!fromMe) {
+        updateData.status = conversation.status === 'resolved' ? 'open' : conversation.status;
+        updateData.unread_count = (conversation.unread_count || 0) + 1;
+        updateData.contact_name = contactName || conversation.contact_name;
+      }
+      
       const { error: updateError } = await supabase
         .from('conversations')
-        .update({
-          status: conversation.status === 'resolved' ? 'open' : conversation.status,
-          unread_count: (conversation.unread_count || 0) + 1,
-          last_message_at: new Date().toISOString(),
-          last_message_preview: previewMessage.substring(0, 100),
-          contact_name: contactName || conversation.contact_name
-        })
+        .update(updateData)
         .eq('id', conversation.id);
 
       if (updateError) {
         console.error('[Inbox Webhook] Error updating conversation:', updateError);
       }
-      console.log(`[Inbox Webhook] Updated conversation: ${conversation.id}`);
+      console.log(`[Inbox Webhook] Updated conversation: ${conversation.id}, fromMe: ${fromMe}`);
     }
 
-    // Save incoming message
+    // Check if this outgoing message already exists (avoid duplicates for messages sent via system)
+    if (fromMe && messageId) {
+      const { data: existingMsg } = await supabase
+        .from('chat_inbox_messages')
+        .select('id')
+        .eq('conversation_id', conversation.id)
+        .or(`metadata->whatsapp_id.eq.${messageId},metadata->>whatsapp_message_id.eq.${messageId}`)
+        .maybeSingle();
+      
+      if (existingMsg) {
+        console.log(`[Inbox Webhook] Outgoing message already exists (whatsapp_id: ${messageId}), skipping duplicate`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            conversationId: conversation.id,
+            messageId: existingMsg.id,
+            skipped: true,
+            reason: 'duplicate_outgoing_message'
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Save message - set sender_type based on fromMe flag
+    const senderType = fromMe ? 'agent' : 'contact';
+    const messageMetadata: Record<string, unknown> = { 
+      phone, 
+      original_message: body,
+      whatsapp_message_id: messageId,
+      whatsapp_id: messageId,  // Also save as whatsapp_id for status updates
+      has_media: hasMedia,
+      original_media_type: mediaType,
+      file_name: caption || undefined
+    };
+    
+    // For outgoing messages (from device), add source indicator and status
+    if (fromMe) {
+      messageMetadata.source = 'device';  // Indicates sent from phone, not system
+      messageMetadata.status = 'sent';
+      messageMetadata.sent_by = 'Celular';
+    }
+    
     const { data: savedMessage, error: msgError } = await supabase
       .from('chat_inbox_messages')
       .insert({
         conversation_id: conversation.id,
-        sender_type: 'contact',
+        sender_type: senderType,
+        sender_id: null,  // null for both incoming and device-sent messages
         content: message || caption || '',
         media_url: mediaUrl,
         media_type: finalMediaType,
-        metadata: { 
-          phone, 
-          original_message: body,
-          whatsapp_message_id: messageId,
-          has_media: hasMedia,
-          original_media_type: mediaType,
-          file_name: caption || undefined
-        }
+        is_read: fromMe,  // Outgoing messages are already read
+        metadata: messageMetadata
       })
       .select()
       .single();
@@ -935,12 +985,12 @@ serve(async (req: Request) => {
     if (msgError) {
       console.error('[Inbox Webhook] Error saving message:', msgError);
     } else {
-      console.log(`[Inbox Webhook] Saved message: ${savedMessage.id}`);
+      console.log(`[Inbox Webhook] Saved ${senderType} message: ${savedMessage.id}`);
     }
 
-    // Check if AI should respond
-    if (conversation.ai_enabled && !conversation.assigned_to) {
-      console.log('[Inbox Webhook] AI is enabled, checking for routing...');
+    // Check if AI should respond - only for INCOMING messages (not fromMe)
+    if (!fromMe && conversation.ai_enabled && !conversation.assigned_to) {
+      console.log('[Inbox Webhook] AI is enabled for incoming message, checking for routing...');
       
       // Check for AI agent routing
       const { data: routing, error: routingError } = await supabase
