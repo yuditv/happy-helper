@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -116,7 +115,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           )}
         </div>
         
-        <DialogFooter className="gap-2 sm:gap-0">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
           {testData && (
             <Button onClick={copyToClipboard} variant="default">
               <Copy className="h-4 w-4 mr-2" />
@@ -126,7 +125,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Fechar
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
