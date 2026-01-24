@@ -107,6 +107,23 @@ export function useInboxConversations() {
         query = query.or(`phone.ilike.%${filter.search}%,contact_name.ilike.%${filter.search}%`);
       }
 
+      // Filter by label
+      if (filter.labelId) {
+        const { data: labeledConversations } = await supabase
+          .from('conversation_labels')
+          .select('conversation_id')
+          .eq('label_id', filter.labelId);
+        
+        const conversationIds = (labeledConversations || []).map(lc => lc.conversation_id);
+        
+        if (conversationIds.length > 0) {
+          query = query.in('id', conversationIds);
+        } else {
+          setConversations([]);
+          return;
+        }
+      }
+
       const { data, error } = await query.limit(100);
 
       if (error) {
