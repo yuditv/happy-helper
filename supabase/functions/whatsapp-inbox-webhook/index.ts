@@ -79,6 +79,7 @@ interface UAZAPIWebhookPayload {
     caption?: string;
     mimetype?: string;
     fileName?: string;
+    messageType?: string;  // "ImageMessage", "VideoMessage", "AudioMessage", etc.
   };
   // Legacy UAZAPI format with data wrapper
   data?: {
@@ -237,14 +238,38 @@ function extractMessageData(body: UAZAPIWebhookPayload): ExtractedMessageData | 
     // Extract message ID for media download
     const messageId = msgObj.id || msgObj.messageid;
     
-    // Extract media info
-    const hasMedia = msgObj.hasMedia === true;
+    // Extract media info - UAZAPI v2 uses messageType instead of hasMedia
+    const messageType = msgObj.messageType || '';
+    const mediaMessageTypes = ['ImageMessage', 'VideoMessage', 'AudioMessage', 'DocumentMessage', 'StickerMessage', 'PttMessage'];
+    const hasMediaByType = mediaMessageTypes.some(type => 
+      messageType.toLowerCase().includes(type.toLowerCase().replace('message', ''))
+    );
+    
+    // Check for media: messageType OR hasMedia flag OR non-empty mediaType
+    const hasMedia = hasMediaByType || msgObj.hasMedia === true || (!!msgObj.mediaType && msgObj.mediaType !== '');
+    
     let mediaUrl: string | undefined = msgObj.mediaUrl;
-    const mediaType: string | undefined = msgObj.mediaType;
+    
+    // Infer mediaType from messageType if not explicitly provided
+    let mediaType: string | undefined = msgObj.mediaType;
+    if (!mediaType && hasMediaByType) {
+      if (messageType.toLowerCase().includes('image')) mediaType = 'image';
+      else if (messageType.toLowerCase().includes('video')) mediaType = 'video';
+      else if (messageType.toLowerCase().includes('audio') || messageType.toLowerCase().includes('ptt')) mediaType = 'audio';
+      else if (messageType.toLowerCase().includes('document')) mediaType = 'document';
+      else if (messageType.toLowerCase().includes('sticker')) mediaType = 'sticker';
+    }
+    
     const mimetype: string | undefined = msgObj.mimetype;
     const caption: string | undefined = msgObj.caption;
     
-    console.log(`[Inbox Webhook] UAZAPI v2 format detected - phone: ${phone}, hasMedia: ${hasMedia}, messageId: ${messageId}`);
+    console.log(`[Inbox Webhook] UAZAPI v2 format detected:`);
+    console.log(`[Inbox Webhook]   - phone: ${phone}`);
+    console.log(`[Inbox Webhook]   - messageType: ${messageType}`);
+    console.log(`[Inbox Webhook]   - hasMedia: ${hasMedia}`);
+    console.log(`[Inbox Webhook]   - mediaType: ${mediaType}`);
+    console.log(`[Inbox Webhook]   - messageId: ${messageId}`);
+    
     return { phone, message, contactName, mediaUrl, mediaType, messageId, hasMedia, mimetype, caption };
   }
   
