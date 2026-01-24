@@ -18,11 +18,30 @@ interface IncomingMessage {
   messageId?: string;
 }
 
-// UAZAPI webhook format
+// UAZAPI webhook format (v2 with EventType)
 interface UAZAPIWebhookPayload {
-  event?: string;
+  EventType?: string;  // "messages" with capital E
+  event?: string;      // fallback lowercase
   instance?: string;
+  instanceName?: string;
   token?: string;
+  // UAZAPI v2 format - message object at root level
+  message?: {
+    chatid?: string;
+    sender_pn?: string;  // "559187459963@s.whatsapp.net"
+    senderName?: string;
+    text?: string;
+    fromMe?: boolean;
+    isGroup?: boolean;
+    content?: { text?: string };
+    id?: string;
+    // Media fields
+    hasMedia?: boolean;
+    mediaType?: string;
+    mediaUrl?: string;
+    caption?: string;
+  };
+  // Legacy UAZAPI format with data wrapper
   data?: {
     key?: {
       remoteJid?: string;
@@ -42,7 +61,6 @@ interface UAZAPIWebhookPayload {
   };
   // Alternative fields that UAZAPI might send
   phone?: string;
-  message?: string;
   from?: string;
   text?: string;
   name?: string;
@@ -51,7 +69,44 @@ interface UAZAPIWebhookPayload {
 }
 
 function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; message: string; contactName: string; mediaUrl?: string; mediaType?: string } | null {
-  // Try UAZAPI webhook format first
+  // Try UAZAPI v2 format first (EventType + message object)
+  if ((body.EventType === 'messages' || body.event === 'messages') && body.message && typeof body.message === 'object') {
+    const msgObj = body.message;
+    
+    // Skip if message is from us
+    if (msgObj.fromMe) {
+      console.log("[Inbox Webhook] Skipping outgoing message (fromMe=true)");
+      return null;
+    }
+    
+    // Skip group messages for now (Central de Atendimento focuses on 1:1 conversations)
+    if (msgObj.isGroup) {
+      console.log("[Inbox Webhook] Skipping group message");
+      return null;
+    }
+    
+    // Extract phone from sender_pn (format: 559187459963@s.whatsapp.net)
+    const phone = msgObj.sender_pn?.replace('@s.whatsapp.net', '').replace('@g.us', '') || '';
+    
+    // Extract message text
+    const message = msgObj.text || msgObj.content?.text || '';
+    
+    // Extract contact name
+    const contactName = msgObj.senderName || phone;
+    
+    // Extract media if present
+    let mediaUrl: string | undefined;
+    let mediaType: string | undefined;
+    if (msgObj.hasMedia && msgObj.mediaUrl) {
+      mediaUrl = msgObj.mediaUrl;
+      mediaType = msgObj.mediaType;
+    }
+    
+    console.log(`[Inbox Webhook] UAZAPI v2 format detected - phone: ${phone}, message: ${message.substring(0, 50)}...`);
+    return { phone, message, contactName, mediaUrl, mediaType };
+  }
+  
+  // Try legacy UAZAPI webhook format with data wrapper
   if (body.data?.key?.remoteJid) {
     const remoteJid = body.data.key.remoteJid;
     // Skip if message is from us
@@ -93,22 +148,24 @@ function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; messag
     
     const contactName = body.data.pushName || phone;
     
+    console.log(`[Inbox Webhook] Legacy UAZAPI format detected - phone: ${phone}`);
     return { phone, message, contactName, mediaUrl, mediaType };
   }
   
   // Try alternative UAZAPI formats
   if (body.remoteJid) {
     const phone = body.remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
-    const message = body.message || body.text || '';
+    const message = body.text || '';
     const contactName = body.pushName || body.name || phone;
     return { phone, message, contactName };
   }
   
-  // Try direct fields
-  if (body.phone && body.message) {
+  // Try direct fields (phone + message as strings)
+  if (body.phone && typeof body.phone === 'string') {
+    const textMessage = body.text || '';
     return {
       phone: body.phone.replace(/\D/g, ''),
-      message: body.message,
+      message: textMessage,
       contactName: body.name || body.phone
     };
   }
@@ -116,7 +173,7 @@ function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; messag
   if (body.from) {
     return {
       phone: body.from.replace(/\D/g, '').replace('@s.whatsapp.net', ''),
-      message: body.message || body.text || '',
+      message: body.text || '',
       contactName: body.name || body.from
     };
   }
@@ -168,19 +225,20 @@ serve(async (req: Request) => {
     console.log("[Inbox Webhook] Instance/Token:", body.instance || body.token || 'not specified');
 
     // Check if this is a non-message event (status, qrcode, etc.)
-    // Accept multiple event names for messages
+    // Accept multiple event names for messages - including EventType (UAZAPI v2)
+    const eventType = body.EventType || body.event;
     const messageEvents = ['messages', 'message', 'messages.upsert', 'MESSAGES_UPSERT'];
-    const isMessageEvent = !body.event || messageEvents.includes(body.event);
+    const isMessageEvent = !eventType || messageEvents.includes(eventType);
     
     if (!isMessageEvent) {
-      console.log(`[Inbox Webhook] Ignoring non-message event type: ${body.event}`);
+      console.log(`[Inbox Webhook] Ignoring non-message event type: ${eventType}`);
       return new Response(
-        JSON.stringify({ success: true, ignored: true, event: body.event, timestamp: requestTimestamp }),
+        JSON.stringify({ success: true, ignored: true, event: eventType, timestamp: requestTimestamp }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    console.log(`[Inbox Webhook] Processing message event: ${body.event || 'default'}`);
+    console.log(`[Inbox Webhook] Processing message event: ${eventType || 'default'}`);
 
     // Extract message data from various formats
     const extractedData = extractMessageData(body);
