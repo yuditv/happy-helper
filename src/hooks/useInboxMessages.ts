@@ -253,7 +253,8 @@ export function useInboxMessages(conversationId: string | null) {
     };
   }, [conversationId]);
 
-  const syncMessages = useCallback(async (silent = false) => {
+  const syncMessages = useCallback(async (options?: { limit?: number; silent?: boolean; force?: boolean }) => {
+    const { limit = 50, silent = false, force = false } = options || {};
     const currentConversationId = conversationIdRef.current;
     if (!currentConversationId || isSyncingRef.current) return;
     
@@ -271,7 +272,7 @@ export function useInboxMessages(conversationId: string | null) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session?.access_token}`
           },
-          body: JSON.stringify({ conversationId: currentConversationId, limit: 50 })
+          body: JSON.stringify({ conversationId: currentConversationId, limit, force })
         }
       );
 
@@ -326,12 +327,12 @@ export function useInboxMessages(conversationId: string | null) {
 
     // Initial sync when conversation opens (after 2 seconds)
     const initialTimeout = setTimeout(() => {
-      syncMessages(true);
+      syncMessages({ silent: true });
     }, 2000);
 
     // Set up polling interval
     const pollInterval = setInterval(() => {
-      syncMessages(true);
+      syncMessages({ silent: true });
     }, 30000); // 30 seconds
 
     return () => {

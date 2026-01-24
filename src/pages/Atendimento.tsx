@@ -514,7 +514,7 @@ export default function Atendimento() {
               onMarkAsRead={handleMarkAsRead}
               onRegisterClient={handleRegisterClient}
               onRetryMessage={retryMessage}
-              onSyncMessages={syncMessages}
+              onSyncMessages={(limit) => syncMessages({ limit, silent: false })}
               onDeleteConversation={handleDeleteConversation}
             />
           </>

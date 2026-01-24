@@ -24,7 +24,10 @@ import {
   Trash2,
   MessageSquareText,
   Ban,
-  UserCheck
+  UserCheck,
+  Search,
+  ChevronDown,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -74,6 +77,8 @@ import { EmojiPickerButton } from "./EmojiPickerButton";
 import { AudioPlayer } from "./AudioPlayer";
 import { CRMLeadPanel } from "./CRMLeadPanel";
 import { useCRMLead, CRM_STATUSES } from "@/hooks/useCRMLead";
+import { MessageSearchDialog } from "./MessageSearchDialog";
+import { SyncOptionsDialog } from "./SyncOptionsDialog";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -92,7 +97,7 @@ interface ChatPanelProps {
   onMarkAsRead: () => void;
   onRegisterClient?: (phone: string, name?: string) => void;
   onRetryMessage?: (messageId: string) => Promise<boolean>;
-  onSyncMessages?: () => void;
+  onSyncMessages?: (limit?: number) => void;
   onDeleteConversation?: (conversationId: string, deleteFromWhatsApp: boolean) => Promise<boolean>;
 }
 
@@ -141,6 +146,8 @@ export function ChatPanel({
   const [showCRMPanel, setShowCRMPanel] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [showSearchDialog, setShowSearchDialog] = useState(false);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -616,6 +623,45 @@ export function ChatPanel({
             </Tooltip>
           )}
 
+          {/* Search Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => setShowSearchDialog(true)}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Buscar mensagens</TooltipContent>
+          </Tooltip>
+
+          {/* Sync Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" disabled={isSyncing}>
+                <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onSyncMessages?.()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sincronizar rápido (50)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSyncMessages?.(100)}>
+                Sincronizar 100 mensagens
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSyncMessages?.(200)}>
+                Sincronizar 200 mensagens
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowSyncDialog(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                Opções avançadas...
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* AI Toggle */}
           <Tooltip>
@@ -1208,6 +1254,28 @@ export function ChatPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Message Search Dialog */}
+      <MessageSearchDialog
+        open={showSearchDialog}
+        onOpenChange={setShowSearchDialog}
+        conversationId={conversation?.id || ''}
+        onMessageClick={(messageId) => {
+          // Close dialog and scroll to message (future enhancement)
+          setShowSearchDialog(false);
+        }}
+      />
+
+      {/* Sync Options Dialog */}
+      <SyncOptionsDialog
+        open={showSyncDialog}
+        onOpenChange={setShowSyncDialog}
+        conversationId={conversation?.id || null}
+        onSyncMessages={(limit) => {
+          onSyncMessages?.(limit);
+        }}
+        isSyncing={isSyncing || false}
+      />
     </div>
   );
 }
