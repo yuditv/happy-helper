@@ -1321,6 +1321,329 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // ========== LABEL MANAGEMENT ACTIONS ==========
+
+    // GET_LABELS - Fetch all labels from WhatsApp
+    if (action === "get_labels") {
+      const instanceId = body.instanceId as string;
+
+      if (!instanceId) {
+        return new Response(
+          JSON.stringify({ error: "instanceId é obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Get Labels] Fetching labels for instance: ${instanceId}`);
+
+      const { data: instance, error: instError } = await supabase
+        .from("whatsapp_instances")
+        .select("id, instance_key, instance_name")
+        .eq("id", instanceId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (instError || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instância não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância sem chave de API configurada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        const labelsResponse = await fetch(`${uazapiUrl}/labels`, {
+          method: "GET",
+          headers: {
+            "token": instance.instance_key,
+            "Accept": "application/json",
+          },
+        });
+
+        console.log(`[Get Labels] Response status: ${labelsResponse.status}`);
+        const labelsData = await labelsResponse.json();
+        console.log(`[Get Labels] Response:`, JSON.stringify(labelsData));
+
+        if (!labelsResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: "Erro ao buscar etiquetas", details: labelsData }),
+            { status: labelsResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Parse the response - UAZAPI returns array of labels
+        let labels = [];
+        if (Array.isArray(labelsData)) {
+          labels = labelsData;
+        } else if (labelsData.labels) {
+          labels = labelsData.labels;
+        } else if (labelsData.data) {
+          labels = labelsData.data;
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            labels,
+            instance: {
+              id: instance.id,
+              name: instance.instance_name
+            }
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Get Labels] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao buscar etiquetas: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // CREATE_LABEL - Create a new label via /label/edit
+    if (action === "create_label") {
+      const instanceId = body.instanceId as string;
+      const labelName = body.name as string;
+      const colorCode = body.colorCode as number ?? 0;
+
+      if (!instanceId || !labelName) {
+        return new Response(
+          JSON.stringify({ error: "instanceId e name são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Create Label] Creating label "${labelName}" for instance: ${instanceId}`);
+
+      const { data: instance, error: instError } = await supabase
+        .from("whatsapp_instances")
+        .select("id, instance_key")
+        .eq("id", instanceId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (instError || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instância não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância sem chave de API configurada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        const createResponse = await fetch(`${uazapiUrl}/label/edit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({
+            labelid: "", // Empty = create new
+            name: labelName,
+            color: colorCode,
+            delete: false,
+          }),
+        });
+
+        console.log(`[Create Label] Response status: ${createResponse.status}`);
+        const createData = await createResponse.json();
+        console.log(`[Create Label] Response:`, JSON.stringify(createData));
+
+        if (!createResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: "Erro ao criar etiqueta", details: createData }),
+            { status: createResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Extract the created label ID
+        const labelId = createData.id || createData.labelid || createData.label?.id;
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            labelId,
+            message: "Etiqueta criada com sucesso"
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Create Label] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao criar etiqueta: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // DELETE_LABEL - Delete a label via /label/edit with delete=true
+    if (action === "delete_label") {
+      const instanceId = body.instanceId as string;
+      const labelId = body.labelId as string;
+
+      if (!instanceId || !labelId) {
+        return new Response(
+          JSON.stringify({ error: "instanceId e labelId são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Delete Label] Deleting label ${labelId} for instance: ${instanceId}`);
+
+      const { data: instance, error: instError } = await supabase
+        .from("whatsapp_instances")
+        .select("id, instance_key")
+        .eq("id", instanceId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (instError || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instância não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância sem chave de API configurada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        const deleteResponse = await fetch(`${uazapiUrl}/label/edit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({
+            labelid: labelId,
+            delete: true,
+          }),
+        });
+
+        console.log(`[Delete Label] Response status: ${deleteResponse.status}`);
+        const deleteData = await deleteResponse.json();
+        console.log(`[Delete Label] Response:`, JSON.stringify(deleteData));
+
+        if (!deleteResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: "Erro ao excluir etiqueta", details: deleteData }),
+            { status: deleteResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: "Etiqueta excluída com sucesso" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Delete Label] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao excluir etiqueta: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // ASSIGN_CHAT_LABELS - Add/remove labels from a chat via /chat/labels
+    if (action === "assign_chat_labels") {
+      const instanceId = body.instanceId as string;
+      const phone = body.phone as string;
+      const addLabelIds = body.addLabelIds as string[] | string | undefined;
+      const removeLabelIds = body.removeLabelIds as string[] | string | undefined;
+
+      if (!instanceId || !phone) {
+        return new Response(
+          JSON.stringify({ error: "instanceId e phone são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Assign Labels] Phone: ${phone}, Add: ${addLabelIds}, Remove: ${removeLabelIds}`);
+
+      const { data: instance, error: instError } = await supabase
+        .from("whatsapp_instances")
+        .select("id, instance_key")
+        .eq("id", instanceId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (instError || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instância não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância sem chave de API configurada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        // Build request body
+        const requestBody: Record<string, unknown> = { number: phone };
+        
+        if (addLabelIds) {
+          requestBody.add_labelid = Array.isArray(addLabelIds) ? addLabelIds : [addLabelIds];
+        }
+        if (removeLabelIds) {
+          requestBody.remove_labelid = Array.isArray(removeLabelIds) ? removeLabelIds : [removeLabelIds];
+        }
+
+        console.log(`[Assign Labels] Request body:`, JSON.stringify(requestBody));
+
+        const assignResponse = await fetch(`${uazapiUrl}/chat/labels`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        console.log(`[Assign Labels] Response status: ${assignResponse.status}`);
+        const assignData = await assignResponse.json();
+        console.log(`[Assign Labels] Response:`, JSON.stringify(assignData));
+
+        if (!assignResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: "Erro ao atribuir etiquetas", details: assignData }),
+            { status: assignResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: "Etiquetas atualizadas com sucesso" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Assign Labels] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao atribuir etiquetas: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
