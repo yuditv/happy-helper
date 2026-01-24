@@ -627,15 +627,14 @@ serve(async (req: Request) => {
                 formattedPhone = '55' + formattedPhone;
               }
 
-              // Send via UAZAPI - format: /sendText with token header and { session, number, text }
-              await fetch(`${uazapiUrl}/sendText`, {
+              // Send via UAZAPI - format: /send/text with token header and { number, text }
+              await fetch(`${uazapiUrl}/send/text`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'token': instance.instance_key || uazapiToken
                 },
                 body: JSON.stringify({
-                  session: instance.instance_name,
                   number: formattedPhone,
                   text: assistantResponse
                 })

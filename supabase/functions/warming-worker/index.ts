@@ -136,15 +136,14 @@ async function sendWhatsAppMessage(
       formattedPhone = '55' + formattedPhone;
     }
 
-    // UAZAPI format: /sendText with token header and { session, number, text }
-    const response = await fetch(`${UAZAPI_URL}/sendText`, {
+    // UAZAPI format: /send/text with token header and { number, text }
+    const response = await fetch(`${UAZAPI_URL}/send/text`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "token": instanceToken,
       },
       body: JSON.stringify({
-        session: instanceName,
         number: formattedPhone,
         text: message,
       }),

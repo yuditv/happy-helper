@@ -97,35 +97,34 @@ const handler = async (req: Request): Promise<Response> => {
     // Determine endpoint based on media type
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       // Media message
-      let endpoint = '/sendImage';
+      let endpoint = '/send/image';
       // deno-lint-ignore no-explicit-any
       const body: Record<string, any> = { 
-        session: sessionName,  // uazapiGO v2 session
         number: formattedPhone 
       };
       
       switch (mediaType) {
         case 'image':
-          endpoint = '/sendImage';
+          endpoint = '/send/image';
           body.url = mediaUrl;
           body.caption = caption || message || '';
           break;
         case 'video':
-          endpoint = '/sendVideo';
+          endpoint = '/send/video';
           body.url = mediaUrl;
           body.caption = caption || message || '';
           break;
         case 'audio':
-          endpoint = '/sendAudio';
+          endpoint = '/send/audio';
           body.url = mediaUrl;
           break;
         case 'document':
-          endpoint = '/sendDocument';
+          endpoint = '/send/document';
           body.url = mediaUrl;
           body.fileName = fileName || 'document';
           break;
         default:
-          endpoint = '/sendText';
+          endpoint = '/send/text';
           body.text = message || '';
       }
       
@@ -156,19 +155,17 @@ const handler = async (req: Request): Promise<Response> => {
         lastError = `${response.status}: ${respText}`;
       }
     } else {
-      // Text message - use /sendText with { session, number, text }
-      console.log(`Sending text via /sendText`);
-      console.log(`URL: ${UAZAPI_URL}/sendText`);
-      console.log(`Session: ${sessionName}`);
+      // Text message - use /send/text with { number, text }
+      console.log(`Sending text via /send/text`);
+      console.log(`URL: ${UAZAPI_URL}/send/text`);
       
-      const response = await fetch(`${UAZAPI_URL}/sendText`, {
+      const response = await fetch(`${UAZAPI_URL}/send/text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "token": instanceToken
         },
         body: JSON.stringify({
-          session: sessionName,
           number: formattedPhone,
           text: message
         }),
