@@ -145,28 +145,23 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // UAZAPI zynk2/Wuzapi format: token in URL path
-        let uazapiEndpoint: string;
+        // UAZAPI zynk2 format: token in header, unified /chat/send endpoint
+        const uazapiEndpoint = `${uazapiUrl}/chat/send`;
         let uazapiBody: Record<string, unknown>;
 
-        // Handle media with specific endpoints
+        // Handle media with specific keys
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendImage`;
-            uazapiBody = { phone, image: mediaUrl, caption: content };
+            uazapiBody = { phone, image: mediaUrl, caption: content || '' };
           } else if (mediaType.startsWith('video/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendVideo`;
-            uazapiBody = { phone, video: mediaUrl, caption: content };
+            uazapiBody = { phone, video: mediaUrl, caption: content || '' };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendAudio`;
             uazapiBody = { phone, audio: mediaUrl };
           } else {
-            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendDocument`;
             uazapiBody = { phone, document: mediaUrl, fileName: 'file' };
           }
         } else {
           // Text message
-          uazapiEndpoint = `${uazapiUrl}/${instanceToken}/sendText`;
           uazapiBody = { phone, message: content };
         }
 
@@ -177,6 +172,7 @@ serve(async (req: Request) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'token': instanceToken
           },
           body: JSON.stringify(uazapiBody)
         });

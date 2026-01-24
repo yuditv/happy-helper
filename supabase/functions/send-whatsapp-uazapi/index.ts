@@ -69,14 +69,13 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedPhone = formatPhoneNumber(phone);
     console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
+    // UAZAPI zynk2 format: token in header, unified /chat/send endpoint
+    const endpoint = `${UAZAPI_URL}/chat/send`;
     let body: Record<string, any>;
-    let endpoint: string;
 
-    // UAZAPI zynk2/Wuzapi format: token in URL path, specific endpoints per type
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
-          endpoint = `${UAZAPI_URL}/${instanceToken}/sendImage`;
           body = {
             phone: formattedPhone,
             image: mediaUrl,
@@ -84,7 +83,6 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'video':
-          endpoint = `${UAZAPI_URL}/${instanceToken}/sendVideo`;
           body = {
             phone: formattedPhone,
             video: mediaUrl,
@@ -92,14 +90,12 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'audio':
-          endpoint = `${UAZAPI_URL}/${instanceToken}/sendAudio`;
           body = {
             phone: formattedPhone,
             audio: mediaUrl
           };
           break;
         case 'document':
-          endpoint = `${UAZAPI_URL}/${instanceToken}/sendDocument`;
           body = {
             phone: formattedPhone,
             document: mediaUrl,
@@ -107,7 +103,6 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         default:
-          endpoint = `${UAZAPI_URL}/${instanceToken}/sendText`;
           body = {
             phone: formattedPhone,
             message: message || ''
@@ -124,7 +119,6 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-      endpoint = `${UAZAPI_URL}/${instanceToken}/sendText`;
       body = {
         phone: formattedPhone,
         message: message
@@ -138,6 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "token": instanceToken
       },
       body: JSON.stringify(body),
     });
@@ -162,10 +157,11 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         console.log(`[Archive] Attempting to archive chat with: ${formattedPhone}`);
         
-        const archiveResponse = await fetch(`${UAZAPI_URL}/${instanceToken}/archiveChat`, {
+        const archiveResponse = await fetch(`${UAZAPI_URL}/chat/archive`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "token": instanceToken
           },
           body: JSON.stringify({
             phone: formattedPhone,
