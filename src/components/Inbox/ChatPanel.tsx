@@ -3,21 +3,16 @@ import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Send, 
-  Paperclip, 
   MoreVertical, 
   Bot, 
   User,
   Check,
-  CheckCheck,
   Clock,
   Tag,
   UserPlus,
-  Power,
   Archive,
   RotateCcw,
   Lock,
-  Image,
-  Smile,
   PanelRightOpen,
   PanelRightClose
 } from "lucide-react";
@@ -40,7 +35,13 @@ import { Conversation, InboxLabel } from "@/hooks/useInboxConversations";
 import { ChatMessage } from "@/hooks/useInboxMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { useClientByPhone } from "@/hooks/useClientByPhone";
+import { useCannedResponses } from "@/hooks/useCannedResponses";
 import { ClientInfoPanel } from "./ClientInfoPanel";
+import { MessageStatus } from "./MessageStatus";
+import { TypingIndicator } from "./TypingIndicator";
+import { FileUploadButton } from "./FileUploadButton";
+import { AttachmentPreview } from "./AttachmentPreview";
+import { QuickReplyAutocomplete } from "./QuickReplyAutocomplete";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -48,7 +49,7 @@ interface ChatPanelProps {
   labels: InboxLabel[];
   isLoading: boolean;
   isSending: boolean;
-  onSendMessage: (content: string, isPrivate?: boolean) => Promise<boolean>;
+  onSendMessage: (content: string, isPrivate?: boolean, mediaUrl?: string, mediaType?: string) => Promise<boolean>;
   onAssignToMe: () => void;
   onResolve: () => void;
   onReopen: () => void;
@@ -56,6 +57,12 @@ interface ChatPanelProps {
   onAssignLabel: (labelId: string) => void;
   onRemoveLabel: (labelId: string) => void;
   onMarkAsRead: () => void;
+}
+
+interface AttachmentState {
+  url: string;
+  type: string;
+  fileName: string;
 }
 
 export function ChatPanel({
@@ -77,18 +84,34 @@ export function ChatPanel({
   const [message, setMessage] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [showClientPanel, setShowClientPanel] = useState(true);
+  const [attachment, setAttachment] = useState<AttachmentState | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch client by phone
   const { client, isLoading: isLoadingClient } = useClientByPhone(conversation?.phone || null);
 
+  // Canned responses for quick replies
+  const { responses, searchResponses, findByShortCode } = useCannedResponses();
+
+  // Get autocomplete suggestions based on current message
+  const getAutocompleteSuggestions = () => {
+    if (!message.startsWith('/')) return [];
+    const query = message.slice(1); // Remove the leading /
+    return searchResponses(query);
+  };
+
+  const autocompleteSuggestions = getAutocompleteSuggestions();
+  const showAutocomplete = message.startsWith('/') && autocompleteSuggestions.length > 0;
+
   // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   // Mark as read when conversation is selected
   useEffect(() => {
@@ -97,21 +120,122 @@ export function ChatPanel({
     }
   }, [conversation?.id]);
 
-  const handleSend = async () => {
-    if (!message.trim() || isSending) return;
+  // Reset autocomplete index when suggestions change
+  useEffect(() => {
+    setAutocompleteIndex(-1);
+  }, [autocompleteSuggestions.length]);
+
+  // Simulate typing indicator based on recent messages (last message from contact within 30s)
+  useEffect(() => {
+    if (!conversation || messages.length === 0) {
+      setIsTyping(false);
+      return;
+    }
+
+    const lastContactMessage = [...messages].reverse().find(m => m.sender_type === 'contact');
+    if (!lastContactMessage) {
+      setIsTyping(false);
+      return;
+    }
+
+    const timeSinceLastMessage = Date.now() - new Date(lastContactMessage.created_at).getTime();
     
-    const success = await onSendMessage(message.trim(), isPrivate);
+    // Show typing for 5 seconds after a message, simulating continued engagement
+    if (timeSinceLastMessage < 5000) {
+      setIsTyping(true);
+      const timeout = setTimeout(() => setIsTyping(false), 5000 - timeSinceLastMessage);
+      return () => clearTimeout(timeout);
+    } else {
+      setIsTyping(false);
+    }
+  }, [messages, conversation]);
+
+  const handleSelectAutocomplete = (response: typeof responses[0]) => {
+    // Replace message with canned response content
+    let content = response.content;
+    
+    // Replace variables
+    if (conversation?.contact_name) {
+      content = content.replace(/\{\{nome\}\}/gi, conversation.contact_name);
+    }
+    if (conversation?.phone) {
+      content = content.replace(/\{\{telefone\}\}/gi, conversation.phone);
+    }
+    
+    setMessage(content);
+    setAutocompleteIndex(-1);
+    textareaRef.current?.focus();
+  };
+
+  const handleSend = async () => {
+    if ((!message.trim() && !attachment) || isSending) return;
+    
+    const success = await onSendMessage(
+      message.trim(), 
+      isPrivate,
+      attachment?.url,
+      attachment?.type
+    );
+    
     if (success) {
       setMessage("");
       setIsPrivate(false);
+      setAttachment(null);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle autocomplete navigation
+    if (showAutocomplete) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutocompleteIndex(prev => 
+          prev < autocompleteSuggestions.length - 1 ? prev + 1 : 0
+        );
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutocompleteIndex(prev => 
+          prev > 0 ? prev - 1 : autocompleteSuggestions.length - 1
+        );
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && autocompleteIndex >= 0)) {
+        e.preventDefault();
+        if (autocompleteIndex >= 0) {
+          handleSelectAutocomplete(autocompleteSuggestions[autocompleteIndex]);
+        } else if (autocompleteSuggestions.length > 0) {
+          handleSelectAutocomplete(autocompleteSuggestions[0]);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        setMessage('');
+        return;
+      }
+    }
+
+    // Check for shortcode completion on space
+    if (e.key === ' ' && message.startsWith('/')) {
+      const shortCode = message.slice(1).trim();
+      const response = findByShortCode(shortCode);
+      if (response) {
+        e.preventDefault();
+        handleSelectAutocomplete(response);
+        return;
+      }
+    }
+
+    // Send on Enter
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleFileUploaded = (url: string, type: string, fileName: string) => {
+    setAttachment({ url, type, fileName });
   };
 
   const formatPhone = (phone: string) => {
@@ -157,6 +281,23 @@ export function ChatPanel({
       default:
         return { name: 'Desconhecido', icon: User, color: 'text-foreground' };
     }
+  };
+
+  const getMessageStatus = (msg: ChatMessage): 'sending' | 'sent' | 'delivered' | 'read' | 'failed' => {
+    // Check for error in metadata
+    if (msg.metadata?.send_error) return 'failed';
+    
+    // Check if read
+    if (msg.is_read) return 'read';
+    
+    // For now, assume delivered after 2 seconds from creation
+    const createdAt = new Date(msg.created_at).getTime();
+    const now = Date.now();
+    
+    if (now - createdAt < 1000) return 'sending';
+    if (now - createdAt < 2000) return 'sent';
+    
+    return 'delivered';
   };
 
   if (!conversation) {
@@ -351,6 +492,7 @@ export function ChatPanel({
               const showDate = index === 0 || 
                 format(new Date(msg.created_at), 'yyyy-MM-dd') !== 
                 format(new Date(messages[index - 1].created_at), 'yyyy-MM-dd');
+              const messageStatus = getMessageStatus(msg);
 
               return (
                 <div key={msg.id}>
@@ -399,12 +541,18 @@ export function ChatPanel({
                               alt="Media" 
                               className="rounded max-w-full max-h-64 object-cover"
                             />
+                          ) : msg.media_type?.startsWith('video/') ? (
+                            <video 
+                              src={msg.media_url} 
+                              controls
+                              className="rounded max-w-full max-h-64"
+                            />
                           ) : (
                             <a 
                               href={msg.media_url} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-sm underline"
+                              className="text-sm underline flex items-center gap-1"
                             >
                               📎 Anexo
                             </a>
@@ -413,11 +561,13 @@ export function ChatPanel({
                       )}
 
                       {/* Content */}
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {msg.content}
-                      </p>
+                      {msg.content && (
+                        <p className="text-sm whitespace-pre-wrap break-words">
+                          {msg.content}
+                        </p>
+                      )}
 
-                      {/* Time */}
+                      {/* Time and Status */}
                       <div className={cn(
                         "flex items-center gap-1 text-xs mt-1",
                         isOutgoing ? "justify-end" : "justify-start",
@@ -428,23 +578,39 @@ export function ChatPanel({
                         <span>
                           {format(new Date(msg.created_at), 'HH:mm')}
                         </span>
-                        {isOutgoing && (
-                          msg.is_read 
-                            ? <CheckCheck className="h-3 w-3 text-blue-400" />
-                            : <Check className="h-3 w-3" />
-                        )}
+                        <MessageStatus 
+                          status={messageStatus}
+                          isOutgoing={isOutgoing}
+                        />
                       </div>
                     </div>
                   </div>
                 </div>
               );
             })}
+            
+            {/* Typing Indicator */}
+            {isTyping && (
+              <TypingIndicator name={conversation.contact_name || 'Cliente'} />
+            )}
           </div>
         )}
       </ScrollArea>
 
       {/* Input */}
       <div className="p-3 border-t">
+        {/* Attachment Preview */}
+        {attachment && (
+          <div className="mb-2">
+            <AttachmentPreview
+              url={attachment.url}
+              type={attachment.type}
+              fileName={attachment.fileName}
+              onRemove={() => setAttachment(null)}
+            />
+          </div>
+        )}
+
         {/* Private note indicator */}
         {isPrivate && (
           <div className="flex items-center gap-2 text-xs text-yellow-600 mb-2 px-2">
@@ -455,9 +621,17 @@ export function ChatPanel({
 
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
+            {/* Quick Reply Autocomplete */}
+            <QuickReplyAutocomplete
+              responses={autocompleteSuggestions}
+              isVisible={showAutocomplete}
+              selectedIndex={autocompleteIndex}
+              onSelect={handleSelectAutocomplete}
+            />
+
             <Textarea
               ref={textareaRef}
-              placeholder={isPrivate ? "Escreva uma nota privada..." : "Digite sua mensagem..."}
+              placeholder={isPrivate ? "Escreva uma nota privada..." : "Digite sua mensagem... (use / para respostas rápidas)"}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -487,24 +661,28 @@ export function ChatPanel({
                 </TooltipContent>
               </Tooltip>
               
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-              >
-                <Paperclip className="h-4 w-4 text-muted-foreground" />
-              </Button>
+              <FileUploadButton
+                onFileUploaded={handleFileUploaded}
+                disabled={isSending}
+              />
             </div>
           </div>
-
+          
           <Button 
             onClick={handleSend}
-            disabled={!message.trim() || isSending}
+            disabled={(!message.trim() && !attachment) || isSending}
             className="h-11"
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Quick Reply Hint */}
+        {responses.length > 0 && !message && (
+          <p className="text-xs text-muted-foreground mt-1.5 px-1">
+            💡 Digite <span className="font-mono text-primary">/</span> para ver respostas rápidas
+          </p>
+        )}
       </div>
       </div>
 
