@@ -32,6 +32,7 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const uazapiUrl = Deno.env.get('UAZAPI_URL')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get conversation details
@@ -52,11 +53,11 @@ serve(async (req) => {
     // Get WhatsApp instance
     const { data: instance, error: instanceError } = await supabase
       .from('whatsapp_instances')
-      .select('id, api_url, api_token')
+      .select('id, instance_name, instance_key')
       .eq('id', conversation.instance_id)
       .single();
 
-    if (instanceError || !instance || !instance.api_url || !instance.api_token) {
+    if (instanceError || !instance || !instance.instance_key) {
       console.error('Error fetching instance:', instanceError);
       return new Response(
         JSON.stringify({ error: 'WhatsApp instance not configured' }),
@@ -65,30 +66,35 @@ serve(async (req) => {
     }
 
     // Prepare UAZAPI request
-    const apiUrl = instance.api_url.replace(/\/$/, '');
-    const presenceUrl = `${apiUrl}/message/presence`;
+    const presenceUrl = `${uazapiUrl}/message/presence`;
 
-    console.log(`Sending presence update: ${presence} to ${conversation.phone}`);
+    // Format phone number
+    let formattedPhone = conversation.phone.replace(/\D/g, '');
+    if (!formattedPhone.startsWith('55')) {
+      formattedPhone = '55' + formattedPhone;
+    }
+
+    console.log(`[Presence] Sending ${presence} to ${formattedPhone} via ${instance.instance_name}`);
 
     // Send presence update to UAZAPI
     const uazapiResponse = await fetch(presenceUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'token': instance.api_token,
+        'token': instance.instance_key,
       },
       body: JSON.stringify({
-        number: conversation.phone,
+        number: formattedPhone,
         presence: presence,
         delay: delay
       }),
     });
 
     const responseText = await uazapiResponse.text();
-    console.log(`UAZAPI response (${uazapiResponse.status}):`, responseText);
+    console.log(`[Presence] Response (${uazapiResponse.status}):`, responseText);
 
     if (!uazapiResponse.ok) {
-      console.error('UAZAPI error:', responseText);
+      console.error('[Presence] UAZAPI error:', responseText);
       return new Response(
         JSON.stringify({ 
           error: 'Failed to send presence update',
@@ -109,7 +115,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         presence,
-        phone: conversation.phone,
+        phone: formattedPhone,
         result 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
