@@ -75,7 +75,17 @@ export function useInboxConversations() {
     try {
       let query = supabase
         .from('conversations')
-        .select('*')
+        .select(`
+          *,
+          labels:conversation_labels(
+            id,
+            label:inbox_labels(
+              id,
+              name,
+              color
+            )
+          )
+        `)
         .order('last_message_at', { ascending: false });
 
       // Apply filters
