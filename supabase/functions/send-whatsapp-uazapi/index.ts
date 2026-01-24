@@ -144,7 +144,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Token": instanceToken,
+        "token": instanceToken,
       },
       body: JSON.stringify(body),
     });
