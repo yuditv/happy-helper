@@ -15,10 +15,13 @@ import {
   Lock,
   PanelRightOpen,
   PanelRightClose,
+  PanelLeftOpen,
+  PanelLeftClose,
   Play,
   RefreshCw,
   Camera,
-  Trash2
+  Trash2,
+  MessageSquareText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -61,6 +64,7 @@ import { AttachmentPreview } from "./AttachmentPreview";
 import { QuickReplyAutocomplete } from "./QuickReplyAutocomplete";
 import { AudioRecorder } from "./AudioRecorder";
 import { MediaGallery } from "./MediaGallery";
+import { QuickMessagesPanel } from "./QuickMessagesPanel";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -123,6 +127,7 @@ export function ChatPanel({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFromWhatsApp, setDeleteFromWhatsApp] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showQuickPanel, setShowQuickPanel] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -130,7 +135,7 @@ export function ChatPanel({
   const { client, isLoading: isLoadingClient } = useClientByPhone(conversation?.phone || null);
 
   // Canned responses for quick replies
-  const { responses, searchResponses, findByShortCode } = useCannedResponses();
+  const { responses, searchResponses, findByShortCode, isLoading: isLoadingResponses } = useCannedResponses();
   
   // Contact avatar fetcher
   const { fetchAvatar, isLoading: isFetchingAvatar } = useContactAvatar();
@@ -309,6 +314,17 @@ export function ChatPanel({
     }
   };
 
+  // Handler for quick send (bypasses input)
+  const handleQuickSend = async (content: string) => {
+    return await onSendMessage(content, false);
+  };
+
+  // Handler for editing from quick panel (fills input)
+  const handleEditFromQuick = (content: string) => {
+    setMessage(content);
+    textareaRef.current?.focus();
+  };
+
   const formatPhone = (phone: string) => {
     if (phone.length === 13) {
       return `+${phone.slice(0, 2)} (${phone.slice(2, 4)}) ${phone.slice(4, 9)}-${phone.slice(9)}`;
@@ -393,6 +409,37 @@ export function ChatPanel({
 
   return (
     <div className="flex-1 flex h-full inbox-container overflow-hidden">
+      {/* Quick Messages Panel */}
+      {showQuickPanel && (
+        <QuickMessagesPanel
+          responses={responses}
+          isLoading={isLoadingResponses}
+          onSendMessage={handleQuickSend}
+          onEditMessage={handleEditFromQuick}
+          contactName={conversation.contact_name}
+          phone={conversation.phone}
+        />
+      )}
+
+      {/* Toggle Quick Panel Button (when hidden) */}
+      {!showQuickPanel && (
+        <div className="border-r flex items-start pt-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 mx-1"
+                onClick={() => setShowQuickPanel(true)}
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Mensagens rápidas</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden inbox-chat-area">
         {/* Header */}
@@ -435,6 +482,22 @@ export function ChatPanel({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Toggle Quick Messages Panel */}
+          {showQuickPanel && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setShowQuickPanel(false)}
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ocultar mensagens rápidas</TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Sync Messages */}
           {onSyncMessages && (
             <Tooltip>
