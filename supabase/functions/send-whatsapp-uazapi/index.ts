@@ -80,9 +80,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Use same format as warming-worker/campaigns (which work!)
-    // /sendText endpoint with Authorization: Bearer header
-    console.log(`Sending via /sendText with Bearer auth`);
+    // Use same format as scheduled-dispatcher (which works!)
+    // Header: "token" (lowercase, no Bearer)
+    // Body: { number, text } (not phone/message)
+    console.log(`Sending via /sendText`);
     console.log(`URL: ${UAZAPI_URL}/sendText`);
     console.log(`Phone: ${formattedPhone}`);
 
@@ -95,7 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Media message
       let endpoint = '/sendImage';
       // deno-lint-ignore no-explicit-any
-      const body: Record<string, any> = { phone: formattedPhone };
+      const body: Record<string, any> = { number: formattedPhone };
       
       switch (mediaType) {
         case 'image':
@@ -119,7 +120,7 @@ const handler = async (req: Request): Promise<Response> => {
           break;
         default:
           endpoint = '/sendText';
-          body.message = message || '';
+          body.text = message || '';
       }
       
       console.log(`Sending media via ${endpoint}`);
@@ -128,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${instanceToken}`
+          "token": instanceToken
         },
         body: JSON.stringify(body),
       });
@@ -148,16 +149,16 @@ const handler = async (req: Request): Promise<Response> => {
         lastError = `${response.status}: ${respText}`;
       }
     } else {
-      // Text message - use /sendText
+      // Text message - use /sendText with { number, text }
       const response = await fetch(`${UAZAPI_URL}/sendText`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${instanceToken}`
+          "token": instanceToken
         },
         body: JSON.stringify({
-          phone: formattedPhone,
-          message
+          number: formattedPhone,
+          text: message
         }),
       });
       

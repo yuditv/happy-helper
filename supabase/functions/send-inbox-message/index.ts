@@ -145,9 +145,10 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Use same format as warming-worker/campaigns (which work!)
-        // /sendText endpoint with Authorization: Bearer header
-        console.log(`[Send Inbox] Sending via /sendText with Bearer auth`);
+        // Use same format as scheduled-dispatcher (which works!)
+        // Header: "token" (lowercase, no Bearer)
+        // Body: { number, text } (not phone/message)
+        console.log(`[Send Inbox] Sending via /sendText`);
         console.log(`[Send Inbox] URL: ${uazapiUrl}/sendText`);
         console.log(`[Send Inbox] Phone: ${phone}`);
         
@@ -158,7 +159,7 @@ serve(async (req: Request) => {
         if (mediaUrl && mediaType) {
           // Media message
           let endpoint = '/sendImage';
-          const body: Record<string, unknown> = { phone };
+          const body: Record<string, unknown> = { number: phone };
           
           if (mediaType.startsWith('image/')) {
             endpoint = '/sendImage';
@@ -183,7 +184,7 @@ serve(async (req: Request) => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${instanceToken}`
+              'token': instanceToken
             },
             body: JSON.stringify(body)
           });
@@ -199,16 +200,16 @@ serve(async (req: Request) => {
             lastError = `${sendResponse.status}: ${responseText}`;
           }
         } else {
-          // Text message - use /sendText
+          // Text message - use /sendText with { number, text }
           const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${instanceToken}`
+              'token': instanceToken
             },
             body: JSON.stringify({
-              phone,
-              message: content
+              number: phone,
+              text: content
             })
           });
           

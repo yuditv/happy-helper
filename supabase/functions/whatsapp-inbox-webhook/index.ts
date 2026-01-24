@@ -621,16 +621,16 @@ serve(async (req: Request) => {
                   metadata: { agent_id: agent.id, agent_name: agent.name }
                 });
 
-              // Send via UAZAPI - use /sendText with Bearer auth (same as working functions)
+              // Send via UAZAPI - use same format as scheduled-dispatcher
               await fetch(`${uazapiUrl}/sendText`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${instance.instance_key || uazapiToken}`
+                  'token': instance.instance_key || uazapiToken
                 },
                 body: JSON.stringify({
-                  phone: normalizedPhone,
-                  message: assistantResponse
+                  number: normalizedPhone,
+                  text: assistantResponse
                 })
               });
 
