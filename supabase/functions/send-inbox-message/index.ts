@@ -23,7 +23,6 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const uazapiUrl = Deno.env.get('UAZAPI_URL')!;
-    const uazapiToken = Deno.env.get('UAZAPI_TOKEN')!;
 
     // Get user from auth header
     const authHeader = req.headers.get('Authorization');
@@ -145,48 +144,47 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Use same format as scheduled-dispatcher (which works!)
-        // Header: "token" (lowercase, no Bearer)
-        // Body: { number, text } (not phone/message)
-        console.log(`[Send Inbox] Sending via /sendText`);
-        console.log(`[Send Inbox] URL: ${uazapiUrl}/sendText`);
-        console.log(`[Send Inbox] Phone: ${phone}`);
+        // Wuzapi/uazapiGO format: 
+        // - Endpoint: /chat/send/text (for text), /chat/send/image (for media)
+        // - Header: Token (PascalCase)
+        // - Body: Phone, Body (PascalCase)
         
         let sendSuccess = false;
         let lastError = '';
 
         // Determine if sending media or text
         if (mediaUrl && mediaType) {
-          // Media message
-          let endpoint = '/sendImage';
-          const body: Record<string, unknown> = { number: phone };
+          // Media message - use Wuzapi format
+          let endpoint = '/chat/send/image';
+          const requestBody: Record<string, unknown> = { Phone: phone };
           
           if (mediaType.startsWith('image/')) {
-            endpoint = '/sendImage';
-            body.image = mediaUrl;
-            body.caption = content || '';
+            endpoint = '/chat/send/image';
+            requestBody.Image = mediaUrl;
+            requestBody.Caption = content || '';
           } else if (mediaType.startsWith('video/')) {
-            endpoint = '/sendVideo';
-            body.video = mediaUrl;
-            body.caption = content || '';
+            endpoint = '/chat/send/video';
+            requestBody.Video = mediaUrl;
+            requestBody.Caption = content || '';
           } else if (mediaType.startsWith('audio/')) {
-            endpoint = '/sendAudio';
-            body.audio = mediaUrl;
+            endpoint = '/chat/send/audio';
+            requestBody.Audio = mediaUrl;
           } else {
-            endpoint = '/sendDocument';
-            body.document = mediaUrl;
-            body.filename = 'file';
+            endpoint = '/chat/send/document';
+            requestBody.Document = mediaUrl;
+            requestBody.FileName = 'file';
           }
           
           console.log(`[Send Inbox] Sending media via ${endpoint}`);
+          console.log(`[Send Inbox] URL: ${uazapiUrl}${endpoint}`);
           
           const sendResponse = await fetch(`${uazapiUrl}${endpoint}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'token': instanceToken
+              'Token': instanceToken
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(requestBody)
           });
           
           const responseText = await sendResponse.text();
@@ -200,16 +198,20 @@ serve(async (req: Request) => {
             lastError = `${sendResponse.status}: ${responseText}`;
           }
         } else {
-          // Text message - use /sendText with { number, text }
-          const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
+          // Text message - use Wuzapi format /chat/send/text with Phone and Body
+          console.log(`[Send Inbox] Sending via /chat/send/text`);
+          console.log(`[Send Inbox] URL: ${uazapiUrl}/chat/send/text`);
+          console.log(`[Send Inbox] Phone: ${phone}`);
+          
+          const sendResponse = await fetch(`${uazapiUrl}/chat/send/text`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'token': instanceToken
+              'Token': instanceToken
             },
             body: JSON.stringify({
-              number: phone,
-              text: content
+              Phone: phone,
+              Body: content
             })
           });
           
