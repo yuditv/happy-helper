@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Copy, Loader2, Tv, User, Lock, Calendar, Link2, Smartphone, Cloud } from "lucide-react";
+import { RefreshCw, Copy, Loader2, Wifi, User, Lock, Calendar, Clock, Server, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -10,62 +10,25 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-interface TestGeneratorDialogProps {
+interface VPNTestGeneratorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface TestCredentials {
-  username: string;
-  password: string;
-  expiresAt: string;
-  connections: string;
-  linkM3U: string;
-  assistPlusCode: string;
-  corePlayerCode: string;
-  playSimCode: string;
-  xcloudProvider: string;
+interface VPNTestCredentials {
+  username?: string;
+  password?: string;
+  expiresAt?: string;
+  duration?: string;
+  server?: string;
+  protocol?: string;
+  [key: string]: string | undefined;
 }
 
-const extractCredentials = (data: any): TestCredentials => {
-  const reply = data.reply || '';
-  
-  // Extract Link M3U from reply
-  const m3uMatch = reply.match(/📥\s*(http[^\s\n]+)/);
-  const linkM3U = m3uMatch ? m3uMatch[1] : '';
-  
-  // Extract ASSIST PLUS code
-  const assistMatch = reply.match(/ASSIST PLUS\n🔢 Código:\s*(\d+)/);
-  const assistPlusCode = assistMatch ? assistMatch[1] : '';
-  
-  // Extract CORE PLAYER code
-  const coreMatch = reply.match(/CORE PLAYER\n🔢 Código:\s*(\d+)/);
-  const corePlayerCode = coreMatch ? coreMatch[1] : '';
-  
-  // Extract PlaySim code
-  const playSimMatch = reply.match(/🚀?PlaySim\n🔢 Código:\s*(\d+)/);
-  const playSimCode = playSimMatch ? playSimMatch[1] : '';
-  
-  // Extract XCLOUD provider
-  const xcloudMatch = reply.match(/XCLOUD\n🏷️ Provedor:\s*([^\n]+)/);
-  const xcloudProvider = xcloudMatch ? xcloudMatch[1].trim() : '';
-
-  return {
-    username: data.username || '',
-    password: data.password || '',
-    expiresAt: data.expiresAtFormatted || data.expiresAt || '',
-    connections: String(data.connections || ''),
-    linkM3U,
-    assistPlusCode,
-    corePlayerCode,
-    playSimCode,
-    xcloudProvider,
-  };
-};
-
-export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogProps) {
+export function VPNTestGeneratorDialog({ open, onOpenChange }: VPNTestGeneratorDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [credentials, setCredentials] = useState<TestCredentials | null>(null);
+  const [credentials, setCredentials] = useState<VPNTestCredentials | null>(null);
+  const [rawResponse, setRawResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -75,13 +38,12 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     
     try {
       const response = await fetch(
-        "https://sportplay.sigmab.pro/api/chatbot/80m1Eev1lE/VpKDaPJLRA",
+        "https://servex.ws/test/3c5cfe65-2403-45f6-86d8-d3b820e6a8c9",
         {
-          method: "POST",
+          method: "GET",
           headers: {
-            "Content-Type": "application/json",
+            "Accept": "application/json",
           },
-          body: JSON.stringify({}),
         }
       );
       
@@ -90,11 +52,22 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
       }
       
       const data = await response.json();
-      console.log("🔍 JSON da API:", JSON.stringify(data, null, 2));
-      const extracted = extractCredentials(data);
+      console.log("🔍 VPN API Response:", JSON.stringify(data, null, 2));
+      setRawResponse(data);
+      
+      // Try to extract common fields
+      const extracted: VPNTestCredentials = {
+        username: data.username || data.user || data.login || '',
+        password: data.password || data.pass || data.senha || '',
+        expiresAt: data.expiresAt || data.expires_at || data.expiration || data.validade || '',
+        duration: data.duration || data.duracao || '',
+        server: data.server || data.servidor || data.host || '',
+        protocol: data.protocol || data.protocolo || data.type || '',
+      };
+      
       setCredentials(extracted);
     } catch (err) {
-      console.error("Erro ao gerar teste:", err);
+      console.error("Erro ao gerar teste VPN:", err);
       setError("Erro ao gerar teste. Verifique sua conexão e tente novamente.");
     } finally {
       setIsLoading(false);
@@ -120,18 +93,8 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
   };
 
   const copyAll = async () => {
-    if (credentials) {
-      const formattedText = `👤 Usuário: ${credentials.username}
-🔐 Senha: ${credentials.password}
-📅 Expira em: ${credentials.expiresAt}
-🔗 Conexões: ${credentials.connections}
-
-📺 Link M3U: ${credentials.linkM3U}
-📱 ASSIST PLUS Código: ${credentials.assistPlusCode}
-📱 CORE PLAYER Código: ${credentials.corePlayerCode}
-📱 PlaySim Código: ${credentials.playSimCode}
-☁️ XCLOUD Provedor: ${credentials.xcloudProvider}`;
-
+    if (rawResponse) {
+      const formattedText = JSON.stringify(rawResponse, null, 2);
       try {
         await navigator.clipboard.writeText(formattedText);
         toast({ 
@@ -151,6 +114,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setCredentials(null);
+      setRawResponse(null);
       setError(null);
     }
     onOpenChange(newOpen);
@@ -174,13 +138,51 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     </div>
   );
 
+  // Render all fields from rawResponse dynamically
+  const renderDynamicFields = () => {
+    if (!rawResponse || typeof rawResponse !== 'object') return null;
+    
+    const iconMap: Record<string, any> = {
+      username: User,
+      user: User,
+      login: User,
+      password: Lock,
+      pass: Lock,
+      senha: Lock,
+      expires: Calendar,
+      expiresAt: Calendar,
+      expires_at: Calendar,
+      expiration: Calendar,
+      validade: Calendar,
+      duration: Clock,
+      duracao: Clock,
+      server: Server,
+      servidor: Server,
+      host: Server,
+    };
+    
+    return Object.entries(rawResponse).map(([key, value]) => {
+      if (value === null || value === undefined || value === '') return null;
+      const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      const Icon = iconMap[key] || Globe;
+      return (
+        <CredentialRow 
+          key={key} 
+          icon={Icon} 
+          label={key} 
+          value={stringValue} 
+        />
+      );
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Tv className="h-5 w-5 text-primary" />
-            Gerar Teste IPTV
+            <Wifi className="h-5 w-5 text-primary" />
+            Gerar Teste VPN / Internet Ilimitada
           </DialogTitle>
         </DialogHeader>
         
@@ -209,33 +211,15 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
             </div>
           )}
           
-          {credentials && (
+          {rawResponse && (
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-4 pr-4">
-                {/* Credenciais */}
                 <div className="rounded-lg border bg-card">
                   <div className="px-3 py-2 border-b">
-                    <h4 className="text-sm font-semibold text-foreground">Credenciais</h4>
+                    <h4 className="text-sm font-semibold text-foreground">Dados do Teste</h4>
                   </div>
                   <div className="divide-y">
-                    <CredentialRow icon={User} label="Usuário" value={credentials.username} />
-                    <CredentialRow icon={Lock} label="Senha" value={credentials.password} />
-                    <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
-                    <CredentialRow icon={Link2} label="Conexões" value={credentials.connections} />
-                  </div>
-                </div>
-
-                {/* Links e Códigos */}
-                <div className="rounded-lg border bg-card">
-                  <div className="px-3 py-2 border-b">
-                    <h4 className="text-sm font-semibold text-foreground">Links e Códigos</h4>
-                  </div>
-                  <div className="divide-y">
-                    <CredentialRow icon={Link2} label="Link M3U" value={credentials.linkM3U} />
-                    <CredentialRow icon={Smartphone} label="ASSIST PLUS Código" value={credentials.assistPlusCode} />
-                    <CredentialRow icon={Smartphone} label="CORE PLAYER Código" value={credentials.corePlayerCode} />
-                    <CredentialRow icon={Smartphone} label="PlaySim Código" value={credentials.playSimCode} />
-                    <CredentialRow icon={Cloud} label="XCLOUD Provedor" value={credentials.xcloudProvider} />
+                    {renderDynamicFields()}
                   </div>
                 </div>
               </div>
@@ -247,7 +231,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Fechar
           </Button>
-          {credentials && (
+          {rawResponse && (
             <Button onClick={copyAll} variant="default">
               <Copy className="h-4 w-4 mr-2" />
               Copiar Tudo
