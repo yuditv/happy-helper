@@ -225,10 +225,55 @@ export function useClients() {
       return null;
     }
 
-    // Send WhatsApp renewal notification if enabled (placeholder - will be reimplemented)
+    // Send WhatsApp renewal notification if enabled
     if (sendNotification && client.whatsapp) {
-      console.log('WhatsApp notification would be sent to:', client.whatsapp);
-      // TODO: Implement new WhatsApp integration
+      try {
+        // Fetch user's connected WhatsApp instance
+        const { data: instance } = await supabase
+          .from('whatsapp_instances')
+          .select('instance_key')
+          .eq('user_id', user.id)
+          .eq('status', 'connected')
+          .limit(1)
+          .single();
+
+        if (instance?.instance_key) {
+          // Format phone number
+          let phone = client.whatsapp.replace(/[^\d]/g, '');
+          if (!phone.startsWith('55') && phone.length <= 11) {
+            phone = '55' + phone;
+          }
+
+          // Build renewal confirmation message
+          const planName = planLabels[client.plan] || client.plan;
+          const formattedDate = format(newExpiresAt, "dd/MM/yyyy", { locale: ptBR });
+          const message = `✅ *Renovação Confirmada!*\n\n` +
+            `Olá ${client.name}!\n\n` +
+            `Seu plano *${planName}* foi renovado com sucesso!\n\n` +
+            `📅 Nova data de vencimento: ${formattedDate}\n\n` +
+            `Obrigado pela preferência! 🙏`;
+
+          // Send via UAZAPI
+          const { error: sendError } = await supabase.functions.invoke('send-whatsapp-uazapi', {
+            body: {
+              instanceKey: instance.instance_key,
+              phone,
+              message,
+            }
+          });
+
+          if (sendError) {
+            console.error('Error sending renewal notification:', sendError);
+          } else {
+            console.log('Renewal notification sent to:', phone);
+          }
+        } else {
+          console.log('No connected WhatsApp instance found, skipping notification');
+        }
+      } catch (error) {
+        console.error('Error sending renewal notification:', error);
+        // Don't block the renewal if notification fails
+      }
     }
 
     await fetchClients();

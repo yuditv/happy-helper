@@ -75,8 +75,29 @@ export function useNotificationSettings() {
           reminder_messages: reminderMessages,
         });
       } else {
-        // No settings exist yet, create default
-        setSettings(defaultSettings);
+        // No settings exist yet - auto-create with WhatsApp reminders enabled by default
+        const defaultWithWhatsApp = {
+          ...defaultSettings,
+          whatsapp_reminders_enabled: true,
+        };
+        
+        // Create record in database
+        const { error: insertError } = await supabase
+          .from('notification_settings')
+          .insert([{
+            user_id: user.id,
+            email_reminders_enabled: defaultWithWhatsApp.email_reminders_enabled,
+            whatsapp_reminders_enabled: defaultWithWhatsApp.whatsapp_reminders_enabled,
+            auto_send_enabled: defaultWithWhatsApp.auto_send_enabled,
+            reminder_days: defaultWithWhatsApp.reminder_days,
+            reminder_messages: defaultWithWhatsApp.reminder_messages as unknown as Record<string, string>,
+          }]);
+        
+        if (insertError) {
+          console.error('Error auto-creating notification settings:', insertError);
+        }
+        
+        setSettings(defaultWithWhatsApp);
       }
     } catch (error) {
       console.error('Error loading notification settings:', error);
