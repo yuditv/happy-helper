@@ -178,19 +178,19 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FlaskConical className="h-5 w-5 text-primary" />
             Gerar Teste Automático
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="flex flex-col flex-1 min-h-0 gap-4">
           <Button 
             onClick={generateTest} 
             disabled={isLoading}
-            className="w-full"
+            className="w-full shrink-0"
           >
             {isLoading ? (
               <>
@@ -206,16 +206,16 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           </Button>
           
           {error && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm shrink-0">
               {error}
             </div>
           )}
           
           {credentials && (
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-4">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="space-y-4 pr-4">
                 {/* Credenciais */}
-                <div className="rounded-lg border bg-card p-1">
+                <div className="rounded-lg border bg-card">
                   <div className="px-3 py-2 border-b">
                     <h4 className="text-sm font-semibold text-foreground">Credenciais</h4>
                   </div>
@@ -228,7 +228,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
                 </div>
 
                 {/* Links e Códigos */}
-                <div className="rounded-lg border bg-card p-1">
+                <div className="rounded-lg border bg-card">
                   <div className="px-3 py-2 border-b">
                     <h4 className="text-sm font-semibold text-foreground">Links e Códigos</h4>
                   </div>
@@ -245,16 +245,16 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           )}
         </div>
         
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 shrink-0 border-t mt-4">
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+            Fechar
+          </Button>
           {credentials && (
             <Button onClick={copyAll} variant="default">
               <Copy className="h-4 w-4 mr-2" />
               Copiar Tudo
             </Button>
           )}
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Fechar
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
