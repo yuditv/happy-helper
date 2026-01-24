@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { conversationId, limit = 50 } = await req.json();
+    const { conversationId, limit = 50, offset = 0, force = false } = await req.json();
     
     if (!conversationId) {
       return new Response(JSON.stringify({ error: 'conversationId is required' }), {
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[fetch-messages] Fetching messages for conversation: ${conversationId}`);
+    console.log(`[fetch-messages] Fetching messages for conversation: ${conversationId}, limit: ${limit}, offset: ${offset}, force: ${force}`);
 
     // Get conversation
     const { data: conversation, error: convError } = await supabase
@@ -102,8 +102,8 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         chatid: chatId,
-        limit: limit,
-        offset: 0
+        limit: Math.min(limit, 500), // Cap at 500 for safety
+        offset: offset
       })
     });
 
