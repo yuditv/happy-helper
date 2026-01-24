@@ -6,6 +6,42 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch contact avatar from UAZAPI
+async function fetchContactAvatar(
+  uazapiUrl: string,
+  instanceKey: string,
+  phone: string
+): Promise<string | null> {
+  try {
+    console.log(`[Avatar] Fetching avatar for phone: ${phone}`);
+    
+    const response = await fetch(`${uazapiUrl}/user/avatar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': instanceKey
+      },
+      body: JSON.stringify({
+        Phone: phone,
+        Preview: false // false = full resolution
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const avatarUrl = data.url || data.URL || data.imgUrl || data.profilePicUrl || data.avatar || null;
+      console.log(`[Avatar] Result for ${phone}:`, avatarUrl ? 'found' : 'not found');
+      return avatarUrl;
+    }
+    
+    console.log(`[Avatar] Failed to fetch for ${phone}, status:`, response.status);
+    return null;
+  } catch (error) {
+    console.log('[Avatar] Error fetching:', error);
+    return null;
+  }
+}
+
 // Standard format from our internal calls
 interface IncomingMessage {
   phone: string;
@@ -487,6 +523,14 @@ serve(async (req: Request) => {
     }
 
     if (!conversation) {
+      // Fetch avatar before creating conversation
+      let contactAvatar: string | null = null;
+      const uazapiUrl = Deno.env.get("UAZAPI_URL") || "https://zynk2.uazapi.com";
+      
+      if (instance.instance_key) {
+        contactAvatar = await fetchContactAvatar(uazapiUrl, instance.instance_key, normalizedPhone);
+      }
+
       // Create new conversation
       const { data: newConv, error: createError } = await supabase
         .from('conversations')
@@ -495,6 +539,7 @@ serve(async (req: Request) => {
           user_id: instance.user_id,
           phone: normalizedPhone,
           contact_name: contactName || normalizedPhone,
+          contact_avatar: contactAvatar,
           status: 'open',
           ai_enabled: true,
           unread_count: 1,

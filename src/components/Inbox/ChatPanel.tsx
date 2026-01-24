@@ -16,7 +16,8 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Play,
-  RefreshCw
+  RefreshCw,
+  Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { ChatMessage } from "@/hooks/useInboxMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { useClientByPhone } from "@/hooks/useClientByPhone";
 import { useCannedResponses } from "@/hooks/useCannedResponses";
+import { useContactAvatar } from "@/hooks/useContactAvatar";
 import { ClientInfoPanel } from "./ClientInfoPanel";
 import { MessageStatus } from "./MessageStatus";
 import { TypingIndicator } from "./TypingIndicator";
@@ -102,6 +104,7 @@ export function ChatPanel({
   const [showGallery, setShowGallery] = useState(false);
   const [galleryInitialId, setGalleryInitialId] = useState<string | undefined>();
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [contactAvatarUrl, setContactAvatarUrl] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -110,6 +113,9 @@ export function ChatPanel({
 
   // Canned responses for quick replies
   const { responses, searchResponses, findByShortCode } = useCannedResponses();
+  
+  // Contact avatar fetcher
+  const { fetchAvatar, isLoading: isFetchingAvatar } = useContactAvatar();
 
   // Get autocomplete suggestions based on current message
   const getAutocompleteSuggestions = () => {
@@ -359,7 +365,7 @@ export function ChatPanel({
         <div className="p-3 inbox-header flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={conversation.contact_avatar || undefined} />
+            <AvatarImage src={contactAvatarUrl || conversation.contact_avatar || undefined} />
             <AvatarFallback className="bg-primary/10 text-primary">
               {getInitials(conversation.contact_name, conversation.phone)}
             </AvatarFallback>
@@ -461,6 +467,20 @@ export function ChatPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={async () => {
+                  if (conversation) {
+                    const avatarUrl = await fetchAvatar(conversation.id, conversation.phone);
+                    if (avatarUrl) {
+                      setContactAvatarUrl(avatarUrl);
+                    }
+                  }
+                }}
+                disabled={isFetchingAvatar}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                {isFetchingAvatar ? 'Buscando...' : 'Atualizar foto de perfil'}
+              </DropdownMenuItem>
               <DropdownMenuItem>
                 <Archive className="h-4 w-4 mr-2" />
                 Arquivar

@@ -807,6 +807,91 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // FETCH-AVATAR - Get contact profile picture
+    if (action === "fetch-avatar") {
+      const conversationId = body.conversationId as string;
+      const phone = body.phone as string;
+
+      if (!conversationId || !phone) {
+        return new Response(
+          JSON.stringify({ error: "conversationId and phone are required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get conversation with instance
+      const { data: conversation, error: convError } = await supabase
+        .from("conversations")
+        .select("*, instance:whatsapp_instances(*)")
+        .eq("id", conversationId)
+        .single();
+
+      if (convError || !conversation) {
+        return new Response(
+          JSON.stringify({ error: "Conversation not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!conversation.instance?.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instance not configured" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Format phone
+      let formattedPhone = phone.replace(/[^\d]/g, '');
+      if (!formattedPhone.startsWith('55') && formattedPhone.length <= 11) {
+        formattedPhone = '55' + formattedPhone;
+      }
+
+      try {
+        console.log(`[Avatar] Fetching avatar for: ${formattedPhone}`);
+        
+        const avatarResponse = await fetch(`${uazapiUrl}/user/avatar`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": conversation.instance.instance_key,
+          },
+          body: JSON.stringify({
+            Phone: formattedPhone,
+            Preview: false
+          }),
+        });
+
+        const avatarData = await avatarResponse.json();
+        console.log("[Avatar] Response:", JSON.stringify(avatarData));
+
+        const avatarUrl = avatarData.url || avatarData.URL || avatarData.imgUrl || avatarData.profilePicUrl || avatarData.avatar || null;
+
+        if (avatarUrl) {
+          // Update conversation with avatar
+          await supabase
+            .from("conversations")
+            .update({ contact_avatar: avatarUrl })
+            .eq("id", conversationId);
+
+          return new Response(
+            JSON.stringify({ success: true, avatarUrl }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: false, error: "Avatar não encontrado" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Avatar] Error:", e);
+        return new Response(
+          JSON.stringify({ error: String(e) }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
