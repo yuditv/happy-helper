@@ -31,6 +31,35 @@ function replaceVariables(template: string, userName: string, planName: string, 
     .replace(/{vencimento}/g, formatDate(expiresAt));
 }
 
+/**
+ * Format phone number for WhatsApp API - supports international numbers
+ */
+function formatPhoneNumber(phone: string): string {
+  let cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length >= 12) return cleaned;
+  
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    const areaCode = cleaned.substring(1, 4);
+    if (!areaCode.startsWith('0') && !areaCode.startsWith('1')) {
+      return cleaned;
+    }
+  }
+  
+  const internationalPrefixes = ['44', '351', '54', '56', '57', '58', '34', '33', '49', '39'];
+  for (const prefix of internationalPrefixes) {
+    if (cleaned.startsWith(prefix) && cleaned.length >= 10 + prefix.length - 1) {
+      return cleaned;
+    }
+  }
+  
+  if (!cleaned.startsWith('55')) {
+    cleaned = '55' + cleaned;
+  }
+  
+  return cleaned;
+}
+
 async function sendWhatsAppMessage(phone: string, message: string, instanceKey?: string): Promise<boolean> {
   const UAZAPI_URL = Deno.env.get("UAZAPI_URL");
   const UAZAPI_TOKEN = instanceKey || Deno.env.get("UAZAPI_TOKEN");
@@ -40,11 +69,8 @@ async function sendWhatsAppMessage(phone: string, message: string, instanceKey?:
     return false;
   }
 
-  // Format phone number
-  let formattedPhone = phone.replace(/\D/g, '');
-  if (!formattedPhone.startsWith('55')) {
-    formattedPhone = '55' + formattedPhone;
-  }
+  // Format phone number with international support
+  const formattedPhone = formatPhoneNumber(phone);
 
   try {
     const response = await fetch(`${UAZAPI_URL}/sendText`, {
