@@ -61,7 +61,7 @@ import { useContactAvatar } from "@/hooks/useContactAvatar";
 import { usePresence } from "@/hooks/usePresence";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ClientInfoPanel } from "./ClientInfoPanel";
+// ClientInfoPanel removed - client registration now in dropdown menu
 import { MessageStatus } from "./MessageStatus";
 import { TypingIndicator } from "./TypingIndicator";
 import { FileUploadButton } from "./FileUploadButton";
@@ -123,7 +123,7 @@ export function ChatPanel({
   const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [showClientPanel, setShowClientPanel] = useState(true);
+  
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
@@ -658,6 +658,22 @@ export function ChatPanel({
                 Arquivar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {/* Register/View Client */}
+              {!client && onRegisterClient && (
+                <DropdownMenuItem 
+                  onClick={() => onRegisterClient(conversation.phone, conversation.contact_name || undefined)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Cadastrar cliente
+                </DropdownMenuItem>
+              )}
+              {client && (
+                <DropdownMenuItem disabled className="text-muted-foreground">
+                  <User className="h-4 w-4 mr-2" />
+                  Cliente cadastrado
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
               {/* Labels submenu */}
               {availableLabels.length > 0 && (
                 <>
@@ -1047,51 +1063,7 @@ export function ChatPanel({
         )}
       </AnimatePresence>
 
-      {/* Client Info Panel */}
-      {showClientPanel && (
-        <div className="w-72 border-l flex-shrink-0 overflow-hidden h-full">
-          <div className="h-full p-3 overflow-auto">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">Painel do Cliente</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => setShowClientPanel(false)}
-              >
-                <PanelRightClose className="h-3 w-3" />
-              </Button>
-            </div>
-            <ClientInfoPanel
-              client={client}
-              isLoading={isLoadingClient}
-              phone={conversation.phone}
-              contactName={conversation.contact_name || undefined}
-              contactAvatar={contactAvatarUrl || conversation.contact_avatar}
-              onRegisterClient={onRegisterClient}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Toggle Panel Button (when hidden) */}
-      {!showClientPanel && (
-        <div className="border-l flex items-start pt-3">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 mx-1"
-                onClick={() => setShowClientPanel(true)}
-              >
-                <PanelRightOpen className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">Mostrar dados do cliente</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
+      {/* Client Info Panel removed - client registration now in dropdown menu */}
 
       {/* Media Gallery Modal */}
       {showGallery && (
