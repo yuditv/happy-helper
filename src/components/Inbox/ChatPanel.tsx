@@ -66,6 +66,7 @@ import { QuickReplyAutocomplete } from "./QuickReplyAutocomplete";
 import { AudioRecorder } from "./AudioRecorder";
 import { MediaGallery } from "./MediaGallery";
 import { QuickMessagesPanel } from "./QuickMessagesPanel";
+import { EmojiPickerButton } from "./EmojiPickerButton";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -327,6 +328,25 @@ export function ChatPanel({
   const handleEditFromQuick = (content: string) => {
     setMessage(content);
     textareaRef.current?.focus();
+  };
+
+  // Handler for emoji selection - inserts at cursor position
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newMessage = message.slice(0, start) + emoji + message.slice(end);
+      setMessage(newMessage);
+      
+      // Reposition cursor after emoji
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+      }, 0);
+    } else {
+      setMessage(message + emoji);
+    }
   };
 
   const formatPhone = (phone: string) => {
@@ -820,6 +840,11 @@ export function ChatPanel({
               rows={1}
             />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
+              <EmojiPickerButton 
+                onEmojiSelect={handleEmojiSelect}
+                disabled={isSending}
+              />
+              
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
