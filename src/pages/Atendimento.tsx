@@ -77,7 +77,7 @@ export default function Atendimento() {
 
   // Push notifications and sound effects
   const { permission, requestPermission, showLocalNotification, isSupported } = usePushNotifications();
-  const { playSuccess, playDispatchFailure } = useSoundEffects();
+  const { playNewMessage, playMessageSent } = useSoundEffects();
   const lastNotifiedMessageRef = useRef<string | null>(null);
 
   // Request notification permission on mount
@@ -111,8 +111,8 @@ export default function Atendimento() {
             const conv = conversations.find(c => c.id === newMessage.conversation_id);
             const contactName = conv?.contact_name || 'Cliente';
             
-            // Play notification sound
-            playSuccess();
+            // Play new message notification sound
+            playNewMessage();
             
             // Show desktop notification if page is not focused
             if (document.hidden && permission === 'granted') {
@@ -130,7 +130,7 @@ export default function Atendimento() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversations, permission, showLocalNotification, playSuccess]);
+  }, [conversations, permission, showLocalNotification, playNewMessage]);
 
   // Automation triggers callbacks
   const automationCallbacks = {

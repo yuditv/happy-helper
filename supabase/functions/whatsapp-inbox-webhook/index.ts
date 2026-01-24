@@ -59,6 +59,9 @@ interface UAZAPIWebhookPayload {
     pushName?: string;
     messageTimestamp?: number;
   };
+  // Message status update fields (for delivery/read receipts)
+  ack?: number;  // 0=pending, 1=sent, 2=delivered, 3=read
+  id?: string;   // message ID for status updates
   // Alternative fields that UAZAPI might send
   phone?: string;
   from?: string;
@@ -181,6 +184,147 @@ function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; messag
   return null;
 }
 
+// Handle message status updates (delivery/read receipts)
+// deno-lint-ignore no-explicit-any
+async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPayload) {
+  try {
+    // Extract message ID and status from various UAZAPI formats
+    let messageId: string | undefined;
+    let ackStatus: number | undefined;
+    let phone: string | undefined;
+    
+    // UAZAPI v2 format
+    if (body.message?.id) {
+      messageId = body.message.id;
+    } else if (body.id) {
+      messageId = body.id;
+    } else if (body.data?.key?.id) {
+      messageId = body.data.key.id;
+    }
+    
+    // Get ack status (0=pending, 1=sent, 2=delivered, 3=read)
+    if (typeof body.ack === 'number') {
+      ackStatus = body.ack;
+    }
+    
+    // Get phone for matching
+    if (body.message?.sender_pn) {
+      phone = body.message.sender_pn.replace('@s.whatsapp.net', '');
+    } else if (body.data?.key?.remoteJid) {
+      phone = body.data.key.remoteJid.replace('@s.whatsapp.net', '');
+    } else if (body.phone) {
+      phone = body.phone.replace(/\D/g, '');
+    }
+    
+    console.log(`[Inbox Webhook] Status update - messageId: ${messageId}, ack: ${ackStatus}, phone: ${phone}`);
+    
+    if (!phone && !messageId) {
+      console.log('[Inbox Webhook] No identifier found for status update');
+      return;
+    }
+    
+    // Map ack to status string
+    const statusMap: Record<number, string> = {
+      0: 'sending',
+      1: 'sent',
+      2: 'delivered',
+      3: 'read'
+    };
+    
+    const newStatus = ackStatus !== undefined ? statusMap[ackStatus] : undefined;
+    
+    if (!newStatus) {
+      console.log('[Inbox Webhook] Unknown ack status:', ackStatus);
+      return;
+    }
+    
+    // Find and update the message
+    // First try by message ID in metadata
+    if (messageId) {
+      const { data: messages, error } = await supabase
+        .from('chat_inbox_messages')
+        .select('id, metadata')
+        .eq('sender_type', 'agent')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (!error && messages) {
+        // Find message by ID in metadata
+        // deno-lint-ignore no-explicit-any
+        const matchingMessage = messages.find((m: any) => 
+          m.metadata?.whatsapp_id === messageId
+        );
+        
+        if (matchingMessage) {
+          await supabase
+            .from('chat_inbox_messages')
+            .update({
+              metadata: {
+                ...matchingMessage.metadata,
+                status: newStatus
+              },
+              is_read: newStatus === 'read'
+            })
+            .eq('id', matchingMessage.id);
+          
+          console.log(`[Inbox Webhook] Updated message ${matchingMessage.id} status to ${newStatus}`);
+          return;
+        }
+      }
+    }
+    
+    // Fallback: Update most recent outgoing message to this phone
+    if (phone) {
+      // Find conversation by phone
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('phone', phone);
+      
+      if (conversations && conversations.length > 0) {
+        // deno-lint-ignore no-explicit-any
+        const conversationIds = conversations.map((c: any) => c.id);
+        
+        // Get most recent outgoing message
+        const { data: recentMessages, error: msgError } = await supabase
+          .from('chat_inbox_messages')
+          .select('id, metadata')
+          .in('conversation_id', conversationIds)
+          .eq('sender_type', 'agent')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (!msgError && recentMessages && recentMessages.length > 0) {
+          const msg = recentMessages[0];
+          const currentStatus = msg.metadata?.status;
+          
+          // Only update if new status is "higher" (sent < delivered < read)
+          const statusOrder: Record<string, number> = { sending: 0, sent: 1, delivered: 2, read: 3 };
+          const currentOrder = statusOrder[currentStatus as string] ?? -1;
+          const newOrder = statusOrder[newStatus] ?? -1;
+          
+          if (newOrder > currentOrder) {
+            await supabase
+              .from('chat_inbox_messages')
+              .update({
+                metadata: {
+                  ...msg.metadata,
+                  status: newStatus
+                },
+                is_read: newStatus === 'read'
+              })
+              .eq('id', msg.id);
+            
+            console.log(`[Inbox Webhook] Updated recent message ${msg.id} status to ${newStatus}`);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Inbox Webhook] Error handling status update:', error);
+  }
+}
+
 serve(async (req: Request) => {
   const requestTimestamp = new Date().toISOString();
   console.log(`[Inbox Webhook] ========== REQUEST RECEIVED at ${requestTimestamp} ==========`);
@@ -224,9 +368,22 @@ serve(async (req: Request) => {
     console.log("[Inbox Webhook] Event type:", body.event || 'not specified');
     console.log("[Inbox Webhook] Instance/Token:", body.instance || body.token || 'not specified');
 
-    // Check if this is a non-message event (status, qrcode, etc.)
-    // Accept multiple event names for messages - including EventType (UAZAPI v2)
+    // Check if this is a message status update event (delivery/read receipts)
     const eventType = body.EventType || body.event;
+    const statusEvents = ['message_ack', 'ack', 'message.ack', 'messages.ack', 'status'];
+    const isStatusEvent = eventType && statusEvents.includes(eventType);
+    
+    if (isStatusEvent) {
+      console.log(`[Inbox Webhook] Processing message status update: ${eventType}`);
+      await handleMessageStatusUpdate(supabase, body);
+      return new Response(
+        JSON.stringify({ success: true, event: eventType, type: 'status_update' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if this is a non-message event (qrcode, connection, etc.)
+    // Accept multiple event names for messages - including EventType (UAZAPI v2)
     const messageEvents = ['messages', 'message', 'messages.upsert', 'MESSAGES_UPSERT'];
     const isMessageEvent = !eventType || messageEvents.includes(eventType);
     

@@ -90,6 +90,66 @@ const playSuccessSound = (isMuted: boolean) => {
   }
 };
 
+// Generate a new message notification sound
+const playNewMessageSound = (isMuted: boolean) => {
+  if (isMuted) return;
+  
+  try {
+    const ctx = getAudioContext();
+    
+    // Play a pleasant notification melody (ascending two notes)
+    const notes = [
+      { freq: 880, time: 0 },      // A5
+      { freq: 1174.66, time: 0.1 }, // D6
+    ];
+    
+    notes.forEach(({ freq, time }) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(freq, ctx.currentTime + time);
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime + time);
+      gainNode.gain.linearRampToValueAtTime(0.12, ctx.currentTime + time + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + time + 0.15);
+      
+      oscillator.start(ctx.currentTime + time);
+      oscillator.stop(ctx.currentTime + time + 0.2);
+    });
+  } catch (e) {
+    // Silently fail
+  }
+};
+
+// Generate a message sent confirmation sound
+const playMessageSentSound = (isMuted: boolean) => {
+  if (isMuted) return;
+  
+  try {
+    const ctx = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(1046.50, ctx.currentTime); // C6
+    
+    gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.1);
+  } catch (e) {
+    // Silently fail
+  }
+};
+
 // Generate a dispatch complete fanfare sound
 const playDispatchCompleteSound = (isMuted: boolean) => {
   if (isMuted) return;
@@ -236,6 +296,14 @@ export function useSoundEffects() {
     playDispatchFailureSound(isMuted);
   }, [isMuted]);
 
+  const playNewMessage = useCallback(() => {
+    playNewMessageSound(isMuted);
+  }, [isMuted]);
+
+  const playMessageSent = useCallback(() => {
+    playMessageSentSound(isMuted);
+  }, [isMuted]);
+
   return {
     isMuted,
     toggleMute,
@@ -244,6 +312,8 @@ export function useSoundEffects() {
     playSuccess,
     playDispatchComplete,
     playDispatchFailure,
+    playNewMessage,
+    playMessageSent,
   };
 }
 
