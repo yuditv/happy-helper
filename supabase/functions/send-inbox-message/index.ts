@@ -216,6 +216,29 @@ serve(async (req: Request) => {
           if (sendResponse.ok) {
             console.log(`[Send Inbox] ✅ ${mediaTypeString} sent successfully!`);
             sendSuccess = true;
+            
+            // Parse response to get WhatsApp message ID for status tracking
+            try {
+              const responseData = JSON.parse(responseText);
+              const whatsappId = responseData.id || responseData.messageId || responseData.key?.id;
+              
+              if (whatsappId) {
+                await supabaseAdmin
+                  .from('chat_inbox_messages')
+                  .update({
+                    metadata: {
+                      ...savedMessage.metadata,
+                      whatsapp_id: whatsappId,
+                      status: 'sent'
+                    }
+                  })
+                  .eq('id', savedMessage.id);
+                
+                console.log(`[Send Inbox] Saved WhatsApp ID: ${whatsappId}`);
+              }
+            } catch (e) {
+              console.log('[Send Inbox] Could not parse WhatsApp ID from response:', e);
+            }
           } else {
             lastError = `${sendResponse.status}: ${responseText}`;
           }
@@ -241,40 +264,69 @@ serve(async (req: Request) => {
           console.log(`[Send Inbox] Status: ${sendResponse.status}`);
           console.log(`[Send Inbox] Response: ${responseText}`);
           
-          if (sendResponse.ok) {
-            console.log('[Send Inbox] ✅ Message sent successfully!');
-            sendSuccess = true;
-          } else {
-            lastError = `${sendResponse.status}: ${responseText}`;
-          }
-        }
-
-        if (!sendSuccess) {
-          console.error('[Send Inbox] Failed to send. Error:', lastError);
+        if (sendResponse.ok) {
+          console.log('[Send Inbox] ✅ Message sent successfully!');
+          sendSuccess = true;
           
-          // Update message with error status
-          await supabaseAdmin
-            .from('chat_inbox_messages')
-            .update({ metadata: { ...savedMessage.metadata, send_error: lastError } })
-            .eq('id', savedMessage.id);
+          // Parse response to get WhatsApp message ID for status tracking
+          try {
+            const responseData = JSON.parse(responseText);
+            const whatsappId = responseData.id || responseData.messageId || responseData.key?.id;
+            
+            if (whatsappId) {
+              await supabaseAdmin
+                .from('chat_inbox_messages')
+                .update({
+                  metadata: {
+                    ...savedMessage.metadata,
+                    whatsapp_id: whatsappId,
+                    status: 'sent'
+                  }
+                })
+                .eq('id', savedMessage.id);
+              
+              console.log(`[Send Inbox] Saved WhatsApp ID: ${whatsappId}`);
+            }
+          } catch (e) {
+            console.log('[Send Inbox] Could not parse WhatsApp ID from response:', e);
+          }
+        } else {
+          lastError = `${sendResponse.status}: ${responseText}`;
         }
-      } catch (sendError) {
-        console.error('[Send Inbox] Error sending to WhatsApp:', sendError);
       }
-    } else if (!isPrivate && !instance) {
-      console.warn('[Send Inbox] No instance found for conversation, message saved but not sent to WhatsApp');
-    }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        messageId: savedMessage.id
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      if (!sendSuccess) {
+        console.error('[Send Inbox] Failed to send. Error:', lastError);
+        
+        // Update message with error status
+        await supabaseAdmin
+          .from('chat_inbox_messages')
+          .update({ 
+            metadata: { 
+              ...savedMessage.metadata, 
+              send_error: lastError,
+              status: 'failed'
+            } 
+          })
+          .eq('id', savedMessage.id);
       }
-    );
+    } catch (sendError) {
+      console.error('[Send Inbox] Error sending to WhatsApp:', sendError);
+    }
+  } else if (!isPrivate && !instance) {
+    console.warn('[Send Inbox] No instance found for conversation, message saved but not sent to WhatsApp');
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      messageId: savedMessage.id
+    }),
+    { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    }
+  );
 
   } catch (error: unknown) {
     console.error('[Send Inbox] Unexpected error:', error);

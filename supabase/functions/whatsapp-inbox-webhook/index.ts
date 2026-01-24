@@ -222,15 +222,17 @@ function extractMessageData(body: UAZAPIWebhookPayload): { phone: string; messag
 
 // Handle message status updates (delivery/read receipts)
 // deno-lint-ignore no-explicit-any
-async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPayload) {
+async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPayload & { message?: { ack?: number; messageid?: string; chatid?: string } }) {
   try {
     // Extract message ID and status from various UAZAPI formats
     let messageId: string | undefined;
     let ackStatus: number | undefined;
     let phone: string | undefined;
     
-    // UAZAPI v2 format
-    if (body.message?.id) {
+    // UAZAPI v2 format - try multiple possible locations for message ID
+    if (body.message?.messageid) {
+      messageId = body.message.messageid;
+    } else if (body.message?.id) {
       messageId = body.message.id;
     } else if (body.id) {
       messageId = body.id;
@@ -238,21 +240,35 @@ async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPaylo
       messageId = body.data.key.id;
     }
     
+    // UAZAPI v2 may send with instance:id format - extract just the ID part
+    if (messageId?.includes(':')) {
+      messageId = messageId.split(':').pop();
+    }
+    
     // Get ack status (0=pending, 1=sent, 2=delivered, 3=read)
     if (typeof body.ack === 'number') {
       ackStatus = body.ack;
+    } else if (typeof body.message?.ack === 'number') {
+      ackStatus = body.message.ack;
     }
     
-    // Get phone for matching
-    if (body.message?.sender_pn) {
-      phone = body.message.sender_pn.replace('@s.whatsapp.net', '');
+    // Get phone for matching - try multiple formats
+    if (body.message?.chatid) {
+      phone = body.message.chatid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    } else if (body.message?.sender_pn) {
+      phone = body.message.sender_pn.replace('@s.whatsapp.net', '').replace('@g.us', '');
     } else if (body.data?.key?.remoteJid) {
-      phone = body.data.key.remoteJid.replace('@s.whatsapp.net', '');
+      phone = body.data.key.remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
     } else if (body.phone) {
       phone = body.phone.replace(/\D/g, '');
+    } else if (body.remoteJid) {
+      phone = body.remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
     }
     
-    console.log(`[Inbox Webhook] Status update - messageId: ${messageId}, ack: ${ackStatus}, phone: ${phone}`);
+    console.log(`[Inbox Webhook] Status update details:`);
+    console.log(`[Inbox Webhook]   - Message ID: ${messageId}`);
+    console.log(`[Inbox Webhook]   - ACK status: ${ackStatus}`);
+    console.log(`[Inbox Webhook]   - Phone: ${phone}`);
     
     if (!phone && !messageId) {
       console.log('[Inbox Webhook] No identifier found for status update');
@@ -270,9 +286,11 @@ async function handleMessageStatusUpdate(supabase: any, body: UAZAPIWebhookPaylo
     const newStatus = ackStatus !== undefined ? statusMap[ackStatus] : undefined;
     
     if (!newStatus) {
-      console.log('[Inbox Webhook] Unknown ack status:', ackStatus);
+      console.log('[Inbox Webhook] Unknown or missing ack status:', ackStatus);
       return;
     }
+    
+    console.log(`[Inbox Webhook] Mapping ACK ${ackStatus} to status: ${newStatus}`);
     
     // Find and update the message
     // First try by message ID in metadata
@@ -406,14 +424,33 @@ serve(async (req: Request) => {
 
     // Check if this is a message status update event (delivery/read receipts)
     const eventType = body.EventType || body.event;
-    const statusEvents = ['message_ack', 'ack', 'message.ack', 'messages.ack', 'status'];
+    const statusEvents = [
+      'message_ack', 
+      'ack', 
+      'message.ack', 
+      'messages.ack', 
+      'status',
+      'message.update',      // UAZAPI v2
+      'messages.update',     // UAZAPI v2
+      'message_update',      // Alternative format
+      'acks',                // Alternative format
+      'MessageAck'           // UAZAPI v2 PascalCase
+    ];
     const isStatusEvent = eventType && statusEvents.includes(eventType);
     
-    if (isStatusEvent) {
-      console.log(`[Inbox Webhook] Processing message status update: ${eventType}`);
+    // Also check for inline ACK in the message payload
+    const hasInlineAck = typeof body.ack === 'number' || body.message?.ack !== undefined;
+    
+    if (isStatusEvent || hasInlineAck) {
+      console.log(`[Inbox Webhook] === STATUS UPDATE ===`);
+      console.log(`[Inbox Webhook] EventType: ${eventType}`);
+      console.log(`[Inbox Webhook] Has inline ACK: ${hasInlineAck}`);
+      console.log(`[Inbox Webhook] ACK value: ${body.ack ?? body.message?.ack}`);
+      console.log(`[Inbox Webhook] Full payload: ${JSON.stringify(body)}`);
+      
       await handleMessageStatusUpdate(supabase, body);
       return new Response(
-        JSON.stringify({ success: true, event: eventType, type: 'status_update' }),
+        JSON.stringify({ success: true, event: eventType || 'inline_ack', type: 'status_update' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
