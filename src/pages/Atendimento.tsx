@@ -557,3 +557,5 @@ export default function Atendimento() {
     </div>
   );
 }
+
+// Force module refresh
