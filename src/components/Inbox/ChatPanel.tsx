@@ -325,9 +325,9 @@ export function ChatPanel({
   const availableLabels = labels.filter(l => !assignedLabels.some(al => al?.id === l.id));
 
   return (
-    <div className="flex-1 flex h-full bg-background">
+    <div className="flex-1 flex h-full bg-background overflow-hidden">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Header */}
         <div className="p-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -472,7 +472,7 @@ export function ChatPanel({
       )}
 
       {/* Messages */}
-      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+      <ScrollArea ref={scrollRef} className="flex-1 p-4 min-h-0">
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
@@ -698,8 +698,8 @@ export function ChatPanel({
 
       {/* Client Info Panel */}
       {showClientPanel && (
-        <div className="w-72 border-l flex-shrink-0 overflow-hidden">
-          <div className="h-full p-3">
+        <div className="w-72 border-l flex-shrink-0 overflow-hidden h-full">
+          <div className="h-full p-3 overflow-auto">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-muted-foreground">Painel do Cliente</span>
               <Button
