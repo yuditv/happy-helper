@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { MediaUploader, MediaType as UploaderMediaType } from '@/components/BulkDispatcher/MediaUploader';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WhatsAppStatusProps {
   instances: WhatsAppInstance[];
@@ -162,9 +163,89 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
     }
 
     setIsSending(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    toast.success(`Status enviado para ${selectedInstances.size} instância(s)!`);
-    setIsSending(false);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      // Fetch instance keys for selected instances
+      const { data: instancesData, error: fetchError } = await supabase
+        .from('whatsapp_instances')
+        .select('id, instance_key, instance_name')
+        .in('id', Array.from(selectedInstances));
+
+      if (fetchError) {
+        console.error('Error fetching instances:', fetchError);
+        toast.error('Erro ao buscar instâncias');
+        setIsSending(false);
+        return;
+      }
+
+      if (!instancesData || instancesData.length === 0) {
+        toast.error('Nenhuma instância encontrada');
+        setIsSending(false);
+        return;
+      }
+
+      // Send status to each instance
+      for (const instance of instancesData) {
+        if (!instance.instance_key) {
+          console.warn(`Instance ${instance.instance_name} has no instance_key`);
+          errorCount++;
+          continue;
+        }
+
+        // Map color index (0-19) to UAZAPI format (1-19)
+        const uazapiBackgroundColor = statusType === 'text' ? (selectedColorIndex % 19) + 1 : undefined;
+
+        const payload = {
+          instanceKey: instance.instance_key,
+          type: statusType,
+          text: statusType === 'text' ? text : undefined,
+          backgroundColor: uazapiBackgroundColor,
+          font: statusType === 'text' ? fontStyle : undefined,
+          file: mediaUrl || undefined,
+          mimetype: mediaMimetype || undefined,
+          caption: statusType !== 'text' && statusType !== 'audio' ? text : undefined,
+        };
+
+        console.log(`Sending status to instance ${instance.instance_name}:`, { type: statusType });
+
+        const { data, error } = await supabase.functions.invoke('send-whatsapp-status', {
+          body: payload
+        });
+
+        if (error) {
+          console.error(`Error sending to ${instance.instance_name}:`, error);
+          errorCount++;
+        } else if (data?.error) {
+          console.error(`API error for ${instance.instance_name}:`, data.error);
+          errorCount++;
+        } else {
+          console.log(`Status sent to ${instance.instance_name}:`, data);
+          successCount++;
+        }
+      }
+
+      // Show feedback
+      if (successCount > 0) {
+        toast.success(`Status enviado para ${successCount} instância(s)!`);
+        // Clear form on success
+        if (statusType === 'text') {
+          setText('');
+        } else {
+          handleMediaRemove();
+          setText('');
+        }
+      }
+      if (errorCount > 0) {
+        toast.error(`Falha em ${errorCount} instância(s)`);
+      }
+    } catch (error) {
+      console.error('Error sending status:', error);
+      toast.error('Erro ao enviar status');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleStatusTypeChange = (newType: StatusType) => {
