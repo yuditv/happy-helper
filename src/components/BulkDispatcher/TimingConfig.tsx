@@ -16,6 +16,7 @@ interface TimingConfigProps {
   stopAfterMessages: number;
   smartDelay: boolean;
   attentionCall: boolean;
+  attentionCallDelay: number;
   autoArchive: boolean;
   aiPersonalization: boolean;
   onConfigChange: (config: Partial<TimingConfigProps>) => void;
@@ -29,6 +30,7 @@ export function TimingConfig({
   stopAfterMessages,
   smartDelay,
   attentionCall,
+  attentionCallDelay,
   autoArchive,
   aiPersonalization,
   onConfigChange
@@ -206,18 +208,65 @@ export function TimingConfig({
               />
             </motion.div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-white/5 opacity-50">
+            <motion.div 
+              className={cn(
+                "flex items-center justify-between p-4 rounded-xl transition-all duration-300",
+                "bg-gradient-to-r from-muted/30 to-transparent border border-white/10",
+                attentionCall && "border-orange-500/30 bg-orange-500/5"
+              )}
+              whileHover={{ x: 4 }}
+            >
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-muted/30">
-                  <Phone className="w-5 h-5 text-muted-foreground" />
+                <div className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  attentionCall ? "bg-orange-500/20" : "bg-muted/50"
+                )}>
+                  <Phone className={cn("w-5 h-5", attentionCall ? "text-orange-500" : "text-muted-foreground")} />
                 </div>
                 <div>
-                  <Label className="text-sm">Ligação de Atenção</Label>
-                  <p className="text-xs text-muted-foreground">Em breve</p>
+                  <Label className="text-sm cursor-pointer">Ligação de Atenção</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Faz ligação após cada mensagem
+                  </p>
                 </div>
               </div>
-              <Switch checked={attentionCall} disabled />
-            </div>
+              <Switch
+                checked={attentionCall}
+                onCheckedChange={(v) => onConfigChange({ attentionCall: v })}
+              />
+            </motion.div>
+
+            {/* Attention Call Delay Slider */}
+            {attentionCall && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="pl-4 pr-4 pb-2"
+              >
+                <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-sm text-muted-foreground">
+                      Delay antes da ligação
+                    </Label>
+                    <Badge variant="outline" className="border-orange-500/30 text-orange-500">
+                      {attentionCallDelay}s
+                    </Badge>
+                  </div>
+                  <Slider
+                    value={[attentionCallDelay]}
+                    onValueChange={([v]) => onConfigChange({ attentionCallDelay: v })}
+                    min={0}
+                    max={10}
+                    step={1}
+                    className="flex-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Aguarda {attentionCallDelay} segundo(s) após enviar a mensagem
+                  </p>
+                </div>
+              </motion.div>
+            )}
 
             <motion.div 
               className={cn(

@@ -44,6 +44,8 @@ export interface DispatchConfig {
   allowedDays: number[];
   verifyNumbers: boolean;
   autoArchive: boolean;
+  attentionCall: boolean;
+  attentionCallDelay: number;
 }
 
 export interface DispatchProgress {
@@ -80,6 +82,8 @@ const DEFAULT_CONFIG: DispatchConfig = {
   allowedDays: [1, 2, 3, 4, 5, 6, 7],
   verifyNumbers: true,
   autoArchive: true,
+  attentionCall: false,
+  attentionCallDelay: 2,
 };
 
 export function useBulkDispatch() {
@@ -316,6 +320,26 @@ export function useBulkDispatch() {
         if (error) throw error;
 
         sentCount++;
+        
+        // Make attention call if enabled
+        if (config.attentionCall && instance.instance_key) {
+          // Wait for configured delay
+          await sleep(config.attentionCallDelay * 1000);
+          
+          try {
+            await supabase.functions.invoke('whatsapp-instances', {
+              body: {
+                action: 'make_call',
+                phone,
+                instanceKey: instance.instance_key
+              }
+            });
+            addLog('info', `📞 Ligação para ${contact.name || phone}`);
+          } catch (callErr) {
+            console.error('Attention call failed:', callErr);
+            addLog('warning', `⚠️ Falha na ligação para ${contact.name || phone}`);
+          }
+        }
         
         // Check if chat was archived successfully
         if (config.autoArchive && data?.archived) {

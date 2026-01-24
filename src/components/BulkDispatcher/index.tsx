@@ -666,6 +666,8 @@ export function BulkDispatcher() {
           pauseDurationMinutes={config.pauseDurationMinutes}
           stopAfterMessages={config.stopAfterMessages}
           smartDelay={config.smartDelay}
+          attentionCall={config.attentionCall}
+          attentionCallDelay={config.attentionCallDelay}
           onTimingChange={(updates) => updateConfig(updates as any)}
           // Sending window props
           businessHoursEnabled={config.businessHoursEnabled}

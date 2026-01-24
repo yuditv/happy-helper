@@ -34,6 +34,8 @@ interface BottomPanelProps {
   pauseDurationMinutes: number;
   stopAfterMessages: number;
   smartDelay: boolean;
+  attentionCall?: boolean;
+  attentionCallDelay?: number;
   onTimingChange: (updates: any) => void;
   // Window
   businessHoursEnabled: boolean;
@@ -75,6 +77,8 @@ export function BottomPanel({
   pauseDurationMinutes,
   stopAfterMessages,
   smartDelay,
+  attentionCall = false,
+  attentionCallDelay = 2,
   onTimingChange,
   businessHoursEnabled,
   businessHoursStart,
@@ -148,7 +152,8 @@ export function BottomPanel({
                 pauseDurationMinutes={pauseDurationMinutes}
                 stopAfterMessages={stopAfterMessages}
                 smartDelay={smartDelay}
-                attentionCall={false}
+                attentionCall={attentionCall}
+                attentionCallDelay={attentionCallDelay}
                 autoArchive={false}
                 aiPersonalization={false}
                 onConfigChange={onTimingChange}

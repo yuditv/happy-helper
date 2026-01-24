@@ -1904,6 +1904,102 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // MAKE CALL - Initiate attention call via UAZAPI
+    if (action === "make_call") {
+      const phone = body.phone as string;
+      const instanceKey = body.instanceKey as string;
+
+      if (!phone || !instanceKey) {
+        return new Response(
+          JSON.stringify({ error: "phone e instanceKey obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Make Call] phone: ${phone}, instanceKey: ${instanceKey.substring(0, 8)}...`);
+
+      try {
+        const formattedPhone = formatPhoneNumber(phone);
+        
+        const response = await fetch(`${uazapiUrl}/call/make`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instanceKey,
+          },
+          body: JSON.stringify({ number: formattedPhone }),
+        });
+
+        console.log(`[Make Call] UAZAPI response status: ${response.status}`);
+        const data = await response.json();
+        console.log(`[Make Call] Response:`, JSON.stringify(data));
+
+        if (response.ok) {
+          return new Response(
+            JSON.stringify({ success: true, data }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else {
+          return new Response(
+            JSON.stringify({ success: false, error: data.message || "Falha ao fazer ligação" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (e) {
+        console.error("[Make Call] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao fazer ligação: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // REJECT CALL - Reject incoming call via UAZAPI
+    if (action === "reject_call") {
+      const instanceKey = body.instanceKey as string;
+      const phone = body.phone as string;
+      const callId = body.callId as string;
+
+      if (!instanceKey) {
+        return new Response(
+          JSON.stringify({ error: "instanceKey obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Reject Call] instanceKey: ${instanceKey.substring(0, 8)}..., phone: ${phone || 'all'}`);
+
+      try {
+        const requestBody: Record<string, string> = {};
+        if (phone) requestBody.number = formatPhoneNumber(phone);
+        if (callId) requestBody.id = callId;
+        
+        const response = await fetch(`${uazapiUrl}/call/reject`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instanceKey,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        console.log(`[Reject Call] UAZAPI response status: ${response.status}`);
+        const data = await response.json();
+        console.log(`[Reject Call] Response:`, JSON.stringify(data));
+
+        return new Response(
+          JSON.stringify({ success: response.ok, data }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Reject Call] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao rejeitar ligação: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // RENAME CONTACT - Update contact name locally
     if (action === "rename_contact") {
       const conversationId = body.conversationId as string;
