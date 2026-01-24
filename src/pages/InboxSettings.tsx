@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Settings, Users, UserPlus, Tag, MessageSquare, Zap, Play, ScrollText, Clock } from "lucide-react";
+import { ArrowLeft, Settings, Users, UserPlus, Tag, MessageSquare, Zap, Play, ScrollText, Clock, Ban } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +13,7 @@ import { MacrosSettings } from "@/components/Inbox/Settings/MacrosSettings";
 import { AutomationSettings } from "@/components/Inbox/Settings/AutomationSettings";
 import { AuditLogsSettings } from "@/components/Inbox/Settings/AuditLogsSettings";
 import { BusinessHoursSettings } from "@/components/Inbox/Settings/BusinessHoursSettings";
+import { BlockedContactsSettings } from "@/components/Inbox/Settings/BlockedContactsSettings";
 
 type SettingsSection = 
   | "canned-responses"
@@ -21,6 +22,7 @@ type SettingsSection =
   | "macros"
   | "automation"
   | "business-hours"
+  | "blocked-contacts"
   | "audit-logs";
 
 interface MenuItem {
@@ -68,6 +70,12 @@ const menuItems: MenuItem[] = [
     icon: Clock,
   },
   {
+    id: "blocked-contacts",
+    title: "Contatos Bloqueados",
+    description: "Gerenciar bloqueios do WhatsApp",
+    icon: Ban,
+  },
+  {
     id: "audit-logs",
     title: "Auditoria",
     description: "Log de atividades do sistema",
@@ -93,6 +101,8 @@ export default function InboxSettings() {
         return <AutomationSettings />;
       case "business-hours":
         return <BusinessHoursSettings />;
+      case "blocked-contacts":
+        return <BlockedContactsSettings />;
       case "audit-logs":
         return <AuditLogsSettings />;
       default:
