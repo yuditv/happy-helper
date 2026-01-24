@@ -14,6 +14,22 @@ interface ChatRequest {
   metadata?: Record<string, unknown>;
 }
 
+interface OpenAIMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+interface OpenAIResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+  error?: {
+    message: string;
+  };
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -33,7 +49,7 @@ serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader || '' } }
     });
 
-    // Create admin client for fetching webhook URL (bypasses RLS)
+    // Create admin client for fetching agent data (bypasses RLS)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify user is authenticated
@@ -58,7 +74,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // Fetch agent details (using admin client to get webhook_url)
+    // Fetch agent details (using admin client to get all fields)
     const { data: agent, error: agentError } = await supabaseAdmin
       .from('ai_agents')
       .select('*')
@@ -108,54 +124,148 @@ serve(async (req: Request) => {
       console.error('Error saving user message:', saveUserMsgError);
     }
 
-    // Call n8n webhook
-    console.log(`Calling n8n webhook: ${agent.webhook_url}`);
-    
     let assistantResponse = '';
-    let n8nError = null;
+    let aiError = null;
 
-    try {
-      const n8nResponse = await fetch(agent.webhook_url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message,
-          sessionId: chatSessionId,
-          userId: user.id,
-          source,
-          agentName: agent.name,
-          metadata: {
-            ...metadata,
-            userEmail: user.email,
-          }
-        }),
-      });
-
-      if (!n8nResponse.ok) {
-        const errorText = await n8nResponse.text();
-        console.error('n8n webhook error:', n8nResponse.status, errorText);
-        n8nError = `Webhook returned status ${n8nResponse.status}`;
-        assistantResponse = 'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente mais tarde.';
+    // Check if using native AI (OpenAI) or external webhook
+    if (agent.use_native_ai) {
+      // ============ NATIVE OPENAI INTEGRATION ============
+      console.log(`Using native OpenAI integration with model: ${agent.ai_model || 'gpt-4o-mini'}`);
+      
+      const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+      
+      if (!OPENAI_API_KEY) {
+        console.error('OPENAI_API_KEY not configured');
+        aiError = 'OpenAI API key not configured';
+        assistantResponse = 'Desculpe, o serviço de IA não está configurado corretamente. Contate o administrador.';
       } else {
-        const n8nData = await n8nResponse.json();
-        console.log('n8n response:', n8nData);
-        
-        // n8n can return response in different formats
-        // Try common patterns
-        assistantResponse = 
-          n8nData.response || 
-          n8nData.message || 
-          n8nData.output || 
-          n8nData.text ||
-          n8nData.reply ||
-          (typeof n8nData === 'string' ? n8nData : JSON.stringify(n8nData));
+        try {
+          // Fetch conversation history for context
+          const { data: history } = await supabaseAdmin
+            .from('ai_chat_messages')
+            .select('role, content')
+            .eq('session_id', chatSessionId)
+            .order('created_at', { ascending: true })
+            .limit(20);
+
+          // Build messages array with system prompt and history
+          const messages: OpenAIMessage[] = [
+            { 
+              role: 'system', 
+              content: agent.system_prompt || 'Você é um assistente útil e prestativo. Responda sempre em português brasileiro.' 
+            },
+          ];
+
+          // Add history (excluding the message we just saved)
+          if (history && history.length > 0) {
+            for (const msg of history) {
+              // Skip the last user message since we'll add it fresh
+              if (msg.role === 'user' && msg.content === message) continue;
+              messages.push({
+                role: msg.role as 'user' | 'assistant',
+                content: msg.content
+              });
+            }
+          }
+
+          // Add current user message
+          messages.push({ role: 'user', content: message });
+
+          console.log(`Sending ${messages.length} messages to OpenAI`);
+
+          // Call OpenAI API
+          const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: agent.ai_model || 'gpt-4o-mini',
+              messages,
+              temperature: 0.7,
+              max_tokens: 1000
+            })
+          });
+
+          if (!openaiResponse.ok) {
+            const errorText = await openaiResponse.text();
+            console.error('OpenAI API error:', openaiResponse.status, errorText);
+            aiError = `OpenAI API returned status ${openaiResponse.status}`;
+            assistantResponse = 'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente mais tarde.';
+          } else {
+            const openaiData: OpenAIResponse = await openaiResponse.json();
+            
+            if (openaiData.error) {
+              console.error('OpenAI error:', openaiData.error);
+              aiError = openaiData.error.message;
+              assistantResponse = 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.';
+            } else if (openaiData.choices && openaiData.choices.length > 0) {
+              assistantResponse = openaiData.choices[0].message.content;
+              console.log('OpenAI response received successfully');
+            } else {
+              aiError = 'No response from OpenAI';
+              assistantResponse = 'Desculpe, não recebi uma resposta válida. Por favor, tente novamente.';
+            }
+          }
+        } catch (fetchError: unknown) {
+          console.error('Error calling OpenAI:', fetchError);
+          aiError = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+          assistantResponse = 'Desculpe, não foi possível conectar ao serviço de IA. Por favor, tente novamente.';
+        }
       }
-    } catch (fetchError: unknown) {
-      console.error('Error calling n8n webhook:', fetchError);
-      n8nError = fetchError instanceof Error ? fetchError.message : 'Unknown error';
-      assistantResponse = 'Desculpe, não foi possível conectar ao agente. Por favor, tente novamente.';
+    } else {
+      // ============ EXTERNAL WEBHOOK (n8n) ============
+      if (!agent.webhook_url) {
+        console.error('No webhook URL configured for non-native agent');
+        aiError = 'Webhook URL not configured';
+        assistantResponse = 'Desculpe, este agente não está configurado corretamente. Contate o administrador.';
+      } else {
+        console.log(`Calling external webhook: ${agent.webhook_url}`);
+        
+        try {
+          const n8nResponse = await fetch(agent.webhook_url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message,
+              sessionId: chatSessionId,
+              userId: user.id,
+              source,
+              agentName: agent.name,
+              metadata: {
+                ...metadata,
+                userEmail: user.email,
+              }
+            }),
+          });
+
+          if (!n8nResponse.ok) {
+            const errorText = await n8nResponse.text();
+            console.error('Webhook error:', n8nResponse.status, errorText);
+            aiError = `Webhook returned status ${n8nResponse.status}`;
+            assistantResponse = 'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente mais tarde.';
+          } else {
+            const n8nData = await n8nResponse.json();
+            console.log('Webhook response:', n8nData);
+            
+            // n8n can return response in different formats
+            assistantResponse = 
+              n8nData.response || 
+              n8nData.message || 
+              n8nData.output || 
+              n8nData.text ||
+              n8nData.reply ||
+              (typeof n8nData === 'string' ? n8nData : JSON.stringify(n8nData));
+          }
+        } catch (fetchError: unknown) {
+          console.error('Error calling webhook:', fetchError);
+          aiError = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+          assistantResponse = 'Desculpe, não foi possível conectar ao agente. Por favor, tente novamente.';
+        }
+      }
     }
 
     // Save assistant response to database
@@ -169,7 +279,8 @@ serve(async (req: Request) => {
         content: assistantResponse,
         metadata: { 
           source, 
-          error: n8nError,
+          error: aiError,
+          model: agent.use_native_ai ? agent.ai_model : 'webhook',
           ...metadata 
         }
       })
@@ -190,7 +301,7 @@ serve(async (req: Request) => {
           content: assistantResponse,
           created_at: savedMessage?.created_at || new Date().toISOString()
         },
-        error: n8nError
+        error: aiError
       }),
       { 
         status: 200, 
