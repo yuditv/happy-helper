@@ -58,9 +58,17 @@ serve(async (req: Request) => {
     const body: SendMessageRequest = await req.json();
     const { conversationId, content, isPrivate = false, mediaUrl, mediaType, fileName } = body;
 
-    if (!conversationId || !content) {
+    if (!conversationId) {
       return new Response(
-        JSON.stringify({ error: 'conversationId and content are required' }),
+        JSON.stringify({ error: 'conversationId is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Either content or media is required
+    if (!content && !mediaUrl) {
+      return new Response(
+        JSON.stringify({ error: 'content or mediaUrl is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
