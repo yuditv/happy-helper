@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Send, Edit, Search, Loader2, Globe, User, MessageSquareText } from "lucide-react";
+import { motion } from "framer-motion";
+import { Send, Edit, Search, Loader2, Globe, User, MessageSquareText, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ interface QuickMessagesPanelProps {
   onEditMessage: (content: string) => void;
   contactName?: string | null;
   phone?: string;
+  onClose: () => void;
 }
 
 export function QuickMessagesPanel({
@@ -23,7 +25,8 @@ export function QuickMessagesPanel({
   onSendMessage,
   onEditMessage,
   contactName,
-  phone
+  phone,
+  onClose
 }: QuickMessagesPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -59,12 +62,28 @@ export function QuickMessagesPanel({
   };
 
   return (
-    <div className="w-72 border-l flex flex-col h-full bg-muted/20">
+    <motion.div 
+      initial={{ width: 0, opacity: 0 }}
+      animate={{ width: 288, opacity: 1 }}
+      exit={{ width: 0, opacity: 0 }}
+      transition={{ duration: 0.2, ease: "easeInOut" }}
+      className="border-l flex flex-col h-full bg-muted/20 overflow-hidden"
+    >
       {/* Header */}
-      <div className="p-3 border-b">
-        <div className="flex items-center gap-2 mb-3">
-          <MessageSquareText className="h-4 w-4 text-primary" />
-          <h3 className="font-semibold text-sm">Mensagens Rápidas</h3>
+      <div className="p-3 border-b flex-shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <MessageSquareText className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold text-sm whitespace-nowrap">Mensagens Rápidas</h3>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 flex-shrink-0"
+            onClick={onClose}
+          >
+            <PanelRightClose className="h-4 w-4" />
+          </Button>
         </div>
         
         {/* Search */}
@@ -169,11 +188,11 @@ export function QuickMessagesPanel({
       </ScrollArea>
 
       {/* Footer hint */}
-      <div className="p-2 border-t">
-        <p className="text-[10px] text-muted-foreground text-center">
+      <div className="p-2 border-t flex-shrink-0">
+        <p className="text-[10px] text-muted-foreground text-center whitespace-nowrap">
           💡 Clique em "Enviar" para envio imediato
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }
