@@ -26,6 +26,13 @@ export function useInboxMessages(conversationId: string | null) {
   const [isSending, setIsSending] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const isSyncingRef = useRef(false);
+  const conversationIdRef = useRef(conversationId);
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   const fetchMessages = useCallback(async () => {
     if (!conversationId) {
@@ -227,9 +234,12 @@ export function useInboxMessages(conversationId: string | null) {
   }, [conversationId]);
 
   const syncMessages = useCallback(async (silent = false) => {
-    if (!conversationId || isSyncing) return;
+    const currentConversationId = conversationIdRef.current;
+    if (!currentConversationId || isSyncingRef.current) return;
     
+    isSyncingRef.current = true;
     setIsSyncing(true);
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -241,7 +251,7 @@ export function useInboxMessages(conversationId: string | null) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session?.access_token}`
           },
-          body: JSON.stringify({ conversationId, limit: 50 })
+          body: JSON.stringify({ conversationId: currentConversationId, limit: 50 })
         }
       );
 
@@ -252,7 +262,17 @@ export function useInboxMessages(conversationId: string | null) {
       }
 
       if (result.newMessages > 0) {
-        await fetchMessages(); // Reload from database
+        // Reload from database
+        const { data, error } = await supabase
+          .from('chat_inbox_messages')
+          .select('*')
+          .eq('conversation_id', currentConversationId)
+          .order('created_at', { ascending: true });
+        
+        if (!error && data) {
+          setMessages(data as ChatMessage[]);
+        }
+        
         if (!silent) {
           toast({
             title: 'Mensagens sincronizadas',
@@ -275,15 +295,16 @@ export function useInboxMessages(conversationId: string | null) {
         });
       }
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [conversationId, isSyncing, fetchMessages, toast]);
+  }, [toast]);
 
   // Auto-polling every 30 seconds when conversation is open
   useEffect(() => {
     if (!conversationId) return;
 
-    // Initial sync when conversation opens
+    // Initial sync when conversation opens (after 2 seconds)
     const initialTimeout = setTimeout(() => {
       syncMessages(true);
     }, 2000);
@@ -297,7 +318,7 @@ export function useInboxMessages(conversationId: string | null) {
       clearTimeout(initialTimeout);
       clearInterval(pollInterval);
     };
-  }, [conversationId]); // Only depend on conversationId to avoid recreating interval
+  }, [conversationId, syncMessages]);
 
   return {
     messages,
