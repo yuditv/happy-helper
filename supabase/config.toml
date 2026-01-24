@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.subscription-expiry-scheduler]
 verify_jwt = false
+
+[functions.send-whatsapp-status]
+verify_jwt = false
