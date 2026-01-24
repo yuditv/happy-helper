@@ -136,6 +136,7 @@ export function ChatPanel({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showQuickPanel, setShowQuickPanel] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -358,11 +359,23 @@ export function ChatPanel({
     }
   };
 
-  // Handle blocking/unblocking contact via UAZAPI
+  // Handle block button click - show confirmation dialog if blocking
+  const handleBlockClick = () => {
+    if (isContactBlocked) {
+      // Unblocking doesn't need confirmation
+      handleToggleBlock();
+    } else {
+      // Blocking needs confirmation
+      setShowBlockDialog(true);
+    }
+  };
+
+  // Handle actual blocking/unblocking contact via UAZAPI
   const handleToggleBlock = async () => {
     if (!conversation) return;
     
     const shouldBlock = !isContactBlocked;
+    setShowBlockDialog(false);
     setIsBlocking(true);
     
     try {
@@ -393,7 +406,7 @@ export function ChatPanel({
       toast({
         title: shouldBlock ? 'Contato bloqueado' : 'Contato desbloqueado',
         description: shouldBlock 
-          ? 'Este contato não poderá mais enviar mensagens'
+          ? 'Este contato não poderá mais enviar mensagens para esta instância'
           : 'Este contato pode enviar mensagens novamente',
       });
       
@@ -668,7 +681,7 @@ export function ChatPanel({
               )}
               {/* Block/Unblock contact */}
               <DropdownMenuItem 
-                onClick={handleToggleBlock}
+                onClick={handleBlockClick}
                 disabled={isBlocking}
                 className={isContactBlocked ? "text-green-600 focus:text-green-600" : "text-amber-600 focus:text-amber-600"}
               >
@@ -1126,6 +1139,45 @@ export function ChatPanel({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? 'Deletando...' : 'Deletar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Block Contact Confirmation Dialog */}
+      <AlertDialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-destructive" />
+              Bloquear contato?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Você está prestes a bloquear{' '}
+                <strong className="text-foreground">
+                  {conversation?.contact_name || formatPhone(conversation?.phone || '')}
+                </strong>.
+              </p>
+              <p className="text-amber-600 dark:text-amber-500 font-medium">
+                ⚠️ Consequências do bloqueio:
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>Este contato <strong>não poderá</strong> enviar mensagens para você</li>
+                <li>Você <strong>não poderá</strong> enviar mensagens para este contato</li>
+                <li>O contato não será notificado sobre o bloqueio</li>
+                <li>Você pode desbloquear a qualquer momento</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleToggleBlock}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <Ban className="h-4 w-4 mr-2" />
+              Bloquear
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1134,6 +1134,193 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // LIST BLOCKED CONTACTS - Uses UAZAPI GET /chat/block endpoint
+    if (action === "list_blocked") {
+      const instanceId = body.instanceId as string;
+
+      if (!instanceId) {
+        return new Response(
+          JSON.stringify({ error: "instanceId é obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[List Blocked] Fetching blocked contacts for instance: ${instanceId}`);
+
+      // Get instance to find instance_key
+      const { data: instance, error: instError } = await supabase
+        .from("whatsapp_instances")
+        .select("id, instance_key, instance_name")
+        .eq("id", instanceId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (instError || !instance) {
+        console.error("[List Blocked] Instance not found:", instError);
+        return new Response(
+          JSON.stringify({ error: "Instância não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância sem chave de API configurada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Call UAZAPI GET /chat/block endpoint
+      try {
+        console.log(`[List Blocked] Calling UAZAPI GET /chat/block`);
+        
+        const listResponse = await fetch(`${uazapiUrl}/chat/block`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+        });
+
+        console.log("[List Blocked] UAZAPI response status:", listResponse.status);
+        const listData = await listResponse.json();
+        console.log("[List Blocked] UAZAPI response:", JSON.stringify(listData));
+
+        if (!listResponse.ok) {
+          return new Response(
+            JSON.stringify({ 
+              error: "Erro ao listar contatos bloqueados", 
+              details: listData 
+            }),
+            { status: listResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Parse blocked contacts - UAZAPI may return different formats
+        let blockedContacts: string[] = [];
+        if (Array.isArray(listData)) {
+          blockedContacts = listData;
+        } else if (listData.blocked) {
+          blockedContacts = listData.blocked;
+        } else if (listData.contacts) {
+          blockedContacts = listData.contacts;
+        } else if (listData.numbers) {
+          blockedContacts = listData.numbers;
+        }
+
+        // Clean phone numbers (remove @s.whatsapp.net suffix)
+        blockedContacts = blockedContacts.map((phone: string) => 
+          phone.replace('@s.whatsapp.net', '').replace('@g.us', '')
+        );
+
+        console.log(`[List Blocked] Found ${blockedContacts.length} blocked contacts`);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            blocked: blockedContacts,
+            instance: {
+              id: instance.id,
+              name: instance.instance_name
+            }
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[List Blocked] UAZAPI error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao listar contatos bloqueados: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // UNBLOCK CONTACT BY PHONE - Direct unblock without conversation
+    if (action === "unblock_contact") {
+      const instanceId = body.instanceId as string;
+      const phone = body.phone as string;
+
+      if (!instanceId || !phone) {
+        return new Response(
+          JSON.stringify({ error: "instanceId e phone são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Unblock Contact] Unblocking ${phone} for instance: ${instanceId}`);
+
+      // Get instance to find instance_key
+      const { data: instance, error: instError } = await supabase
+        .from("whatsapp_instances")
+        .select("id, instance_key")
+        .eq("id", instanceId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (instError || !instance) {
+        return new Response(
+          JSON.stringify({ error: "Instância não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!instance.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância sem chave de API configurada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Call UAZAPI /chat/block with block=false
+      try {
+        const unblockResponse = await fetch(`${uazapiUrl}/chat/block`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({
+            number: phone,
+            block: false,
+          }),
+        });
+
+        const unblockData = await unblockResponse.json();
+
+        if (!unblockResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: "Erro ao desbloquear contato", details: unblockData }),
+            { status: unblockResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Also update any conversation with this phone
+        const supabaseAdmin = createClient(
+          supabaseUrl,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+
+        await supabaseAdmin
+          .from("conversations")
+          .update({
+            metadata: { is_blocked: false, blocked_at: null },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("phone", phone)
+          .eq("instance_id", instanceId);
+
+        return new Response(
+          JSON.stringify({ success: true, message: "Contato desbloqueado com sucesso" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        return new Response(
+          JSON.stringify({ error: `Erro ao desbloquear contato: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
