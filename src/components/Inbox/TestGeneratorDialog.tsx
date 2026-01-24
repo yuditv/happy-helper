@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Copy, Loader2, FlaskConical } from "lucide-react";
+import { RefreshCw, Copy, Loader2, FlaskConical, User, Lock, Calendar, Link2, Smartphone, Cloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -15,9 +15,35 @@ interface TestGeneratorDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface TestCredentials {
+  username: string;
+  password: string;
+  expiresAt: string;
+  connections: string;
+  linkM3U: string;
+  assistPlusCode: string;
+  corePlayerCode: string;
+  playSimCode: string;
+  xcloudProvider: string;
+}
+
+const extractCredentials = (data: any): TestCredentials => {
+  return {
+    username: data.username || data.user || data.Usuario || '',
+    password: data.password || data.pass || data.Senha || '',
+    expiresAt: data.expiresAt || data.exp_date || data.Expira || data.expira || '',
+    connections: String(data.connections || data.max_connections || data.Conexoes || ''),
+    linkM3U: data.m3u_url || data.linkM3U || data.M3U || data.link_m3u || '',
+    assistPlusCode: data.assist_plus || data.assistPlus || data.ASSIST_PLUS || '',
+    corePlayerCode: data.core_player || data.corePlayer || data.CORE_PLAYER || '',
+    playSimCode: data.playsim || data.PlaySim || data.PLAYSIM || '',
+    xcloudProvider: data.xcloud || data.XCLOUD || data.xcloud_provider || '',
+  };
+};
+
 export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [testData, setTestData] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<TestCredentials | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -42,7 +68,8 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
       }
       
       const data = await response.json();
-      setTestData(JSON.stringify(data, null, 2));
+      const extracted = extractCredentials(data);
+      setCredentials(extracted);
     } catch (err) {
       console.error("Erro ao gerar teste:", err);
       setError("Erro ao gerar teste. Verifique sua conexão e tente novamente.");
@@ -51,13 +78,42 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     }
   };
 
-  const copyToClipboard = async () => {
-    if (testData) {
+  const copyField = async (label: string, value: string) => {
+    if (value) {
       try {
-        await navigator.clipboard.writeText(testData);
+        await navigator.clipboard.writeText(value);
         toast({ 
           title: "Copiado!", 
-          description: "Dados copiados para a área de transferência" 
+          description: `${label} copiado para a área de transferência` 
+        });
+      } catch (err) {
+        toast({ 
+          title: "Erro ao copiar", 
+          description: "Não foi possível copiar para a área de transferência",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const copyAll = async () => {
+    if (credentials) {
+      const formattedText = `👤 Usuário: ${credentials.username}
+🔐 Senha: ${credentials.password}
+📅 Expira em: ${credentials.expiresAt}
+🔗 Conexões: ${credentials.connections}
+
+📺 Link M3U: ${credentials.linkM3U}
+📱 ASSIST PLUS Código: ${credentials.assistPlusCode}
+📱 CORE PLAYER Código: ${credentials.corePlayerCode}
+📱 PlaySim Código: ${credentials.playSimCode}
+☁️ XCLOUD Provedor: ${credentials.xcloudProvider}`;
+
+      try {
+        await navigator.clipboard.writeText(formattedText);
+        toast({ 
+          title: "Copiado!", 
+          description: "Todos os dados foram copiados" 
         });
       } catch (err) {
         toast({ 
@@ -71,16 +127,35 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Reset state when closing
-      setTestData(null);
+      setCredentials(null);
       setError(null);
     }
     onOpenChange(newOpen);
   };
 
+  const CredentialRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
+    <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted/50 transition-colors group">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span className="text-sm text-muted-foreground shrink-0">{label}:</span>
+        <span className="text-sm font-medium truncate">{value || '-'}</span>
+      </div>
+      {value && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          onClick={() => copyField(label, value)}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FlaskConical className="h-5 w-5 text-primary" />
@@ -113,18 +188,43 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
             </div>
           )}
           
-          {testData && (
-            <ScrollArea className="h-[300px] rounded-md border">
-              <pre className="text-xs p-4 bg-muted/50 whitespace-pre-wrap break-all">
-                {testData}
-              </pre>
+          {credentials && (
+            <ScrollArea className="max-h-[400px]">
+              <div className="space-y-4">
+                {/* Credenciais */}
+                <div className="rounded-lg border bg-card p-1">
+                  <div className="px-3 py-2 border-b">
+                    <h4 className="text-sm font-semibold text-foreground">Credenciais</h4>
+                  </div>
+                  <div className="divide-y">
+                    <CredentialRow icon={User} label="Usuário" value={credentials.username} />
+                    <CredentialRow icon={Lock} label="Senha" value={credentials.password} />
+                    <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
+                    <CredentialRow icon={Link2} label="Conexões" value={credentials.connections} />
+                  </div>
+                </div>
+
+                {/* Links e Códigos */}
+                <div className="rounded-lg border bg-card p-1">
+                  <div className="px-3 py-2 border-b">
+                    <h4 className="text-sm font-semibold text-foreground">Links e Códigos</h4>
+                  </div>
+                  <div className="divide-y">
+                    <CredentialRow icon={Link2} label="Link M3U" value={credentials.linkM3U} />
+                    <CredentialRow icon={Smartphone} label="ASSIST PLUS Código" value={credentials.assistPlusCode} />
+                    <CredentialRow icon={Smartphone} label="CORE PLAYER Código" value={credentials.corePlayerCode} />
+                    <CredentialRow icon={Smartphone} label="PlaySim Código" value={credentials.playSimCode} />
+                    <CredentialRow icon={Cloud} label="XCLOUD Provedor" value={credentials.xcloudProvider} />
+                  </div>
+                </div>
+              </div>
             </ScrollArea>
           )}
         </div>
         
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
-          {testData && (
-            <Button onClick={copyToClipboard} variant="default">
+          {credentials && (
+            <Button onClick={copyAll} variant="default">
               <Copy className="h-4 w-4 mr-2" />
               Copiar Tudo
             </Button>
