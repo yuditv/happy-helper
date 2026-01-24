@@ -69,78 +69,135 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedPhone = formatPhoneNumber(phone);
     console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
-    // Try multiple endpoint formats - different UAZAPI/Wuzapi versions use different formats
-    const textEndpoints = [
-      { url: `${UAZAPI_URL}/send-text`, header: 'token' },           // Z-API/UAZAPI v2 format
-      { url: `${UAZAPI_URL}/message/sendText`, header: 'token' },    // UAZAPI alt format  
-      { url: `${UAZAPI_URL}/chat/send/text`, header: 'Token' },      // Wuzapi format (capital T)
-      { url: `${UAZAPI_URL}/chat/send`, header: 'token' },           // Unified endpoint
-    ];
-
-    let body: Record<string, any>;
-
-    if (mediaType && mediaType !== 'none' && mediaUrl) {
-      switch (mediaType) {
-        case 'image':
-          body = { phone: formattedPhone, image: mediaUrl, caption: caption || message || '' };
-          break;
-        case 'video':
-          body = { phone: formattedPhone, video: mediaUrl, caption: caption || message || '' };
-          break;
-        case 'audio':
-          body = { phone: formattedPhone, audio: mediaUrl };
-          break;
-        case 'document':
-          body = { phone: formattedPhone, document: mediaUrl, filename: fileName || 'document' };
-          break;
-        default:
-          body = { phone: formattedPhone, message: message || '' };
-      }
-    } else {
-      // Text message
-      if (!message) {
-        return new Response(
-          JSON.stringify({ error: "Missing required field: message (for text messages)" }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          }
-        );
-      }
-      body = { phone: formattedPhone, message };
+    // Validate message for text messages
+    if ((!mediaType || mediaType === 'none') && !message) {
+      return new Response(
+        JSON.stringify({ error: "Missing required field: message (for text messages)" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
+
+    // Wuzapi Official Format - PascalCase headers and body keys
+    const endpoints = [
+      // Wuzapi Official - PascalCase (most likely to work)
+      { 
+        url: `${UAZAPI_URL}/chat/send/text`, 
+        header: 'Token',
+        bodyFormat: 'pascalCase'
+      },
+      // Alternative Wuzapi path
+      { 
+        url: `${UAZAPI_URL}/send/text`, 
+        header: 'Token',
+        bodyFormat: 'pascalCase'
+      },
+      // UAZAPI v2 format - lowercase
+      { 
+        url: `${UAZAPI_URL}/chat/send`, 
+        header: 'token',
+        bodyFormat: 'lowercase'
+      },
+      // Z-API format
+      { 
+        url: `${UAZAPI_URL}/send-text`, 
+        header: 'token',
+        bodyFormat: 'lowercase'
+      },
+    ];
 
     let responseData: any = null;
     let lastError = '';
 
     // Try each endpoint until one works
-    for (const endpoint of textEndpoints) {
-      console.log(`Trying UAZAPI endpoint: ${endpoint.url}`);
-      console.log(`Headers: ${endpoint.header}=${instanceToken.substring(0, 8)}...`);
-      console.log(`Request body:`, JSON.stringify(body));
-
-      const response = await fetch(endpoint.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          [endpoint.header]: instanceToken
-        },
-        body: JSON.stringify(body),
-      });
-
-      const respText = await response.text();
-      console.log(`Response status: ${response.status}, body: ${respText}`);
-
-      if (response.ok || response.status === 200 || response.status === 201) {
-        try {
-          responseData = JSON.parse(respText);
-        } catch {
-          responseData = { raw: respText };
+    for (const endpoint of endpoints) {
+      // Build body based on format
+      let body: Record<string, any>;
+      
+      if (endpoint.bodyFormat === 'pascalCase') {
+        // Wuzapi Official format - PascalCase keys
+        if (mediaType && mediaType !== 'none' && mediaUrl) {
+          switch (mediaType) {
+            case 'image':
+              body = { Phone: formattedPhone, Image: mediaUrl, Caption: caption || message || '' };
+              break;
+            case 'video':
+              body = { Phone: formattedPhone, Video: mediaUrl, Caption: caption || message || '' };
+              break;
+            case 'audio':
+              body = { Phone: formattedPhone, Audio: mediaUrl };
+              break;
+            case 'document':
+              body = { Phone: formattedPhone, Document: mediaUrl, FileName: fileName || 'document' };
+              break;
+            default:
+              body = { Phone: formattedPhone, Body: message || '' };
+          }
+        } else {
+          body = { Phone: formattedPhone, Body: message };
         }
-        console.log("Message sent successfully!");
-        break;
       } else {
-        lastError = respText;
+        // lowercase format
+        if (mediaType && mediaType !== 'none' && mediaUrl) {
+          switch (mediaType) {
+            case 'image':
+              body = { phone: formattedPhone, image: mediaUrl, caption: caption || message || '' };
+              break;
+            case 'video':
+              body = { phone: formattedPhone, video: mediaUrl, caption: caption || message || '' };
+              break;
+            case 'audio':
+              body = { phone: formattedPhone, audio: mediaUrl };
+              break;
+            case 'document':
+              body = { phone: formattedPhone, document: mediaUrl, filename: fileName || 'document' };
+              break;
+            default:
+              body = { phone: formattedPhone, message: message || '' };
+          }
+        } else {
+          body = { phone: formattedPhone, message };
+        }
+      }
+
+      console.log(`========== ATTEMPT ==========`);
+      console.log(`URL: ${endpoint.url}`);
+      console.log(`Header: ${endpoint.header}=${instanceToken.substring(0, 12)}...`);
+      console.log(`Body Format: ${endpoint.bodyFormat}`);
+      console.log(`Body:`, JSON.stringify(body));
+
+      try {
+        const response = await fetch(endpoint.url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            [endpoint.header]: instanceToken
+          },
+          body: JSON.stringify(body),
+        });
+
+        const respText = await response.text();
+        console.log(`Status: ${response.status}`);
+        console.log(`Response Headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
+        console.log(`Response Body: ${respText}`);
+
+        if (response.ok || response.status === 200 || response.status === 201) {
+          try {
+            responseData = JSON.parse(respText);
+          } catch {
+            responseData = { raw: respText };
+          }
+          console.log("✅ SUCCESS - Message sent!");
+          break;
+        } else {
+          console.log(`❌ FAILED - Status ${response.status}`);
+          lastError = `${response.status}: ${respText}`;
+        }
+      } catch (fetchError) {
+        console.error(`❌ FETCH ERROR:`, fetchError);
+        lastError = String(fetchError);
       }
     }
 
