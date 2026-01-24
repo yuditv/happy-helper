@@ -80,11 +80,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Wuzapi/uazapiGO format:
-    // - Endpoint: /chat/send/text, /chat/send/image, etc.
-    // - Header: Token (PascalCase)
-    // - Body: Phone, Body, Image, Caption (PascalCase)
-    console.log(`Sending via Wuzapi format`);
+    // UAZAPI format:
+    // - Endpoint: /sendText, /sendImage, etc.
+    // - Header: token (lowercase)
+    // - Body: number, text (lowercase)
+    console.log(`Sending via UAZAPI format`);
     console.log(`Phone: ${formattedPhone}`);
 
     // deno-lint-ignore no-explicit-any
@@ -94,33 +94,33 @@ const handler = async (req: Request): Promise<Response> => {
     // Determine endpoint based on media type
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       // Media message
-      let endpoint = '/chat/send/image';
+      let endpoint = '/sendImage';
       // deno-lint-ignore no-explicit-any
-      const body: Record<string, any> = { Phone: formattedPhone };
+      const body: Record<string, any> = { number: formattedPhone };
       
       switch (mediaType) {
         case 'image':
-          endpoint = '/chat/send/image';
-          body.Image = mediaUrl;
-          body.Caption = caption || message || '';
+          endpoint = '/sendImage';
+          body.url = mediaUrl;
+          body.caption = caption || message || '';
           break;
         case 'video':
-          endpoint = '/chat/send/video';
-          body.Video = mediaUrl;
-          body.Caption = caption || message || '';
+          endpoint = '/sendVideo';
+          body.url = mediaUrl;
+          body.caption = caption || message || '';
           break;
         case 'audio':
-          endpoint = '/chat/send/audio';
-          body.Audio = mediaUrl;
+          endpoint = '/sendAudio';
+          body.url = mediaUrl;
           break;
         case 'document':
-          endpoint = '/chat/send/document';
-          body.Document = mediaUrl;
-          body.FileName = fileName || 'document';
+          endpoint = '/sendDocument';
+          body.url = mediaUrl;
+          body.fileName = fileName || 'document';
           break;
         default:
-          endpoint = '/chat/send/text';
-          body.Body = message || '';
+          endpoint = '/sendText';
+          body.text = message || '';
       }
       
       console.log(`Sending media via ${endpoint}`);
@@ -130,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Token": instanceToken
+          "token": instanceToken
         },
         body: JSON.stringify(body),
       });
@@ -150,19 +150,19 @@ const handler = async (req: Request): Promise<Response> => {
         lastError = `${response.status}: ${respText}`;
       }
     } else {
-      // Text message - use /chat/send/text with { Phone, Body }
-      console.log(`Sending text via /chat/send/text`);
-      console.log(`URL: ${UAZAPI_URL}/chat/send/text`);
+      // Text message - use /sendText with { number, text }
+      console.log(`Sending text via /sendText`);
+      console.log(`URL: ${UAZAPI_URL}/sendText`);
       
-      const response = await fetch(`${UAZAPI_URL}/chat/send/text`, {
+      const response = await fetch(`${UAZAPI_URL}/sendText`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Token": instanceToken
+          "token": instanceToken
         },
         body: JSON.stringify({
-          Phone: formattedPhone,
-          Body: message
+          number: formattedPhone,
+          text: message
         }),
       });
       
@@ -203,11 +203,11 @@ const handler = async (req: Request): Promise<Response> => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Token": instanceToken
+            "token": instanceToken
           },
           body: JSON.stringify({
-            Phone: formattedPhone,
-            State: true
+            number: formattedPhone,
+            archive: true
           }),
         });
         
@@ -231,10 +231,10 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-whatsapp-uazapi:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

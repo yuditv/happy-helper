@@ -115,7 +115,7 @@ Use linguagem informal, gírias. Exemplos: "e aí, beleza?", "tudo certo?", "opa
   }
 }
 
-// Send WhatsApp message via Uazapi
+// Send WhatsApp message via UAZAPI
 async function sendWhatsAppMessage(
   instanceToken: string,
   phone: string,
@@ -128,15 +128,22 @@ async function sendWhatsAppMessage(
   }
 
   try {
+    // Format phone number
+    let formattedPhone = phone.replace(/\D/g, '');
+    if (!formattedPhone.startsWith('55')) {
+      formattedPhone = '55' + formattedPhone;
+    }
+
+    // UAZAPI format: /sendText with token header and { number, text }
     const response = await fetch(`${UAZAPI_URL}/sendText`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${instanceToken}`,
+        "token": instanceToken,
       },
       body: JSON.stringify({
-        phone: phone.replace(/\D/g, ''),
-        message,
+        number: formattedPhone,
+        text: message,
       }),
     });
 
