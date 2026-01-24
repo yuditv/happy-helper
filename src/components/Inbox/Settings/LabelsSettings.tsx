@@ -48,7 +48,7 @@ export function LabelsSettings() {
   const { toast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLabel, setEditingLabel] = useState<InboxLabel | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function LabelsSettings() {
   // Filter labels by search and optionally by instance
   const filteredLabels = labels.filter(l => {
     const matchesSearch = l.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesInstance = !selectedInstanceId || 
+    const matchesInstance = selectedInstanceId === "all" || !selectedInstanceId || 
       l.instance_id === selectedInstanceId || 
       !l.instance_id; // Include global labels
     return matchesSearch && matchesInstance;
@@ -118,7 +118,7 @@ export function LabelsSettings() {
           description: formData.description,
           color: formData.color,
           colorCode: formData.colorCode,
-          instanceId: selectedInstanceId || undefined,
+          instanceId: selectedInstanceId !== "all" ? selectedInstanceId : undefined,
         });
         toast({ title: "Etiqueta criada com sucesso" });
       }
@@ -149,7 +149,7 @@ export function LabelsSettings() {
   };
 
   const handleSyncFromWhatsApp = async () => {
-    if (!selectedInstanceId) {
+    if (!selectedInstanceId || selectedInstanceId === "all") {
       toast({
         title: "Selecione uma instância",
         description: "Escolha uma instância WhatsApp para sincronizar as etiquetas",
@@ -194,7 +194,7 @@ export function LabelsSettings() {
             <SelectValue placeholder="Todas as instâncias" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas as instâncias</SelectItem>
+            <SelectItem value="all">Todas as instâncias</SelectItem>
             {connectedInstances.map((instance) => (
               <SelectItem key={instance.id} value={instance.id}>
                 <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ export function LabelsSettings() {
         <Button
           variant="outline"
           onClick={handleSyncFromWhatsApp}
-          disabled={!selectedInstanceId || isSyncing}
+          disabled={!selectedInstanceId || selectedInstanceId === "all" || isSyncing}
         >
           {isSyncing ? (
             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -368,7 +368,7 @@ export function LabelsSettings() {
               </p>
             </div>
 
-            {selectedInstanceId && !editingLabel && (
+            {selectedInstanceId && selectedInstanceId !== "all" && !editingLabel && (
               <div className="p-3 bg-muted rounded-lg text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Smartphone className="h-4 w-4" />
