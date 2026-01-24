@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface VPNTestGeneratorDialogProps {
   open: boolean;
@@ -37,21 +38,16 @@ export function VPNTestGeneratorDialog({ open, onOpenChange }: VPNTestGeneratorD
     setError(null);
     
     try {
-      const response = await fetch(
-        "https://servex.ws/test/3c5cfe65-2403-45f6-86d8-d3b820e6a8c9",
-        {
-          method: "GET",
-          headers: {
-            "Accept": "application/json",
-          },
-        }
-      );
+      const { data, error: fnError } = await supabase.functions.invoke('vpn-test-generator');
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (fnError) {
+        throw new Error(fnError.message);
       }
       
-      const data = await response.json();
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
       console.log("🔍 VPN API Response:", JSON.stringify(data, null, 2));
       setRawResponse(data);
       
