@@ -64,7 +64,8 @@ export default function Atendimento() {
     toggleAI,
     markAsRead,
     snoozeConversation,
-    setPriority
+    setPriority,
+    deleteConversation
   } = useInboxConversations();
 
   const {
@@ -286,6 +287,14 @@ export default function Atendimento() {
     }
   };
 
+  const handleDeleteConversation = async (conversationId: string, deleteFromWhatsApp: boolean) => {
+    const success = await deleteConversation(conversationId, deleteFromWhatsApp);
+    if (success) {
+      setSelectedConversation(null);
+    }
+    return success;
+  };
+
   const handleRegisterClient = (phone: string, name?: string) => {
     setNewClientData({ phone, name });
     setShowClientForm(true);
@@ -496,6 +505,7 @@ export default function Atendimento() {
               onRegisterClient={handleRegisterClient}
               onRetryMessage={retryMessage}
               onSyncMessages={syncMessages}
+              onDeleteConversation={handleDeleteConversation}
             />
           </>
         )}

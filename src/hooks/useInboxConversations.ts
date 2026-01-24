@@ -266,6 +266,35 @@ export function useInboxConversations() {
       .eq('is_read', false);
   };
 
+  const deleteConversation = async (conversationId: string, deleteFromWhatsApp: boolean = false): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: {
+          action: 'delete-chat',
+          instanceId: conversationId,
+          deleteFromWhatsApp
+        }
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao deletar');
+
+      // Remove from local state immediately
+      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      
+      toast({ title: 'Conversa deletada com sucesso' });
+      return true;
+    } catch (error: unknown) {
+      console.error('Error deleting conversation:', error);
+      toast({ 
+        title: 'Erro ao deletar conversa', 
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive' 
+      });
+      return false;
+    }
+  };
+
   // Initial fetch
   useEffect(() => {
     const loadData = async () => {
@@ -333,6 +362,7 @@ export function useInboxConversations() {
     toggleAI,
     markAsRead,
     snoozeConversation,
-    setPriority
+    setPriority,
+    deleteConversation
   };
 }
