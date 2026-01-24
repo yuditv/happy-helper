@@ -72,6 +72,8 @@ import { MediaGallery } from "./MediaGallery";
 import { QuickMessagesPanel } from "./QuickMessagesPanel";
 import { EmojiPickerButton } from "./EmojiPickerButton";
 import { AudioPlayer } from "./AudioPlayer";
+import { CRMLeadPanel } from "./CRMLeadPanel";
+import { useCRMLead, CRM_STATUSES } from "@/hooks/useCRMLead";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -136,6 +138,7 @@ export function ChatPanel({
   const [deleteFromWhatsApp, setDeleteFromWhatsApp] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showQuickPanel, setShowQuickPanel] = useState(false);
+  const [showCRMPanel, setShowCRMPanel] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -149,6 +152,12 @@ export function ChatPanel({
   
   // Contact avatar fetcher
   const { fetchAvatar, isLoading: isFetchingAvatar } = useContactAvatar();
+  
+  // CRM Lead hook
+  const { lead: crmLead } = useCRMLead(
+    conversation?.phone || null, 
+    conversation?.instance_id || null
+  );
   
   // Presence hook for typing/recording indicators
   const { sendPresence } = usePresence(conversation?.id || null);
@@ -542,6 +551,19 @@ export function ChatPanel({
                  conversation.status === 'pending' ? 'Pendente' :
                  conversation.status === 'resolved' ? 'Resolvida' : 'Adiada'}
               </Badge>
+              {/* CRM Status Badge */}
+              {crmLead && (
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-xs",
+                    CRM_STATUSES.find(s => s.value === crmLead.status)?.color,
+                    "text-white border-none"
+                  )}
+                >
+                  {CRM_STATUSES.find(s => s.value === crmLead.status)?.label || 'Lead'}
+                </Badge>
+              )}
               {isContactBlocked && (
                 <Badge 
                   variant="outline" 
@@ -563,6 +585,21 @@ export function ChatPanel({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Toggle CRM Panel */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={showCRMPanel ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setShowCRMPanel(!showCRMPanel)}
+              >
+                <User className="h-4 w-4 mr-1" />
+                CRM
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{showCRMPanel ? 'Ocultar CRM' : 'Dados do Lead'}</TooltipContent>
+          </Tooltip>
+
           {/* Toggle Quick Messages Panel */}
           {showQuickPanel && (
             <Tooltip>
@@ -1030,9 +1067,30 @@ export function ChatPanel({
         )}
       </AnimatePresence>
 
+      {/* CRM Panel - Right side */}
+      <AnimatePresence mode="wait">
+        {showCRMPanel && (
+          <motion.div
+            initial={{ opacity: 0, x: 20, width: 0 }}
+            animate={{ opacity: 1, x: 0, width: 320 }}
+            exit={{ opacity: 0, x: 20, width: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="border-l shrink-0 overflow-hidden"
+          >
+            <div className="w-80 h-full p-3">
+              <CRMLeadPanel 
+                phone={conversation.phone}
+                instanceId={conversation.instance_id}
+                contactName={conversation.contact_name || undefined}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Toggle Quick Panel Button (when hidden) */}
       <AnimatePresence>
-        {!showQuickPanel && (
+        {!showQuickPanel && !showCRMPanel && (
           <motion.div 
             initial={{ opacity: 0, x: 20, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}

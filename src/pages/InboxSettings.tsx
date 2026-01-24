@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Settings, Users, Tag, Zap, Play, ScrollText, Clock, Ban } from "lucide-react";
+import { ArrowLeft, Settings, Users, Tag, Zap, Play, ScrollText, Clock, Ban, Database } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +13,7 @@ import { AutomationSettings } from "@/components/Inbox/Settings/AutomationSettin
 import { AuditLogsSettings } from "@/components/Inbox/Settings/AuditLogsSettings";
 import { BusinessHoursSettings } from "@/components/Inbox/Settings/BusinessHoursSettings";
 import { BlockedContactsSettings } from "@/components/Inbox/Settings/BlockedContactsSettings";
+import { CRMFieldsSettings } from "@/components/Inbox/Settings/CRMFieldsSettings";
 
 type SettingsSection = 
   | "labels"
@@ -21,7 +22,8 @@ type SettingsSection =
   | "automation"
   | "business-hours"
   | "blocked-contacts"
-  | "audit-logs";
+  | "audit-logs"
+  | "crm-fields";
 
 interface MenuItem {
   id: SettingsSection;
@@ -68,6 +70,12 @@ const menuItems: MenuItem[] = [
     icon: Ban,
   },
   {
+    id: "crm-fields",
+    title: "Campos CRM",
+    description: "Configurar campos personalizados",
+    icon: Database,
+  },
+  {
     id: "audit-logs",
     title: "Auditoria",
     description: "Log de atividades do sistema",
@@ -93,6 +101,8 @@ export default function InboxSettings() {
         return <BusinessHoursSettings />;
       case "blocked-contacts":
         return <BlockedContactsSettings />;
+      case "crm-fields":
+        return <CRMFieldsSettings />;
       case "audit-logs":
         return <AuditLogsSettings />;
       default:

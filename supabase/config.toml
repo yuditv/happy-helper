@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.send-presence]
 verify_jwt = false
+
+[functions.crm-uazapi]
+verify_jwt = false

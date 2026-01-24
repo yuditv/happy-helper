@@ -723,6 +723,108 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_fields_config: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          field_key: string
+          field_name: string
+          field_options: Json | null
+          field_type: string | null
+          id: string
+          instance_id: string | null
+          is_active: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          field_key: string
+          field_name: string
+          field_options?: Json | null
+          field_type?: string | null
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          field_key?: string
+          field_name?: string
+          field_options?: Json | null
+          field_type?: string | null
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      crm_lead_data: {
+        Row: {
+          conversation_id: string | null
+          created_at: string | null
+          custom_fields: Json | null
+          id: string
+          instance_id: string | null
+          is_ticket_open: boolean | null
+          lead_email: string | null
+          lead_full_name: string | null
+          lead_kanban_order: number | null
+          lead_name: string | null
+          lead_notes: string | null
+          lead_personal_id: string | null
+          lead_status: string | null
+          phone: string
+          synced_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string | null
+          custom_fields?: Json | null
+          id?: string
+          instance_id?: string | null
+          is_ticket_open?: boolean | null
+          lead_email?: string | null
+          lead_full_name?: string | null
+          lead_kanban_order?: number | null
+          lead_name?: string | null
+          lead_notes?: string | null
+          lead_personal_id?: string | null
+          lead_status?: string | null
+          phone: string
+          synced_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string | null
+          custom_fields?: Json | null
+          id?: string
+          instance_id?: string | null
+          is_ticket_open?: boolean | null
+          lead_email?: string | null
+          lead_full_name?: string | null
+          lead_kanban_order?: number | null
+          lead_name?: string | null
+          lead_notes?: string | null
+          lead_personal_id?: string | null
+          lead_status?: string | null
+          phone?: string
+          synced_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       dispatch_configs: {
         Row: {
           ai_personalization: boolean | null
