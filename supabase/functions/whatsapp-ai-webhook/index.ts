@@ -187,16 +187,16 @@ serve(async (req: Request) => {
         }
       });
 
-    // Send response back via UAZAPI - use /sendText with Bearer auth (same as working functions)
+    // Send response back via UAZAPI - use same format as scheduled-dispatcher
     const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${instance.instance_key || uazapiToken}`
+        'token': instance.instance_key || uazapiToken
       },
       body: JSON.stringify({
-        phone: phone.replace(/\D/g, ''),
-        message: assistantResponse
+        number: phone.replace(/\D/g, ''),
+        text: assistantResponse
       })
     });
 
