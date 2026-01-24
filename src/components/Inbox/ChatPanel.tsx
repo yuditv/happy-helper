@@ -22,7 +22,9 @@ import {
   RefreshCw,
   Camera,
   Trash2,
-  MessageSquareText
+  MessageSquareText,
+  Ban,
+  UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,8 @@ import { useClientByPhone } from "@/hooks/useClientByPhone";
 import { useCannedResponses } from "@/hooks/useCannedResponses";
 import { useContactAvatar } from "@/hooks/useContactAvatar";
 import { usePresence } from "@/hooks/usePresence";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { ClientInfoPanel } from "./ClientInfoPanel";
 import { MessageStatus } from "./MessageStatus";
 import { TypingIndicator } from "./TypingIndicator";
@@ -116,6 +120,7 @@ export function ChatPanel({
   onDeleteConversation
 }: ChatPanelProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [showClientPanel, setShowClientPanel] = useState(true);
@@ -130,6 +135,7 @@ export function ChatPanel({
   const [deleteFromWhatsApp, setDeleteFromWhatsApp] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showQuickPanel, setShowQuickPanel] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -144,6 +150,9 @@ export function ChatPanel({
   
   // Presence hook for typing/recording indicators
   const { sendPresence } = usePresence(conversation?.id || null);
+
+  // Check if contact is blocked from conversation metadata
+  const isContactBlocked = (conversation?.metadata as Record<string, unknown> | null)?.is_blocked === true;
 
   // Get autocomplete suggestions based on current message
   const getAutocompleteSuggestions = () => {
@@ -349,6 +358,57 @@ export function ChatPanel({
     }
   };
 
+  // Handle blocking/unblocking contact via UAZAPI
+  const handleToggleBlock = async () => {
+    if (!conversation) return;
+    
+    const shouldBlock = !isContactBlocked;
+    setIsBlocking(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        'https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/whatsapp-instances',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'block_contact',
+            conversationId: conversation.id,
+            block: shouldBlock
+          })
+        }
+      );
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao alterar bloqueio');
+      }
+      
+      toast({
+        title: shouldBlock ? 'Contato bloqueado' : 'Contato desbloqueado',
+        description: shouldBlock 
+          ? 'Este contato não poderá mais enviar mensagens'
+          : 'Este contato pode enviar mensagens novamente',
+      });
+      
+    } catch (error) {
+      console.error('Error toggling block:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Não foi possível alterar o bloqueio',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
   const formatPhone = (phone: string) => {
     if (phone.length === 13) {
       return `+${phone.slice(0, 2)} (${phone.slice(2, 4)}) ${phone.slice(4, 9)}-${phone.slice(9)}`;
@@ -456,13 +516,22 @@ export function ChatPanel({
                 className={cn(
                   "text-xs",
                   conversation.status === 'open' && "border-green-500 text-green-500",
-                  conversation.status === 'resolved' && "border-gray-400 text-gray-400"
+                  conversation.status === 'resolved' && "border-muted-foreground text-muted-foreground"
                 )}
               >
                 {conversation.status === 'open' ? 'Aberta' : 
                  conversation.status === 'pending' ? 'Pendente' :
                  conversation.status === 'resolved' ? 'Resolvida' : 'Adiada'}
               </Badge>
+              {isContactBlocked && (
+                <Badge 
+                  variant="outline" 
+                  className="text-xs border-destructive text-destructive"
+                >
+                  <Ban className="h-3 w-3 mr-1" />
+                  Bloqueado
+                </Badge>
+              )}
               {conversation.instance && (
                 <>
                   <span>•</span>
@@ -597,6 +666,30 @@ export function ChatPanel({
                   <DropdownMenuSeparator />
                 </>
               )}
+              {/* Block/Unblock contact */}
+              <DropdownMenuItem 
+                onClick={handleToggleBlock}
+                disabled={isBlocking}
+                className={isContactBlocked ? "text-green-600 focus:text-green-600" : "text-amber-600 focus:text-amber-600"}
+              >
+                {isBlocking ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    {isContactBlocked ? 'Desbloqueando...' : 'Bloqueando...'}
+                  </>
+                ) : isContactBlocked ? (
+                  <>
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Desbloquear contato
+                  </>
+                ) : (
+                  <>
+                    <Ban className="h-4 w-4 mr-2" />
+                    Bloquear contato
+                  </>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {/* Delete conversation */}
               <DropdownMenuItem 
                 onClick={() => setShowDeleteDialog(true)}

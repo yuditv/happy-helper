@@ -20,6 +20,7 @@ export interface Conversation {
   first_reply_at: string | null;
   resolved_at: string | null;
   snoozed_until: string | null;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   // Joined data
