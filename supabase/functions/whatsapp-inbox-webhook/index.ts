@@ -1186,42 +1186,79 @@ serve(async (req: Request) => {
         const agent = routing.agent;
         
         if (agent.is_whatsapp_enabled && agent.is_active) {
-          console.log(`[Inbox Webhook] Routing to AI agent: ${agent.name}`);
+          console.log(`[Inbox Webhook] Routing to AI agent: ${agent.name} (native: ${agent.use_native_ai})`);
           
           const sessionId = `inbox-${conversation.id}`;
+          let assistantResponse = '';
           
           try {
-            // Call n8n webhook
-            const n8nResponse = await fetch(agent.webhook_url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                message,
-                sessionId,
-                phone: normalizedPhone,
-                source: 'whatsapp-inbox',
-                agentName: agent.name,
-                instanceName: instance.instance_name,
-                conversationId: conversation.id,
-                contactName: conversation.contact_name,
-                metadata: {
-                  instance_id: instance.id,
-                  instance_key: instance.instance_key
+            if (agent.use_native_ai) {
+              // Call native AI agent via ai-agent-chat Edge Function
+              console.log(`[Inbox Webhook] Calling native AI agent with model: ${agent.ai_model || 'google/gemini-2.5-flash'}`);
+              
+              const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+              const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+              
+              const aiChatResponse = await fetch(
+                `${supabaseUrl}/functions/v1/ai-agent-chat`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseServiceKey}`
+                  },
+                  body: JSON.stringify({
+                    agentId: agent.id,
+                    message: message,
+                    sessionId: sessionId,
+                    source: 'whatsapp-inbox'
+                  })
                 }
-              }),
-            });
+              );
 
-            let assistantResponse = '';
-            
-            if (n8nResponse.ok) {
-              const n8nData = await n8nResponse.json();
-              assistantResponse = 
-                n8nData.response || 
-                n8nData.message || 
-                n8nData.output || 
-                n8nData.text ||
-                n8nData.reply ||
-                (typeof n8nData === 'string' ? n8nData : '');
+              if (aiChatResponse.ok) {
+                const aiData = await aiChatResponse.json();
+                assistantResponse = aiData.response || '';
+                console.log(`[Inbox Webhook] Native AI response received: ${assistantResponse.substring(0, 100)}...`);
+              } else {
+                const errorText = await aiChatResponse.text();
+                console.error('[Inbox Webhook] Native AI error:', errorText);
+              }
+            } else if (agent.webhook_url) {
+              // Call n8n webhook for external AI
+              console.log(`[Inbox Webhook] Calling n8n webhook: ${agent.webhook_url}`);
+              
+              const n8nResponse = await fetch(agent.webhook_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  message,
+                  sessionId,
+                  phone: normalizedPhone,
+                  source: 'whatsapp-inbox',
+                  agentName: agent.name,
+                  instanceName: instance.instance_name,
+                  conversationId: conversation.id,
+                  contactName: conversation.contact_name,
+                  metadata: {
+                    instance_id: instance.id,
+                    instance_key: instance.instance_key
+                  }
+                }),
+              });
+
+              if (n8nResponse.ok) {
+                const n8nData = await n8nResponse.json();
+                assistantResponse = 
+                  n8nData.response || 
+                  n8nData.message || 
+                  n8nData.output || 
+                  n8nData.text ||
+                  n8nData.reply ||
+                  (typeof n8nData === 'string' ? n8nData : '');
+              }
+            } else {
+              console.log('[Inbox Webhook] Agent has no webhook URL and native AI is disabled');
             }
 
             if (assistantResponse) {
