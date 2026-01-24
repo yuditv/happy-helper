@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -873,35 +874,46 @@ export function ChatPanel({
       </div>
 
       {/* Quick Messages Panel - Right side */}
-      {showQuickPanel && (
-        <QuickMessagesPanel
-          responses={responses}
-          isLoading={isLoadingResponses}
-          onSendMessage={handleQuickSend}
-          onEditMessage={handleEditFromQuick}
-          contactName={conversation.contact_name}
-          phone={conversation.phone}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {showQuickPanel && (
+          <QuickMessagesPanel
+            responses={responses}
+            isLoading={isLoadingResponses}
+            onSendMessage={handleQuickSend}
+            onEditMessage={handleEditFromQuick}
+            contactName={conversation.contact_name}
+            phone={conversation.phone}
+            onClose={() => setShowQuickPanel(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Toggle Quick Panel Button (when hidden) */}
-      {!showQuickPanel && (
-        <div className="border-l flex items-start pt-3">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 mx-1"
-                onClick={() => setShowQuickPanel(true)}
-              >
-                <PanelRightOpen className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">Mensagens rápidas</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
+      <AnimatePresence>
+        {!showQuickPanel && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="border-l flex items-start pt-3"
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 mx-1"
+                  onClick={() => setShowQuickPanel(true)}
+                >
+                  <PanelRightOpen className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Mensagens rápidas</TooltipContent>
+            </Tooltip>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Client Info Panel */}
       {showClientPanel && (
