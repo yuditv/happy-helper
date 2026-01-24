@@ -32,7 +32,8 @@ import {
   BookUser,
   SquareStack,
   GalleryHorizontal,
-  FlaskConical
+  Tv,
+  Wifi
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,7 @@ import { MessageSearchDialog } from "./MessageSearchDialog";
 import { SyncOptionsDialog } from "./SyncOptionsDialog";
 import { DeleteMessageDialog } from "./DeleteMessageDialog";
 import { TestGeneratorDialog } from "./TestGeneratorDialog";
+import { VPNTestGeneratorDialog } from "./VPNTestGeneratorDialog";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -170,6 +172,7 @@ export function ChatPanel({
   const [newContactName, setNewContactName] = useState("");
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [showTestGenerator, setShowTestGenerator] = useState(false);
+  const [showVPNTestGenerator, setShowVPNTestGenerator] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -654,7 +657,7 @@ export function ChatPanel({
             <TooltipContent>{showCRMPanel ? 'Ocultar CRM' : 'Dados do Lead'}</TooltipContent>
           </Tooltip>
 
-          {/* Test Generator Button */}
+          {/* IPTV Test Generator Button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button 
@@ -662,11 +665,26 @@ export function ChatPanel({
                 size="sm"
                 onClick={() => setShowTestGenerator(true)}
               >
-                <FlaskConical className="h-4 w-4 mr-1" />
-                Teste
+                <Tv className="h-4 w-4 mr-1" />
+                IPTV
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Gerar Teste Automático</TooltipContent>
+            <TooltipContent>Gerar Teste IPTV</TooltipContent>
+          </Tooltip>
+
+          {/* VPN Test Generator Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowVPNTestGenerator(true)}
+              >
+                <Wifi className="h-4 w-4 mr-1" />
+                VPN
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Gerar Teste VPN / Internet</TooltipContent>
           </Tooltip>
 
           {/* Quick Messages Panel toggle removed - management moved to Settings */}
@@ -1384,10 +1402,16 @@ export function ChatPanel({
       </AlertDialog>
 
 
-      {/* Test Generator Dialog */}
+      {/* IPTV Test Generator Dialog */}
       <TestGeneratorDialog
         open={showTestGenerator}
         onOpenChange={setShowTestGenerator}
+      />
+
+      {/* VPN Test Generator Dialog */}
+      <VPNTestGeneratorDialog
+        open={showVPNTestGenerator}
+        onOpenChange={setShowVPNTestGenerator}
       />
     </div>
   );
