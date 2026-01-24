@@ -40,9 +40,10 @@ const COLORS = [
 ];
 
 const AI_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o', description: 'Mais inteligente e preciso' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Bom equilíbrio custo/qualidade' },
-  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', description: 'Mais rápido e econômico' },
+  { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Mais inteligente, ideal para raciocínio complexo' },
+  { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'Bom equilíbrio velocidade/qualidade (Recomendado)' },
+  { value: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', description: 'Mais rápido e econômico' },
+  { value: 'google/gemini-3-flash-preview', label: 'Gemini 3.0 Flash (Preview)', description: 'Nova geração, rápido e capaz' },
 ];
 
 export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAgentDialogProps) {
@@ -60,7 +61,7 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
     is_chat_enabled: true,
     use_native_ai: true,
     system_prompt: '',
-    ai_model: 'gpt-4o-mini',
+    ai_model: 'google/gemini-2.5-flash',
   });
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         is_chat_enabled: editingAgent.is_chat_enabled,
         use_native_ai: editingAgent.use_native_ai ?? true,
         system_prompt: editingAgent.system_prompt || '',
-        ai_model: editingAgent.ai_model || 'gpt-4o-mini',
+        ai_model: editingAgent.ai_model || 'google/gemini-2.5-flash',
       });
     } else {
       setFormData({
@@ -90,7 +91,7 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         is_chat_enabled: true,
         use_native_ai: true,
         system_prompt: '',
-        ai_model: 'gpt-4o-mini',
+        ai_model: 'google/gemini-2.5-flash',
       });
     }
   }, [editingAgent, open]);
@@ -142,7 +143,7 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
           </DialogTitle>
           <DialogDescription>
             {formData.use_native_ai 
-              ? 'Configure um agente com IA nativa (OpenAI)'
+              ? 'Configure um agente com IA nativa (Gemini)'
               : 'Configure um agente conectado ao seu workflow externo'
             }
           </DialogDescription>
@@ -203,9 +204,9 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
                   <Brain className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">IA Nativa (OpenAI)</p>
+                  <p className="font-medium">IA Nativa (Gemini)</p>
                   <p className="text-xs text-muted-foreground">
-                    Usa GPT diretamente, sem precisar de webhook externo
+                    Usa Gemini diretamente, sem precisar de webhook externo
                   </p>
                 </div>
               </div>
@@ -234,7 +235,7 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
                   Modelo da IA
                 </Label>
                 <Select
-                  value={formData.ai_model || 'gpt-4o-mini'}
+                  value={formData.ai_model || 'google/gemini-2.5-flash'}
                   onValueChange={(value) => setFormData({ ...formData, ai_model: value })}
                 >
                   <SelectTrigger className="bg-background/50 border-border/50">

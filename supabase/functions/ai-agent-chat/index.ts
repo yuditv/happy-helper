@@ -14,12 +14,12 @@ interface ChatRequest {
   metadata?: Record<string, unknown>;
 }
 
-interface OpenAIMessage {
+interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-interface OpenAIResponse {
+interface AIResponse {
   choices: Array<{
     message: {
       content: string;
@@ -127,16 +127,18 @@ serve(async (req: Request) => {
     let assistantResponse = '';
     let aiError = null;
 
-    // Check if using native AI (OpenAI) or external webhook
+    // Check if using native AI (Lovable AI Gateway with Gemini) or external webhook
     if (agent.use_native_ai) {
-      // ============ NATIVE OPENAI INTEGRATION ============
-      console.log(`Using native OpenAI integration with model: ${agent.ai_model || 'gpt-4o-mini'}`);
+      // ============ NATIVE AI INTEGRATION (LOVABLE AI GATEWAY - GEMINI) ============
+      const defaultModel = 'google/gemini-2.5-flash';
+      const modelToUse = agent.ai_model || defaultModel;
+      console.log(`Using Lovable AI Gateway with model: ${modelToUse}`);
       
-      const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       
-      if (!OPENAI_API_KEY) {
-        console.error('OPENAI_API_KEY not configured');
-        aiError = 'OpenAI API key not configured';
+      if (!LOVABLE_API_KEY) {
+        console.error('LOVABLE_API_KEY not configured');
+        aiError = 'Lovable AI API key not configured';
         assistantResponse = 'Desculpe, o serviço de IA não está configurado corretamente. Contate o administrador.';
       } else {
         try {
@@ -149,7 +151,7 @@ serve(async (req: Request) => {
             .limit(20);
 
           // Build messages array with system prompt and history
-          const messages: OpenAIMessage[] = [
+          const messages: AIMessage[] = [
             { 
               role: 'system', 
               content: agent.system_prompt || 'Você é um assistente útil e prestativo. Responda sempre em português brasileiro.' 
@@ -171,45 +173,55 @@ serve(async (req: Request) => {
           // Add current user message
           messages.push({ role: 'user', content: message });
 
-          console.log(`Sending ${messages.length} messages to OpenAI`);
+          console.log(`Sending ${messages.length} messages to Lovable AI Gateway`);
 
-          // Call OpenAI API
-          const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          // Call Lovable AI Gateway (supports Gemini models)
+          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              model: agent.ai_model || 'gpt-4o-mini',
+              model: modelToUse,
               messages,
               temperature: 0.7,
               max_tokens: 1000
             })
           });
 
-          if (!openaiResponse.ok) {
-            const errorText = await openaiResponse.text();
-            console.error('OpenAI API error:', openaiResponse.status, errorText);
-            aiError = `OpenAI API returned status ${openaiResponse.status}`;
-            assistantResponse = 'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente mais tarde.';
-          } else {
-            const openaiData: OpenAIResponse = await openaiResponse.json();
+          if (!aiResponse.ok) {
+            const errorText = await aiResponse.text();
+            console.error('Lovable AI Gateway error:', aiResponse.status, errorText);
             
-            if (openaiData.error) {
-              console.error('OpenAI error:', openaiData.error);
-              aiError = openaiData.error.message;
-              assistantResponse = 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.';
-            } else if (openaiData.choices && openaiData.choices.length > 0) {
-              assistantResponse = openaiData.choices[0].message.content;
-              console.log('OpenAI response received successfully');
+            // Handle specific error codes
+            if (aiResponse.status === 429) {
+              aiError = 'Rate limit exceeded';
+              assistantResponse = 'Desculpe, estamos com muitas requisições no momento. Por favor, tente novamente em alguns segundos.';
+            } else if (aiResponse.status === 402) {
+              aiError = 'Payment required';
+              assistantResponse = 'Desculpe, os créditos de IA estão esgotados. Contate o administrador.';
             } else {
-              aiError = 'No response from OpenAI';
+              aiError = `AI Gateway returned status ${aiResponse.status}`;
+              assistantResponse = 'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente mais tarde.';
+            }
+          } else {
+            const aiData: AIResponse = await aiResponse.json();
+            
+            if (aiData.error) {
+              console.error('AI error:', aiData.error);
+              aiError = aiData.error.message;
+              assistantResponse = 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.';
+            } else if (aiData.choices && aiData.choices.length > 0) {
+              assistantResponse = aiData.choices[0].message.content;
+              console.log('Lovable AI Gateway response received successfully');
+            } else {
+              aiError = 'No response from AI';
               assistantResponse = 'Desculpe, não recebi uma resposta válida. Por favor, tente novamente.';
             }
           }
         } catch (fetchError: unknown) {
-          console.error('Error calling OpenAI:', fetchError);
+          console.error('Error calling Lovable AI Gateway:', fetchError);
           aiError = fetchError instanceof Error ? fetchError.message : 'Unknown error';
           assistantResponse = 'Desculpe, não foi possível conectar ao serviço de IA. Por favor, tente novamente.';
         }
