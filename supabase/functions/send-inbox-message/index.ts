@@ -161,33 +161,29 @@ serve(async (req: Request) => {
         // Determine if sending media or text
         if (mediaUrl && mediaType) {
           // Media message - use UAZAPI format
-          let endpoint = '/sendImage';
+          let endpoint = '/send/image';
           // deno-lint-ignore no-explicit-any
           const requestBody: Record<string, any> = { number: formattedPhone };
           
-        // Add session (instance name) for uazapiGO v2
-        requestBody.session = instance.instance_name;
-        
-        if (mediaType.startsWith('image/')) {
-            endpoint = '/sendImage';
+          if (mediaType.startsWith('image/')) {
+            endpoint = '/send/image';
             requestBody.url = mediaUrl;
             requestBody.caption = content || '';
           } else if (mediaType.startsWith('video/')) {
-            endpoint = '/sendVideo';
+            endpoint = '/send/video';
             requestBody.url = mediaUrl;
             requestBody.caption = content || '';
           } else if (mediaType.startsWith('audio/')) {
-            endpoint = '/sendAudio';
+            endpoint = '/send/audio';
             requestBody.url = mediaUrl;
           } else {
-            endpoint = '/sendDocument';
+            endpoint = '/send/document';
             requestBody.url = mediaUrl;
             requestBody.fileName = 'file';
           }
           
           console.log(`[Send Inbox] Sending media via ${endpoint}`);
           console.log(`[Send Inbox] URL: ${uazapiUrl}${endpoint}`);
-          console.log(`[Send Inbox] Session: ${instance.instance_name}`);
           
           const sendResponse = await fetch(`${uazapiUrl}${endpoint}`, {
             method: 'POST',
@@ -209,20 +205,18 @@ serve(async (req: Request) => {
             lastError = `${sendResponse.status}: ${responseText}`;
           }
         } else {
-          // Text message - use UAZAPI format /sendText with { session, number, text }
-          console.log(`[Send Inbox] Sending via /sendText`);
-          console.log(`[Send Inbox] URL: ${uazapiUrl}/sendText`);
-          console.log(`[Send Inbox] Session: ${instance.instance_name}`);
+          // Text message - use UAZAPI format /send/text with { number, text }
+          console.log(`[Send Inbox] Sending via /send/text`);
+          console.log(`[Send Inbox] URL: ${uazapiUrl}/send/text`);
           console.log(`[Send Inbox] Phone: ${formattedPhone}`);
           
-          const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
+          const sendResponse = await fetch(`${uazapiUrl}/send/text`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'token': instanceToken
             },
             body: JSON.stringify({
-              session: instance.instance_name,
               number: formattedPhone,
               text: content
             })
