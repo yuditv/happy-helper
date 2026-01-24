@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Edit2, Trash2, Zap, Play, Pause, Clock, MessageSquare, Tag } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Zap, Play, Pause, Clock, MessageSquare, Tag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +35,7 @@ import {
 import { useInboxAutomation, AutomationRule } from "@/hooks/useInboxAutomation";
 import { useInboxMacros } from "@/hooks/useInboxMacros";
 import { useToast } from "@/hooks/use-toast";
+import { CRM_STAGES } from "@/hooks/useCRMMetrics";
 
 const EVENT_TYPES = [
   { value: "conversation_created", label: "Nova conversa", icon: Zap },
@@ -58,6 +59,7 @@ const ACTION_TYPES = [
   { value: "execute_macro", label: "Executar Macro" },
   { value: "snooze", label: "Adiar conversa" },
   { value: "set_priority", label: "Definir prioridade" },
+  { value: "change_crm_status", label: "Alterar estágio CRM" },
 ];
 
 export function AutomationSettings() {
@@ -398,15 +400,91 @@ export function AutomationSettings() {
               {formData.actions.length > 0 && (
                 <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
                   {formData.actions.map((action, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-background rounded p-2">
-                      <span className="text-sm">{getActionLabel(action.type)}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveAction(idx)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                    <div key={idx} className="flex flex-col gap-2 bg-background rounded p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{getActionLabel(action.type)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveAction(idx)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      {/* CRM Status selection for change_crm_status action */}
+                      {action.type === "change_crm_status" && (
+                        <Select
+                          value={(action.params?.status as string) || ""}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              actions: prev.actions.map((a, i) => 
+                                i === idx ? { ...a, params: { ...a.params, status: value } } : a
+                              )
+                            }));
+                          }}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Selecionar estágio..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CRM_STAGES.map((stage) => (
+                              <SelectItem key={stage.value} value={stage.value}>
+                                <div className="flex items-center gap-2">
+                                  <span 
+                                    className="w-2 h-2 rounded-full" 
+                                    style={{ backgroundColor: stage.color }}
+                                  />
+                                  {stage.label}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+
+                      {/* Message input for send_message action */}
+                      {action.type === "send_message" && (
+                        <Textarea
+                          placeholder="Digite a mensagem..."
+                          rows={2}
+                          value={(action.params?.message as string) || ""}
+                          onChange={(e) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              actions: prev.actions.map((a, i) => 
+                                i === idx ? { ...a, params: { ...a.params, message: e.target.value } } : a
+                              )
+                            }));
+                          }}
+                        />
+                      )}
+
+                      {/* Priority selection for set_priority action */}
+                      {action.type === "set_priority" && (
+                        <Select
+                          value={(action.params?.priority as string) || ""}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              actions: prev.actions.map((a, i) => 
+                                i === idx ? { ...a, params: { ...a.params, priority: value } } : a
+                              )
+                            }));
+                          }}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Selecionar prioridade..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Baixa</SelectItem>
+                            <SelectItem value="medium">Média</SelectItem>
+                            <SelectItem value="high">Alta</SelectItem>
+                            <SelectItem value="urgent">Urgente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   ))}
                 </div>

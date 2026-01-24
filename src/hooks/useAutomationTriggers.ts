@@ -5,6 +5,7 @@ import { useInboxAutomation, AutomationRule, AutomationAction } from '@/hooks/us
 import { useInboxMacros, MacroAction } from '@/hooks/useInboxMacros';
 import { Conversation } from '@/hooks/useInboxConversations';
 import { ChatMessage } from '@/hooks/useInboxMessages';
+import { useCRMAutomation } from '@/hooks/useCRMAutomation';
 
 interface TriggerContext {
   conversation?: Conversation;
@@ -26,6 +27,7 @@ export function useAutomationTriggers(callbacks: TriggerCallbacks = {}) {
   const { user } = useAuth();
   const { rules } = useInboxAutomation();
   const { macros } = useInboxMacros();
+  const { updateLeadStatus } = useCRMAutomation();
   const processedEvents = useRef<Set<string>>(new Set());
 
   const executeAction = useCallback(async (
@@ -98,8 +100,19 @@ export function useAutomationTriggers(callbacks: TriggerCallbacks = {}) {
           }
         }
         break;
+
+      case 'change_crm_status':
+        if (action.params?.status && context.conversation) {
+          const phone = context.conversation.phone;
+          const instanceId = context.conversation.instance_id;
+          if (phone && instanceId) {
+            await updateLeadStatus(phone, instanceId, action.params.status as string);
+            console.log(`[CRM Automation] Lead ${phone} moved to ${action.params.status}`);
+          }
+        }
+        break;
     }
-  }, [callbacks, macros]);
+  }, [callbacks, macros, updateLeadStatus]);
 
   const checkConditions = useCallback((
     rule: AutomationRule,
