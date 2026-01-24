@@ -333,16 +333,10 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           )}
         </div>
         
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 shrink-0 border-t mt-4">
+        <div className="flex justify-end pt-4 shrink-0 border-t mt-4">
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Fechar
           </Button>
-          {credentials && (
-            <Button onClick={copyAll} variant="default">
-              <Copy className="h-4 w-4 mr-2" />
-              Copiar Tudo
-            </Button>
-          )}
         </div>
       </DialogContent>
     </Dialog>
