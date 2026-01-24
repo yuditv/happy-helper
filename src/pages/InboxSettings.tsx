@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Settings, Users, Tag, Zap, Play, ScrollText, Clock, Ban, Database, MessageSquareText } from "lucide-react";
+import { ArrowLeft, Settings, Users, Tag, Zap, Play, ScrollText, Clock, Ban, Database, MessageSquareText, PhoneOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +15,7 @@ import { BusinessHoursSettings } from "@/components/Inbox/Settings/BusinessHours
 import { BlockedContactsSettings } from "@/components/Inbox/Settings/BlockedContactsSettings";
 import { CRMFieldsSettings } from "@/components/Inbox/Settings/CRMFieldsSettings";
 import { CannedResponsesSettings } from "@/components/Inbox/Settings/CannedResponsesSettings";
+import { CallSettings } from "@/components/Inbox/Settings/CallSettings";
 
 type SettingsSection = 
   | "labels"
@@ -25,7 +26,8 @@ type SettingsSection =
   | "blocked-contacts"
   | "audit-logs"
   | "crm-fields"
-  | "canned-responses";
+  | "canned-responses"
+  | "call-settings";
 
 interface MenuItem {
   id: SettingsSection;
@@ -84,6 +86,12 @@ const menuItems: MenuItem[] = [
     icon: MessageSquareText,
   },
   {
+    id: "call-settings",
+    title: "Chamadas",
+    description: "Rejeitar ligações automático",
+    icon: PhoneOff,
+  },
+  {
     id: "audit-logs",
     title: "Auditoria",
     description: "Log de atividades do sistema",
@@ -113,6 +121,8 @@ export default function InboxSettings() {
         return <CRMFieldsSettings />;
       case "canned-responses":
         return <CannedResponsesSettings />;
+      case "call-settings":
+        return <CallSettings />;
       case "audit-logs":
         return <AuditLogsSettings />;
       default:

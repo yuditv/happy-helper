@@ -260,6 +260,8 @@ export function useDispatchConfigs() {
       allowedDays: saved.allowed_days,
       verifyNumbers: saved.verify_numbers,
       autoArchive: saved.auto_archive ?? true,
+      attentionCall: (saved as any).attention_call ?? false,
+      attentionCallDelay: (saved as any).attention_call_delay ?? 2,
     };
   }, []);
 
