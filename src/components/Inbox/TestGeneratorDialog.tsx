@@ -187,10 +187,10 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     <div className="flex items-center py-2 px-3 rounded-md hover:bg-muted/50 transition-colors gap-2">
       <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
       <span className="text-sm text-muted-foreground shrink-0 whitespace-nowrap">{label}:</span>
-      <span className="text-sm font-medium truncate flex-1" title={value}>{value || '-'}</span>
+      <span className="text-sm font-medium truncate min-w-0 flex-1" title={value}>{value || '-'}</span>
       {value && (
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           className="h-7 w-7 shrink-0"
           onClick={() => copyField(label, value)}
@@ -213,15 +213,15 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     onCopySection: () => void;
   }) => (
     <div className="rounded-lg border bg-card">
-      <div className="px-3 py-2 border-b flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-primary" />
-          <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+      <div className="px-3 py-2 border-b flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className="h-4 w-4 text-primary shrink-0" />
+          <h4 className="text-sm font-semibold text-foreground truncate">{title}</h4>
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-7 text-xs"
+          className="h-7 text-xs shrink-0"
           onClick={onCopySection}
         >
           <Copy className="h-3 w-3 mr-1" />
@@ -270,8 +270,8 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           )}
           
           {credentials && (
-            <ScrollArea className="flex-1 min-h-0 overflow-auto">
-              <div className="space-y-4 pr-4 pb-4">
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="space-y-4 pb-4">
                 {/* Credenciais Básicas */}
                 <CredentialSection 
                   title="Usuário e Senha" 
@@ -329,7 +329,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
                   <CredentialRow icon={Calendar} label="Expira em" value={credentials.expiresAt} />
                 </CredentialSection>
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
         
