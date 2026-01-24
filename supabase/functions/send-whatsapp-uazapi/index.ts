@@ -73,11 +73,11 @@ const handler = async (req: Request): Promise<Response> => {
     let body: Record<string, any>;
 
     // Determine endpoint and body based on media type
-    // UAZAPI uses /message/ prefix for all message endpoints
+    // UAZAPI uses /chat/send/ prefix for all message endpoints
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
-          endpoint = '/message/sendImage';
+          endpoint = '/chat/send/image';
           body = {
             phone: formattedPhone,
             image: mediaUrl,
@@ -85,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'video':
-          endpoint = '/message/sendVideo';
+          endpoint = '/chat/send/video';
           body = {
             phone: formattedPhone,
             video: mediaUrl,
@@ -93,7 +93,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'audio':
-          endpoint = '/message/sendAudio';
+          endpoint = '/chat/send/audio';
           body = {
             phone: formattedPhone,
             audio: mediaUrl,
@@ -101,7 +101,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'document':
-          endpoint = '/message/sendDocument';
+          endpoint = '/chat/send/document';
           body = {
             phone: formattedPhone,
             document: mediaUrl,
@@ -110,10 +110,10 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         default:
-          endpoint = '/message/sendText';
+          endpoint = '/chat/send/text';
           body = {
             phone: formattedPhone,
-            message: message || ''
+            body: message || ''
           };
       }
     } else {
@@ -127,10 +127,10 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-      endpoint = '/message/sendText';
+      endpoint = '/chat/send/text';
       body = {
         phone: formattedPhone,
-        message: message
+        body: message
       };
     }
 
