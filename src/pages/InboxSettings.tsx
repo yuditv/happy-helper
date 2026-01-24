@@ -105,9 +105,9 @@ export default function InboxSettings() {
       {/* Header */}
       <header className="h-14 border-b flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/atendimento')}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
           <div className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-muted-foreground" />
             <h1 className="text-lg font-semibold">Configurações do Inbox</h1>
