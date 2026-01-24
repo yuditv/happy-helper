@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export type MenuType = "button" | "list" | "poll" | "carousel";
+export type ButtonType = "REPLY" | "URL" | "COPY" | "CALL";
 
 export interface InteractiveMenuOptions {
   phone: string;
@@ -14,6 +15,29 @@ export interface InteractiveMenuOptions {
   listButton?: string;
   selectableCount?: number;
   imageButton?: string;
+}
+
+export interface CarouselButton {
+  id: string;
+  text: string;
+  type: ButtonType;
+}
+
+export interface CarouselCard {
+  text: string;
+  image?: string;
+  video?: string;
+  document?: string;
+  filename?: string;
+  buttons: CarouselButton[];
+}
+
+export interface MediaCarouselOptions {
+  phone: string;
+  instanceKey: string;
+  text: string;
+  carousel: CarouselCard[];
+  delay?: number;
 }
 
 export function useInteractiveMessage() {
@@ -66,7 +90,49 @@ export function useInteractiveMessage() {
     }
   };
 
-  return { sendInteractiveMenu, isSending };
+  const sendMediaCarousel = async (options: MediaCarouselOptions): Promise<boolean> => {
+    setIsSending(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-instances", {
+        body: { 
+          action: "send_carousel", 
+          phone: options.phone,
+          instanceKey: options.instanceKey,
+          text: options.text,
+          carousel: options.carousel,
+          delay: options.delay
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || "Erro ao enviar carrossel de mídia");
+      }
+
+      toast({
+        title: "Carrossel enviado!",
+        description: `Carrossel com ${options.carousel.length} cards enviado com sucesso`,
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error sending media carousel:", error);
+      toast({
+        title: "Erro ao enviar carrossel",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return { sendInteractiveMenu, sendMediaCarousel, isSending };
 }
 
 function getMenuTypeLabel(type: MenuType): string {
