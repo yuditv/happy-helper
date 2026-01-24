@@ -145,11 +145,17 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Aligned with whatsapp-ai-webhook format: /chat/send endpoint, lowercase token header, lowercase keys
-        const uazapiEndpoint = `${uazapiUrl}/chat/send`;
+        // Try multiple endpoint formats - different UAZAPI/Wuzapi versions use different formats
+        const endpoints = [
+          { url: `${uazapiUrl}/send-text`, header: 'token' },           // Z-API/UAZAPI v2 format
+          { url: `${uazapiUrl}/message/sendText`, header: 'token' },    // UAZAPI alt format  
+          { url: `${uazapiUrl}/chat/send/text`, header: 'Token' },      // Wuzapi format (capital T)
+          { url: `${uazapiUrl}/chat/send`, header: 'token' },           // Unified endpoint
+        ];
+        
         let uazapiBody: Record<string, unknown>;
 
-        // Handle media types
+        // Handle media types - try media endpoints if we have media
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
             uazapiBody = { phone, image: mediaUrl, caption: content || '' };
@@ -161,35 +167,51 @@ serve(async (req: Request) => {
             uazapiBody = { phone, document: mediaUrl, filename: 'file' };
           }
         } else {
-          // Text message - same format as whatsapp-ai-webhook
+          // Text message - format works for most APIs
           uazapiBody = { phone, message: content };
         }
 
-        console.log(`[Send Inbox] UAZAPI endpoint: ${uazapiEndpoint}`);
-        console.log(`[Send Inbox] Headers: token=${instanceToken.substring(0, 8)}...`);
-        console.log(`[Send Inbox] Body:`, JSON.stringify(uazapiBody));
+        let lastError = '';
+        let sendSuccess = false;
 
-        const sendResponse = await fetch(uazapiEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'token': instanceToken  // lowercase 'token' header like whatsapp-ai-webhook
-          },
-          body: JSON.stringify(uazapiBody)
-        });
+        // Try each endpoint until one works
+        for (const endpoint of endpoints) {
+          console.log(`[Send Inbox] Trying endpoint: ${endpoint.url}`);
+          console.log(`[Send Inbox] Headers: ${endpoint.header}=${instanceToken.substring(0, 8)}...`);
+          console.log(`[Send Inbox] Body:`, JSON.stringify(uazapiBody));
 
-        if (!sendResponse.ok) {
-          const errorText = await sendResponse.text();
-          console.error('[Send Inbox] UAZAPI error:', sendResponse.status, errorText);
+          const sendResponse = await fetch(endpoint.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              [endpoint.header]: instanceToken
+            },
+            body: JSON.stringify(uazapiBody)
+          });
+
+          const responseText = await sendResponse.text();
+          console.log(`[Send Inbox] Response status: ${sendResponse.status}, body: ${responseText}`);
+
+          if (sendResponse.ok || sendResponse.status === 200 || sendResponse.status === 201) {
+            console.log('[Send Inbox] Message sent successfully via WhatsApp');
+            sendSuccess = true;
+            break;
+          } else if (sendResponse.status !== 405) {
+            // If it's not a 405 (method not allowed), log and try next
+            lastError = responseText;
+          } else {
+            lastError = responseText;
+          }
+        }
+
+        if (!sendSuccess) {
+          console.error('[Send Inbox] All endpoints failed. Last error:', lastError);
           
           // Update message with error status
           await supabaseAdmin
             .from('chat_inbox_messages')
-            .update({ metadata: { ...savedMessage.metadata, send_error: errorText } })
+            .update({ metadata: { ...savedMessage.metadata, send_error: lastError } })
             .eq('id', savedMessage.id);
-        } else {
-          const responseData = await sendResponse.json();
-          console.log('[Send Inbox] Message sent successfully via WhatsApp:', responseData);
         }
       } catch (sendError) {
         console.error('[Send Inbox] Error sending to WhatsApp:', sendError);
