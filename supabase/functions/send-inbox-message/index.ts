@@ -60,13 +60,10 @@ serve(async (req: Request) => {
 
     console.log(`[Send Inbox] User ${user.id} sending message to conversation ${conversationId}`);
 
-    // Get conversation with instance info
+    // Get conversation first
     const { data: conversation, error: convError } = await supabaseAdmin
       .from('conversations')
-      .select(`
-        *,
-        instance:whatsapp_instances(*)
-      `)
+      .select('*')
       .eq('id', conversationId)
       .single();
 
@@ -76,6 +73,22 @@ serve(async (req: Request) => {
         JSON.stringify({ error: 'Conversation not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Get instance separately (no JOIN needed)
+    let instance = null;
+    if (conversation.instance_id) {
+      const { data: instanceData, error: instanceError } = await supabaseAdmin
+        .from('whatsapp_instances')
+        .select('*')
+        .eq('id', conversation.instance_id)
+        .single();
+      
+      if (instanceError) {
+        console.error('[Send Inbox] Error fetching instance:', instanceError);
+      } else {
+        instance = instanceData;
+      }
     }
 
     // Save message to database
@@ -125,14 +138,15 @@ serve(async (req: Request) => {
       .eq('id', conversationId);
 
     // If not private, send via WhatsApp
-    if (!isPrivate && conversation.instance) {
-      const instance = conversation.instance;
+    if (!isPrivate && instance) {
       const phone = conversation.phone;
+      const instanceToken = instance.instance_key;
 
-      console.log(`[Send Inbox] Sending to WhatsApp: ${phone}`);
+      console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.name}`);
 
       try {
-        let uazapiEndpoint = `${uazapiUrl}/chat/send`;
+        // Use UAZAPI v2 format: {base_url}/{token}/sendText
+        let uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/send`;
         let uazapiBody: Record<string, unknown> = {
           phone,
           message: content
@@ -141,25 +155,26 @@ serve(async (req: Request) => {
         // Handle media
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/sendImage`;
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendImage`;
             uazapiBody = { phone, image: mediaUrl, caption: content };
           } else if (mediaType.startsWith('video/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/sendVideo`;
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendVideo`;
             uazapiBody = { phone, video: mediaUrl, caption: content };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/sendAudio`;
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendAudio`;
             uazapiBody = { phone, audio: mediaUrl };
           } else {
-            uazapiEndpoint = `${uazapiUrl}/chat/sendDocument`;
+            uazapiEndpoint = `${uazapiUrl}/${instanceToken}/chat/sendDocument`;
             uazapiBody = { phone, document: mediaUrl, fileName: 'file' };
           }
         }
+
+        console.log(`[Send Inbox] UAZAPI endpoint: ${uazapiEndpoint}`);
 
         const sendResponse = await fetch(uazapiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'token': instance.instance_key || uazapiToken
           },
           body: JSON.stringify(uazapiBody)
         });
@@ -174,11 +189,14 @@ serve(async (req: Request) => {
             .update({ metadata: { ...savedMessage.metadata, send_error: errorText } })
             .eq('id', savedMessage.id);
         } else {
-          console.log('[Send Inbox] Message sent successfully via WhatsApp');
+          const responseData = await sendResponse.json();
+          console.log('[Send Inbox] Message sent successfully via WhatsApp:', responseData);
         }
       } catch (sendError) {
         console.error('[Send Inbox] Error sending to WhatsApp:', sendError);
       }
+    } else if (!isPrivate && !instance) {
+      console.warn('[Send Inbox] No instance found for conversation, message saved but not sent to WhatsApp');
     }
 
     return new Response(
