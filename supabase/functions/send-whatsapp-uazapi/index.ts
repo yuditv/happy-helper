@@ -73,10 +73,11 @@ const handler = async (req: Request): Promise<Response> => {
     let body: Record<string, any>;
 
     // Determine endpoint and body based on media type
+    // UAZAPI uses /message/ prefix for all message endpoints
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
-          endpoint = '/sendImage';
+          endpoint = '/message/sendImage';
           body = {
             phone: formattedPhone,
             image: mediaUrl,
@@ -84,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'video':
-          endpoint = '/sendVideo';
+          endpoint = '/message/sendVideo';
           body = {
             phone: formattedPhone,
             video: mediaUrl,
@@ -92,7 +93,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'audio':
-          endpoint = '/sendAudio';
+          endpoint = '/message/sendAudio';
           body = {
             phone: formattedPhone,
             audio: mediaUrl,
@@ -100,7 +101,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'document':
-          endpoint = '/sendDocument';
+          endpoint = '/message/sendDocument';
           body = {
             phone: formattedPhone,
             document: mediaUrl,
@@ -109,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         default:
-          endpoint = '/sendText';
+          endpoint = '/message/sendText';
           body = {
             phone: formattedPhone,
             message: message || ''
@@ -126,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-      endpoint = '/sendText';
+      endpoint = '/message/sendText';
       body = {
         phone: formattedPhone,
         message: message
@@ -164,7 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`[Archive] Attempting to archive chat with: ${formattedPhone}`);
         console.log(`[Archive] Using instance token: ${instanceKey ? 'custom' : 'default'}`);
         
-        const archiveResponse = await fetch(`${UAZAPI_URL}/archiveChat`, {
+        const archiveResponse = await fetch(`${UAZAPI_URL}/chat/archiveChat`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
