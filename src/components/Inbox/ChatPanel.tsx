@@ -79,6 +79,7 @@ import { CRMLeadPanel } from "./CRMLeadPanel";
 import { useCRMLead, CRM_STATUSES } from "@/hooks/useCRMLead";
 import { MessageSearchDialog } from "./MessageSearchDialog";
 import { SyncOptionsDialog } from "./SyncOptionsDialog";
+import { DeleteMessageDialog } from "./DeleteMessageDialog";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -87,6 +88,7 @@ interface ChatPanelProps {
   isLoading: boolean;
   isSending: boolean;
   isSyncing?: boolean;
+  isDeleting?: boolean;
   onSendMessage: (content: string, isPrivate?: boolean, mediaUrl?: string, mediaType?: string, fileName?: string) => Promise<boolean>;
   onAssignToMe: () => void;
   onResolve: () => void;
@@ -99,6 +101,7 @@ interface ChatPanelProps {
   onRetryMessage?: (messageId: string) => Promise<boolean>;
   onSyncMessages?: (limit?: number) => void;
   onDeleteConversation?: (conversationId: string, deleteFromWhatsApp: boolean) => Promise<boolean>;
+  onDeleteMessage?: (messageId: string, deleteForEveryone: boolean) => Promise<boolean>;
 }
 
 interface AttachmentState {
@@ -114,6 +117,7 @@ export function ChatPanel({
   isLoading,
   isSending,
   isSyncing,
+  isDeleting,
   onSendMessage,
   onAssignToMe,
   onResolve,
@@ -125,7 +129,8 @@ export function ChatPanel({
   onRegisterClient,
   onRetryMessage,
   onSyncMessages,
-  onDeleteConversation
+  onDeleteConversation,
+  onDeleteMessage
 }: ChatPanelProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -141,13 +146,14 @@ export function ChatPanel({
   const [contactAvatarUrl, setContactAvatarUrl] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFromWhatsApp, setDeleteFromWhatsApp] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   const [showQuickPanel, setShowQuickPanel] = useState(false);
   const [showCRMPanel, setShowCRMPanel] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [showSyncDialog, setShowSyncDialog] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<ChatMessage | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -338,14 +344,23 @@ export function ChatPanel({
   const handleDeleteConversation = async () => {
     if (!conversation || !onDeleteConversation) return;
     
-    setIsDeleting(true);
+    setIsDeletingConversation(true);
     const success = await onDeleteConversation(conversation.id, deleteFromWhatsApp);
-    setIsDeleting(false);
+    setIsDeletingConversation(false);
     
     if (success) {
       setShowDeleteDialog(false);
       setDeleteFromWhatsApp(false);
     }
+  };
+
+  const handleDeleteMessage = async (messageId: string, deleteForEveryone: boolean) => {
+    if (!onDeleteMessage) return false;
+    const success = await onDeleteMessage(messageId, deleteForEveryone);
+    if (success) {
+      setMessageToDelete(null);
+    }
+    return success;
   };
 
   // Handler for quick send (bypasses input, supports media)
@@ -871,9 +886,20 @@ export function ChatPanel({
                   )}
                   
                   <div className={cn(
-                    "flex gap-2",
+                    "flex gap-2 group",
                     isOutgoing ? "justify-end" : "justify-start"
                   )}>
+                    {/* Delete button - appears on hover (for outgoing messages on the left) */}
+                    {isOutgoing && onDeleteMessage && !(msg.metadata?.deleted) && (
+                      <button
+                        onClick={() => setMessageToDelete(msg)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity self-center p-1 hover:bg-muted rounded"
+                        title="Apagar mensagem"
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                      </button>
+                    )}
+                    
                     <div className={cn(
                       "max-w-[70%] rounded-2xl px-4 py-2.5 transition-colors",
                       isOutgoing 
@@ -881,7 +907,8 @@ export function ChatPanel({
                           ? "bg-primary/15 text-foreground dark:bg-primary/10"
                           : "bg-inbox-message-sent text-foreground rounded-br-sm"
                         : "bg-inbox-message-received border border-border/50 rounded-bl-sm",
-                      msg.is_private && "inbox-message-private border border-dashed !border-amber-500/40"
+                      msg.is_private && "inbox-message-private border border-dashed !border-amber-500/40",
+                      msg.metadata?.deleted && "opacity-60 italic"
                     )}>
                       {/* Sender info */}
                       <div className={cn(
@@ -894,7 +921,7 @@ export function ChatPanel({
                         <sender.icon className="h-3 w-3" />
                         <span>{sender.name}</span>
                         {msg.is_private && (
-                          <Lock className="h-3 w-3 text-yellow-500" />
+                          <Lock className="h-3 w-3 text-amber-500" />
                         )}
                       </div>
 
@@ -918,7 +945,7 @@ export function ChatPanel({
                               />
                             </button>
                           ) : msg.media_type?.startsWith('video/') ? (
-                            <div className="relative group">
+                            <div className="relative group/video">
                               <video 
                                 src={msg.media_url} 
                                 className="rounded max-w-full max-h-64 cursor-pointer"
@@ -926,7 +953,7 @@ export function ChatPanel({
                               />
                               <button
                                 onClick={() => openMediaGallery(msg.id)}
-                                className="absolute inset-0 flex items-center justify-center bg-black/30 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute inset-0 flex items-center justify-center bg-black/30 rounded opacity-0 group-hover/video:opacity-100 transition-opacity"
                               >
                                 <Play className="h-12 w-12 text-white" />
                               </button>
@@ -974,6 +1001,17 @@ export function ChatPanel({
                         />
                       </div>
                     </div>
+                    
+                    {/* Delete button - appears on hover (for incoming messages on the right) */}
+                    {!isOutgoing && onDeleteMessage && !(msg.metadata?.deleted) && (
+                      <button
+                        onClick={() => setMessageToDelete(msg)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity self-center p-1 hover:bg-muted rounded"
+                        title="Apagar mensagem"
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1204,13 +1242,13 @@ export function ChatPanel({
           </div>
           
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeletingConversation}>Cancelar</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDeleteConversation}
-              disabled={isDeleting}
+              disabled={isDeletingConversation}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? 'Deletando...' : 'Deletar'}
+              {isDeletingConversation ? 'Deletando...' : 'Deletar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1275,6 +1313,15 @@ export function ChatPanel({
           onSyncMessages?.(limit);
         }}
         isSyncing={isSyncing || false}
+      />
+
+      {/* Delete Message Dialog */}
+      <DeleteMessageDialog
+        open={!!messageToDelete}
+        onOpenChange={(open) => !open && setMessageToDelete(null)}
+        message={messageToDelete}
+        onDelete={handleDeleteMessage}
+        isDeleting={isDeleting || false}
       />
     </div>
   );

@@ -341,13 +341,97 @@ export function useInboxMessages(conversationId: string | null) {
     };
   }, [conversationId, syncMessages]);
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const deleteMessage = async (messageId: string, deleteForEveryone: boolean = false): Promise<boolean> => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message) return false;
+
+    setIsDeleting(true);
+
+    try {
+      // Get conversation to find instance_id
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('instance_id')
+        .eq('id', conversationId)
+        .single();
+
+      const whatsappId = (message.metadata?.whatsapp_id || message.metadata?.whatsapp_message_id) as string | undefined;
+      
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch(
+        'https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/whatsapp-instances',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'delete_message',
+            messageId,
+            instanceId: conversation?.instance_id,
+            whatsappId,
+            deleteForEveryone
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Falha ao apagar mensagem');
+      }
+
+      // Update local state
+      if (deleteForEveryone) {
+        // Show "message deleted" placeholder
+        setMessages(prev =>
+          prev.map(m => m.id === messageId
+            ? { 
+                ...m, 
+                content: '🚫 Mensagem apagada', 
+                media_url: null,
+                metadata: { ...m.metadata, deleted: true, deleted_for_everyone: true } 
+              }
+            : m
+          )
+        );
+      } else {
+        // Remove from local view only
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      }
+
+      toast({
+        title: 'Mensagem apagada',
+        description: deleteForEveryone ? 'Apagada para todos' : 'Apagada para você',
+      });
+
+      return true;
+    } catch (error: unknown) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: 'Erro ao apagar',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive'
+      });
+      return false;
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return {
     messages,
     isLoading,
     isSending,
     isSyncing,
+    isDeleting,
     sendMessage,
     retryMessage,
+    deleteMessage,
     syncMessages,
     refetch: fetchMessages
   };
