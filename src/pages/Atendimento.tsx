@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ArrowLeft, RefreshCw, Circle, Lock, AlertTriangle, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import { useAutomationTriggers } from "@/hooks/useAutomationTriggers";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { InboxSidebar } from "@/components/Inbox/InboxSidebar";
 import { ConversationList } from "@/components/Inbox/ConversationList";
 import { ChatPanel } from "@/components/Inbox/ChatPanel";
@@ -69,8 +71,66 @@ export default function Atendimento() {
     messages,
     isLoading: messagesLoading,
     isSending,
-    sendMessage
+    sendMessage,
+    retryMessage
   } = useInboxMessages(selectedConversation?.id || null);
+
+  // Push notifications and sound effects
+  const { permission, requestPermission, showLocalNotification, isSupported } = usePushNotifications();
+  const { playSuccess, playDispatchFailure } = useSoundEffects();
+  const lastNotifiedMessageRef = useRef<string | null>(null);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (isSupported && permission === 'default') {
+      // Auto-request after user interaction
+      const handleClick = () => {
+        requestPermission();
+        document.removeEventListener('click', handleClick);
+      };
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [isSupported, permission, requestPermission]);
+
+  // Listen for new incoming messages and show notifications
+  useEffect(() => {
+    const channel = supabase
+      .channel('inbox-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_inbox_messages' },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage;
+          
+          // Only notify for incoming messages from contacts
+          if (newMessage.sender_type === 'contact' && newMessage.id !== lastNotifiedMessageRef.current) {
+            lastNotifiedMessageRef.current = newMessage.id;
+            
+            // Find conversation to get contact name
+            const conv = conversations.find(c => c.id === newMessage.conversation_id);
+            const contactName = conv?.contact_name || 'Cliente';
+            
+            // Play notification sound
+            playSuccess();
+            
+            // Show desktop notification if page is not focused
+            if (document.hidden && permission === 'granted') {
+              showLocalNotification(`💬 Nova mensagem de ${contactName}`, {
+                body: newMessage.content?.slice(0, 100) || 'Mensagem de mídia',
+                tag: `inbox-${newMessage.conversation_id}`,
+                requireInteraction: false,
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversations, permission, showLocalNotification, playSuccess]);
 
   // Automation triggers callbacks
   const automationCallbacks = {
@@ -431,6 +491,7 @@ export default function Atendimento() {
               onRemoveLabel={handleRemoveLabel}
               onMarkAsRead={handleMarkAsRead}
               onRegisterClient={handleRegisterClient}
+              onRetryMessage={retryMessage}
             />
           </>
         )}

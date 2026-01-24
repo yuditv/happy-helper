@@ -1,14 +1,16 @@
-import { Check, CheckCheck, Clock, AlertCircle } from 'lucide-react';
+import { Check, CheckCheck, Clock, AlertCircle, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
 
 interface MessageStatusProps {
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   isOutgoing: boolean;
   className?: string;
+  onRetry?: () => void;
 }
 
-export function MessageStatus({ status, isOutgoing, className }: MessageStatusProps) {
+export function MessageStatus({ status, isOutgoing, className, onRetry }: MessageStatusProps) {
   if (!isOutgoing) return null;
 
   const getStatusInfo = () => {
@@ -40,7 +42,7 @@ export function MessageStatus({ status, isOutgoing, className }: MessageStatusPr
       case 'failed':
         return {
           icon: AlertCircle,
-          label: 'Falha ao enviar',
+          label: 'Falha ao enviar - Clique para reenviar',
           color: 'text-destructive'
         };
       default:
@@ -53,6 +55,33 @@ export function MessageStatus({ status, isOutgoing, className }: MessageStatusPr
   };
 
   const { icon: Icon, label, color } = getStatusInfo();
+
+  // Show retry button for failed messages
+  if (status === 'failed' && onRetry) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 p-0 hover:bg-destructive/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRetry();
+            }}
+          >
+            <span className="inline-flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 text-destructive" />
+              <RotateCcw className="h-3 w-3 text-destructive hover:animate-spin" />
+            </span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="left">
+          <p className="text-xs">{label}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
     <Tooltip>

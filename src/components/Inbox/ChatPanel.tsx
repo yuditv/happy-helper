@@ -58,6 +58,7 @@ interface ChatPanelProps {
   onRemoveLabel: (labelId: string) => void;
   onMarkAsRead: () => void;
   onRegisterClient?: (phone: string, name?: string) => void;
+  onRetryMessage?: (messageId: string) => Promise<boolean>;
 }
 
 interface AttachmentState {
@@ -80,7 +81,8 @@ export function ChatPanel({
   onAssignLabel,
   onRemoveLabel,
   onMarkAsRead,
-  onRegisterClient
+  onRegisterClient,
+  onRetryMessage
 }: ChatPanelProps) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
@@ -588,6 +590,7 @@ export function ChatPanel({
                         <MessageStatus 
                           status={messageStatus}
                           isOutgoing={isOutgoing}
+                          onRetry={messageStatus === 'failed' && onRetryMessage ? () => onRetryMessage(msg.id) : undefined}
                         />
                       </div>
                     </div>
