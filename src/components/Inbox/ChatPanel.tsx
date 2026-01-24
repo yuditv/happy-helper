@@ -1040,10 +1040,14 @@ export function ChatPanel({
       <AnimatePresence>
         {!showQuickPanel && (
           <motion.div 
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0, x: 20, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 20, scale: 0.9 }}
+            transition={{ 
+              type: "spring",
+              stiffness: 400,
+              damping: 25
+            }}
             className="border-l flex items-start pt-3"
           >
             <Tooltip>
