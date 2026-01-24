@@ -226,8 +226,8 @@ export function useInboxMessages(conversationId: string | null) {
     };
   }, [conversationId]);
 
-  const syncMessages = async () => {
-    if (!conversationId) return;
+  const syncMessages = useCallback(async (silent = false) => {
+    if (!conversationId || isSyncing) return;
     
     setIsSyncing(true);
     try {
@@ -252,12 +252,14 @@ export function useInboxMessages(conversationId: string | null) {
       }
 
       if (result.newMessages > 0) {
-        toast({
-          title: 'Mensagens sincronizadas',
-          description: `${result.newMessages} nova(s) mensagem(ns) encontrada(s)`,
-        });
         await fetchMessages(); // Reload from database
-      } else {
+        if (!silent) {
+          toast({
+            title: 'Mensagens sincronizadas',
+            description: `${result.newMessages} nova(s) mensagem(ns) encontrada(s)`,
+          });
+        }
+      } else if (!silent) {
         toast({
           title: 'Sincronização concluída',
           description: 'Nenhuma mensagem nova encontrada',
@@ -265,15 +267,37 @@ export function useInboxMessages(conversationId: string | null) {
       }
     } catch (error: unknown) {
       console.error('Error syncing messages:', error);
-      toast({
-        title: 'Erro ao sincronizar',
-        description: error instanceof Error ? error.message : 'Tente novamente',
-        variant: 'destructive'
-      });
+      if (!silent) {
+        toast({
+          title: 'Erro ao sincronizar',
+          description: error instanceof Error ? error.message : 'Tente novamente',
+          variant: 'destructive'
+        });
+      }
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [conversationId, isSyncing, fetchMessages, toast]);
+
+  // Auto-polling every 30 seconds when conversation is open
+  useEffect(() => {
+    if (!conversationId) return;
+
+    // Initial sync when conversation opens
+    const initialTimeout = setTimeout(() => {
+      syncMessages(true);
+    }, 2000);
+
+    // Set up polling interval
+    const pollInterval = setInterval(() => {
+      syncMessages(true);
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(pollInterval);
+    };
+  }, [conversationId]); // Only depend on conversationId to avoid recreating interval
 
   return {
     messages,
