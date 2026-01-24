@@ -56,7 +56,7 @@ import { Conversation, InboxLabel } from "@/hooks/useInboxConversations";
 import { ChatMessage } from "@/hooks/useInboxMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { useClientByPhone } from "@/hooks/useClientByPhone";
-import { useCannedResponses } from "@/hooks/useCannedResponses";
+import { useCannedResponses, CannedResponse } from "@/hooks/useCannedResponses";
 import { useContactAvatar } from "@/hooks/useContactAvatar";
 import { usePresence } from "@/hooks/usePresence";
 import { useToast } from "@/hooks/use-toast";
@@ -143,8 +143,8 @@ export function ChatPanel({
   // Fetch client by phone
   const { client, isLoading: isLoadingClient } = useClientByPhone(conversation?.phone || null);
 
-  // Canned responses for quick replies
-  const { responses, searchResponses, findByShortCode, isLoading: isLoadingResponses } = useCannedResponses();
+  // Canned responses for quick replies (autocomplete)
+  const { responses, searchResponses, findByShortCode } = useCannedResponses();
   
   // Contact avatar fetcher
   const { fetchAvatar, isLoading: isFetchingAvatar } = useContactAvatar();
@@ -213,7 +213,7 @@ export function ChatPanel({
     }
   }, [messages, conversation]);
 
-  const handleSelectAutocomplete = (response: typeof responses[0]) => {
+  const handleSelectAutocomplete = (response: CannedResponse) => {
     // Replace message with canned response content
     let content = response.content;
     
@@ -1011,8 +1011,6 @@ export function ChatPanel({
       <AnimatePresence mode="wait">
         {showQuickPanel && (
           <QuickMessagesPanel
-            responses={responses}
-            isLoading={isLoadingResponses}
             onSendMessage={handleQuickSend}
             onEditMessage={handleEditFromQuick}
             contactName={conversation.contact_name}
