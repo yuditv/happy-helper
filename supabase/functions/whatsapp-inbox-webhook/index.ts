@@ -925,27 +925,96 @@ serve(async (req: Request) => {
     }
 
     // Check if this outgoing message already exists (avoid duplicates for messages sent via system)
-    if (fromMe && messageId) {
-      const { data: existingMsg } = await supabase
-        .from('chat_inbox_messages')
-        .select('id')
-        .eq('conversation_id', conversation.id)
-        .or(`metadata->whatsapp_id.eq.${messageId},metadata->>whatsapp_message_id.eq.${messageId}`)
-        .maybeSingle();
+    if (fromMe) {
+      console.log(`[Inbox Webhook] Checking for duplicate outgoing message. messageId: ${messageId}, content: "${(message || previewMessage).substring(0, 50)}..."`);
       
-      if (existingMsg) {
-        console.log(`[Inbox Webhook] Outgoing message already exists (whatsapp_id: ${messageId}), skipping duplicate`);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            conversationId: conversation.id,
-            messageId: existingMsg.id,
-            skipped: true,
-            reason: 'duplicate_outgoing_message'
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Extract short ID (without instance prefix) for flexible matching
+      const messageIdShort = messageId?.includes(':') ? messageId.split(':').pop() : messageId;
+      
+      // Fetch recent agent messages for this conversation (last 60 seconds)
+      const { data: existingMsgs, error: dupError } = await supabase
+        .from('chat_inbox_messages')
+        .select('id, metadata, content, created_at')
+        .eq('conversation_id', conversation.id)
+        .eq('sender_type', 'agent')
+        .gte('created_at', new Date(Date.now() - 60000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(15);
+      
+      if (dupError) {
+        console.error(`[Inbox Webhook] Error checking duplicates:`, dupError);
       }
+      
+      if (existingMsgs && existingMsgs.length > 0) {
+        console.log(`[Inbox Webhook] Found ${existingMsgs.length} recent agent messages to check`);
+        
+        // Check for duplicate by whatsapp_id (flexible matching)
+        const duplicateById = messageId ? existingMsgs.find(msg => {
+          const meta = msg.metadata as Record<string, unknown> | null;
+          const savedId = meta?.whatsapp_id || meta?.whatsapp_message_id;
+          if (!savedId) return false;
+          
+          const savedIdStr = String(savedId);
+          const savedIdShort = savedIdStr.includes(':') ? savedIdStr.split(':').pop() : savedIdStr;
+          
+          // Match full ID, short ID, or partial match
+          const isMatch = savedIdStr === messageId || 
+                         savedIdShort === messageIdShort || 
+                         (messageIdShort && savedIdStr.includes(messageIdShort)) ||
+                         (messageIdShort && savedIdShort === messageIdShort);
+          
+          if (isMatch) {
+            console.log(`[Inbox Webhook] ID match found: saved="${savedIdStr}" vs incoming="${messageId}"`);
+          }
+          return isMatch;
+        }) : null;
+        
+        if (duplicateById) {
+          console.log(`[Inbox Webhook] ✓ Duplicate by ID found (msg.id: ${duplicateById.id}), skipping`);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              conversationId: conversation.id,
+              messageId: duplicateById.id,
+              skipped: true,
+              reason: 'duplicate_by_whatsapp_id'
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Fallback: check for duplicate by content within last 5 seconds
+        const contentToMatch = message || previewMessage;
+        if (contentToMatch) {
+          const fiveSecondsAgo = Date.now() - 5000;
+          const duplicateByContent = existingMsgs.find(msg => {
+            const msgTime = new Date(msg.created_at).getTime();
+            const isRecent = msgTime >= fiveSecondsAgo;
+            const isSameContent = msg.content === contentToMatch;
+            
+            if (isRecent && isSameContent) {
+              console.log(`[Inbox Webhook] Content match found: "${msg.content?.substring(0, 30)}..." (${Math.round((Date.now() - msgTime) / 1000)}s ago)`);
+            }
+            return isRecent && isSameContent;
+          });
+          
+          if (duplicateByContent) {
+            console.log(`[Inbox Webhook] ✓ Duplicate by content found (msg.id: ${duplicateByContent.id}), skipping`);
+            return new Response(
+              JSON.stringify({
+                success: true,
+                conversationId: conversation.id,
+                messageId: duplicateByContent.id,
+                skipped: true,
+                reason: 'duplicate_by_content'
+              }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      }
+      
+      console.log(`[Inbox Webhook] No duplicate found, proceeding with save`);
     }
 
     // Save message - set sender_type based on fromMe flag
