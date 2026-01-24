@@ -167,7 +167,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2"
+          className="h-7 w-7 shrink-0 ml-2"
           onClick={() => copyField(label, value)}
         >
           <Copy className="h-3.5 w-3.5" />
