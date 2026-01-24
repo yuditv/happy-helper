@@ -2035,6 +2035,74 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // SEND INTERACTIVE MENU - Buttons, List, Poll, Carousel
+    if (action === "send_menu") {
+      const phone = body.phone as string;
+      const instanceKey = body.instanceKey as string;
+      const menuType = body.menuType as "button" | "list" | "poll" | "carousel";
+      const text = body.text as string;
+      const choices = body.choices as string[];
+      const footerText = body.footerText as string | undefined;
+      const listButton = body.listButton as string | undefined;
+      const selectableCount = body.selectableCount as number | undefined;
+      const imageButton = body.imageButton as string | undefined;
+
+      if (!phone || !instanceKey || !menuType || !text || !choices?.length) {
+        return new Response(
+          JSON.stringify({ error: "phone, instanceKey, menuType, text e choices são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Send Menu] type: ${menuType}, phone: ${phone}, choices: ${choices.length}`);
+
+      const formattedPhone = formatPhoneNumber(phone);
+      
+      const requestBody: Record<string, unknown> = {
+        number: formattedPhone,
+        type: menuType,
+        text: text,
+        choices: choices
+      };
+
+      if (footerText) requestBody.footerText = footerText;
+      if (listButton && menuType === "list") requestBody.listButton = listButton;
+      if (selectableCount && menuType === "poll") requestBody.selectableCount = selectableCount;
+      if (imageButton) requestBody.imageButton = imageButton;
+
+      try {
+        const response = await fetch(`${uazapiUrl}/send/menu`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instanceKey,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+        console.log(`[Send Menu] Response:`, JSON.stringify(data));
+
+        if (!response.ok) {
+          return new Response(
+            JSON.stringify({ success: false, error: data.error || "Erro ao enviar menu", data }),
+            { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Send Menu] Error:", e);
+        return new Response(
+          JSON.stringify({ success: false, error: String(e) }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
