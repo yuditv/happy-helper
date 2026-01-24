@@ -409,37 +409,6 @@ export function ChatPanel({
 
   return (
     <div className="flex-1 flex h-full inbox-container overflow-hidden">
-      {/* Quick Messages Panel */}
-      {showQuickPanel && (
-        <QuickMessagesPanel
-          responses={responses}
-          isLoading={isLoadingResponses}
-          onSendMessage={handleQuickSend}
-          onEditMessage={handleEditFromQuick}
-          contactName={conversation.contact_name}
-          phone={conversation.phone}
-        />
-      )}
-
-      {/* Toggle Quick Panel Button (when hidden) */}
-      {!showQuickPanel && (
-        <div className="border-r flex items-start pt-3">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 mx-1"
-                onClick={() => setShowQuickPanel(true)}
-              >
-                <PanelLeftOpen className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Mensagens rápidas</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
-
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden inbox-chat-area">
         {/* Header */}
@@ -491,7 +460,7 @@ export function ChatPanel({
                   size="icon"
                   onClick={() => setShowQuickPanel(false)}
                 >
-                  <PanelLeftClose className="h-4 w-4" />
+                  <PanelRightClose className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Ocultar mensagens rápidas</TooltipContent>
@@ -902,6 +871,37 @@ export function ChatPanel({
         )}
       </div>
       </div>
+
+      {/* Quick Messages Panel - Right side */}
+      {showQuickPanel && (
+        <QuickMessagesPanel
+          responses={responses}
+          isLoading={isLoadingResponses}
+          onSendMessage={handleQuickSend}
+          onEditMessage={handleEditFromQuick}
+          contactName={conversation.contact_name}
+          phone={conversation.phone}
+        />
+      )}
+
+      {/* Toggle Quick Panel Button (when hidden) */}
+      {!showQuickPanel && (
+        <div className="border-l flex items-start pt-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 mx-1"
+                onClick={() => setShowQuickPanel(true)}
+              >
+                <PanelRightOpen className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Mensagens rápidas</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Client Info Panel */}
       {showClientPanel && (

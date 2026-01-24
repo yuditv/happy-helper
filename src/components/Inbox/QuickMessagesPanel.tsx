@@ -59,7 +59,7 @@ export function QuickMessagesPanel({
   };
 
   return (
-    <div className="w-72 border-r flex flex-col h-full bg-muted/20">
+    <div className="w-72 border-l flex flex-col h-full bg-muted/20">
       {/* Header */}
       <div className="p-3 border-b">
         <div className="flex items-center gap-2 mb-3">
