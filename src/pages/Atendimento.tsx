@@ -344,7 +344,7 @@ export default function Atendimento() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Subscription Expired Banner */}
       {subscriptionExpired && (
         <motion.div
@@ -415,7 +415,7 @@ export default function Atendimento() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative min-h-0">
         {/* Subscription Expired Overlay */}
         {subscriptionExpired && (
           <motion.div

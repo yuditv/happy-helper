@@ -106,7 +106,7 @@ export function InboxSidebar({
   };
 
   return (
-    <div className="w-64 border-r bg-card/50 flex flex-col h-full">
+    <div className="w-64 border-r bg-card/50 flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b">
         <h2 className="text-lg font-semibold flex items-center gap-2">

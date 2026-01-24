@@ -64,7 +64,7 @@ export function ConversationList({
   };
 
   return (
-    <div className="w-80 border-r flex flex-col h-full bg-background">
+    <div className="w-80 border-r flex flex-col h-full bg-background overflow-hidden">
       {/* Search Header */}
       <div className="p-3 border-b space-y-2">
         <div className="relative">
