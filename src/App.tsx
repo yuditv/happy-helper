@@ -16,6 +16,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const InboxSettings = lazy(() => import("./pages/InboxSettings"));
 const Atendimento = lazy(() => import("./pages/Atendimento"));
+const CRM = lazy(() => import("./pages/CRM"));
 
 const Install = lazy(() => import("./pages/Install"));
 const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
@@ -137,6 +138,11 @@ const AppRoutes = () => (
       <Route path="/atendimento" element={
         <ProtectedRoute>
           <Atendimento />
+        </ProtectedRoute>
+      } />
+      <Route path="/crm" element={
+        <ProtectedRoute>
+          <CRM />
         </ProtectedRoute>
       } />
       <Route path="/inbox-settings" element={

@@ -767,9 +767,11 @@ export type Database = {
       }
       crm_lead_data: {
         Row: {
+          closed_at: string | null
           conversation_id: string | null
           created_at: string | null
           custom_fields: Json | null
+          deal_value: number | null
           id: string
           instance_id: string | null
           is_ticket_open: boolean | null
@@ -780,15 +782,18 @@ export type Database = {
           lead_notes: string | null
           lead_personal_id: string | null
           lead_status: string | null
+          lost_reason: string | null
           phone: string
           synced_at: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          closed_at?: string | null
           conversation_id?: string | null
           created_at?: string | null
           custom_fields?: Json | null
+          deal_value?: number | null
           id?: string
           instance_id?: string | null
           is_ticket_open?: boolean | null
@@ -799,15 +804,18 @@ export type Database = {
           lead_notes?: string | null
           lead_personal_id?: string | null
           lead_status?: string | null
+          lost_reason?: string | null
           phone: string
           synced_at?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          closed_at?: string | null
           conversation_id?: string | null
           created_at?: string | null
           custom_fields?: Json | null
+          deal_value?: number | null
           id?: string
           instance_id?: string | null
           is_ticket_open?: boolean | null
@@ -818,6 +826,7 @@ export type Database = {
           lead_notes?: string | null
           lead_personal_id?: string | null
           lead_status?: string | null
+          lost_reason?: string | null
           phone?: string
           synced_at?: string | null
           updated_at?: string | null
