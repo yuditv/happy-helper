@@ -94,7 +94,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const uazapiResponse = await fetch(`${UAZAPI_URL}/message/find`, {
+    // Helper function for fetch with timeout and retry
+    const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 2, timeoutMs = 15000) => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+          
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          return response;
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          console.log(`[fetch-messages] Attempt ${attempt + 1} failed:`, errorMessage);
+          if (attempt === maxRetries) throw err;
+          // Wait before retry
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
+      throw new Error('All retry attempts failed');
+    };
+
+    const uazapiResponse = await fetchWithRetry(`${UAZAPI_URL}/message/find`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
