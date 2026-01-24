@@ -40,6 +40,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useClientByPhone } from "@/hooks/useClientByPhone";
 import { useCannedResponses } from "@/hooks/useCannedResponses";
 import { useContactAvatar } from "@/hooks/useContactAvatar";
+import { usePresence } from "@/hooks/usePresence";
 import { ClientInfoPanel } from "./ClientInfoPanel";
 import { MessageStatus } from "./MessageStatus";
 import { TypingIndicator } from "./TypingIndicator";
@@ -116,6 +117,9 @@ export function ChatPanel({
   
   // Contact avatar fetcher
   const { fetchAvatar, isLoading: isFetchingAvatar } = useContactAvatar();
+  
+  // Presence hook for typing/recording indicators
+  const { sendPresence } = usePresence(conversation?.id || null);
 
   // Get autocomplete suggestions based on current message
   const getAutocompleteSuggestions = () => {
@@ -726,7 +730,13 @@ export function ChatPanel({
               ref={textareaRef}
               placeholder={isPrivate ? "Escreva uma nota privada..." : "Digite sua mensagem... (use / para respostas rápidas)"}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                // Send composing presence when typing (not for private notes)
+                if (e.target.value.length > 0 && !isPrivate) {
+                  sendPresence('composing');
+                }
+              }}
               onKeyDown={handleKeyDown}
               className={cn(
                 "min-h-[44px] max-h-32 resize-none pr-20 inbox-input-field",
@@ -765,6 +775,8 @@ export function ChatPanel({
                   <AudioRecorder
                     onAudioReady={handleAudioReady}
                     disabled={isSending || !!attachment}
+                    onRecordingStart={() => sendPresence('recording')}
+                    onRecordingEnd={() => sendPresence('paused')}
                   />
                 </TooltipTrigger>
                 <TooltipContent>Gravar áudio</TooltipContent>
