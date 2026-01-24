@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.status-scheduler]
 verify_jwt = false
+
+[functions.fetch-messages]
+verify_jwt = false

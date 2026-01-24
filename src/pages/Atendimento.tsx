@@ -71,8 +71,10 @@ export default function Atendimento() {
     messages,
     isLoading: messagesLoading,
     isSending,
+    isSyncing,
     sendMessage,
-    retryMessage
+    retryMessage,
+    syncMessages
   } = useInboxMessages(selectedConversation?.id || null);
 
   // Push notifications and sound effects
@@ -482,6 +484,7 @@ export default function Atendimento() {
               labels={labels}
               isLoading={messagesLoading}
               isSending={isSending}
+              isSyncing={isSyncing}
               onSendMessage={handleSendMessage}
               onAssignToMe={handleAssignToMe}
               onResolve={handleResolve}
@@ -492,6 +495,7 @@ export default function Atendimento() {
               onMarkAsRead={handleMarkAsRead}
               onRegisterClient={handleRegisterClient}
               onRetryMessage={retryMessage}
+              onSyncMessages={syncMessages}
             />
           </>
         )}

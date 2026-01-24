@@ -24,6 +24,7 @@ export function useInboxMessages(conversationId: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchMessages = useCallback(async () => {
@@ -225,12 +226,63 @@ export function useInboxMessages(conversationId: string | null) {
     };
   }, [conversationId]);
 
+  const syncMessages = async () => {
+    if (!conversationId) return;
+    
+    setIsSyncing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `https://tlanmmbgyyxuqvezudir.supabase.co/functions/v1/fetch-messages`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ conversationId, limit: 50 })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to sync messages');
+      }
+
+      if (result.newMessages > 0) {
+        toast({
+          title: 'Mensagens sincronizadas',
+          description: `${result.newMessages} nova(s) mensagem(ns) encontrada(s)`,
+        });
+        await fetchMessages(); // Reload from database
+      } else {
+        toast({
+          title: 'Sincronização concluída',
+          description: 'Nenhuma mensagem nova encontrada',
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error syncing messages:', error);
+      toast({
+        title: 'Erro ao sincronizar',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return {
     messages,
     isLoading,
     isSending,
+    isSyncing,
     sendMessage,
     retryMessage,
+    syncMessages,
     refetch: fetchMessages
   };
 }
