@@ -69,8 +69,14 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedPhone = formatPhoneNumber(phone);
     console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
-    // Aligned with whatsapp-ai-webhook format: /chat/send endpoint, lowercase token header
-    const endpoint = `${UAZAPI_URL}/chat/send`;
+    // Try multiple endpoint formats - different UAZAPI/Wuzapi versions use different formats
+    const textEndpoints = [
+      { url: `${UAZAPI_URL}/send-text`, header: 'token' },           // Z-API/UAZAPI v2 format
+      { url: `${UAZAPI_URL}/message/sendText`, header: 'token' },    // UAZAPI alt format  
+      { url: `${UAZAPI_URL}/chat/send/text`, header: 'Token' },      // Wuzapi format (capital T)
+      { url: `${UAZAPI_URL}/chat/send`, header: 'token' },           // Unified endpoint
+    ];
+
     let body: Record<string, any>;
 
     if (mediaType && mediaType !== 'none' && mediaUrl) {
@@ -91,7 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
           body = { phone: formattedPhone, message: message || '' };
       }
     } else {
-      // Text message - same format as whatsapp-ai-webhook
+      // Text message
       if (!message) {
         return new Response(
           JSON.stringify({ error: "Missing required field: message (for text messages)" }),
@@ -104,28 +110,46 @@ const handler = async (req: Request): Promise<Response> => {
       body = { phone: formattedPhone, message };
     }
 
-    console.log(`Calling UAZAPI endpoint: ${endpoint}`);
-    console.log(`Headers: token=${instanceToken.substring(0, 8)}...`);
-    console.log(`Request body:`, JSON.stringify(body));
+    let responseData: any = null;
+    let lastError = '';
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "token": instanceToken  // lowercase 'token' header like whatsapp-ai-webhook
-      },
-      body: JSON.stringify(body),
-    });
+    // Try each endpoint until one works
+    for (const endpoint of textEndpoints) {
+      console.log(`Trying UAZAPI endpoint: ${endpoint.url}`);
+      console.log(`Headers: ${endpoint.header}=${instanceToken.substring(0, 8)}...`);
+      console.log(`Request body:`, JSON.stringify(body));
 
-    const responseData = await response.json();
-    console.log("Uazapi response status:", response.status);
-    console.log("Uazapi response:", responseData);
+      const response = await fetch(endpoint.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          [endpoint.header]: instanceToken
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (!response.ok) {
+      const respText = await response.text();
+      console.log(`Response status: ${response.status}, body: ${respText}`);
+
+      if (response.ok || response.status === 200 || response.status === 201) {
+        try {
+          responseData = JSON.parse(respText);
+        } catch {
+          responseData = { raw: respText };
+        }
+        console.log("Message sent successfully!");
+        break;
+      } else {
+        lastError = respText;
+      }
+    }
+
+    if (!responseData) {
+      console.error("All endpoints failed. Last error:", lastError);
       return new Response(
-        JSON.stringify({ error: responseData.message || "Failed to send message" }),
+        JSON.stringify({ error: lastError || "Failed to send message via all endpoints" }),
         {
-          status: response.status,
+          status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
