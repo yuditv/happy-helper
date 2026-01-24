@@ -14,7 +14,8 @@ import {
   RotateCcw,
   Lock,
   PanelRightOpen,
-  PanelRightClose
+  PanelRightClose,
+  Play
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,8 @@ import { TypingIndicator } from "./TypingIndicator";
 import { FileUploadButton } from "./FileUploadButton";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { QuickReplyAutocomplete } from "./QuickReplyAutocomplete";
+import { AudioRecorder } from "./AudioRecorder";
+import { MediaGallery } from "./MediaGallery";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -91,6 +94,9 @@ export function ChatPanel({
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
+  const [showGallery, setShowGallery] = useState(false);
+  const [galleryInitialId, setGalleryInitialId] = useState<string | undefined>();
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -241,6 +247,17 @@ export function ChatPanel({
 
   const handleFileUploaded = (url: string, type: string, fileName: string) => {
     setAttachment({ url, type, fileName });
+  };
+
+  const handleAudioReady = (url: string, type: string, fileName: string) => {
+    // Send audio immediately
+    onSendMessage("", isPrivate, url, type, fileName);
+    setIsRecordingAudio(false);
+  };
+
+  const openMediaGallery = (messageId: string) => {
+    setGalleryInitialId(messageId);
+    setShowGallery(true);
   };
 
   const formatPhone = (phone: string) => {
@@ -546,16 +563,35 @@ export function ChatPanel({
                       {msg.media_url && (
                         <div className="mb-2">
                           {msg.media_type?.startsWith('image/') ? (
-                            <img 
-                              src={msg.media_url} 
-                              alt="Media" 
-                              className="rounded max-w-full max-h-64 object-cover"
-                            />
+                            <button
+                              onClick={() => openMediaGallery(msg.id)}
+                              className="block cursor-pointer hover:opacity-90 transition-opacity"
+                            >
+                              <img 
+                                src={msg.media_url} 
+                                alt="Media" 
+                                className="rounded max-w-full max-h-64 object-cover"
+                              />
+                            </button>
                           ) : msg.media_type?.startsWith('video/') ? (
-                            <video 
+                            <div className="relative group">
+                              <video 
+                                src={msg.media_url} 
+                                className="rounded max-w-full max-h-64 cursor-pointer"
+                                onClick={() => openMediaGallery(msg.id)}
+                              />
+                              <button
+                                onClick={() => openMediaGallery(msg.id)}
+                                className="absolute inset-0 flex items-center justify-center bg-black/30 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Play className="h-12 w-12 text-white" />
+                              </button>
+                            </div>
+                          ) : msg.media_type?.startsWith('audio/') ? (
+                            <audio 
                               src={msg.media_url} 
                               controls
-                              className="rounded max-w-full max-h-64"
+                              className="w-full max-w-[250px]"
                             />
                           ) : (
                             <a 
@@ -677,6 +713,16 @@ export function ChatPanel({
                 onFileUploaded={handleFileUploaded}
                 disabled={isSending}
               />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AudioRecorder
+                    onAudioReady={handleAudioReady}
+                    disabled={isSending || !!attachment}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>Gravar áudio</TooltipContent>
+              </Tooltip>
             </div>
           </div>
           
@@ -741,6 +787,18 @@ export function ChatPanel({
             <TooltipContent side="left">Mostrar dados do cliente</TooltipContent>
           </Tooltip>
         </div>
+      )}
+
+      {/* Media Gallery Modal */}
+      {showGallery && (
+        <MediaGallery
+          messages={messages}
+          initialMediaId={galleryInitialId}
+          onClose={() => {
+            setShowGallery(false);
+            setGalleryInitialId(undefined);
+          }}
+        />
       )}
     </div>
   );
