@@ -70,11 +70,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
     let body: Record<string, any>;
+    let endpoint: string;
 
-    // UAZAPI zynk2 format: single endpoint, lowercase token header, lowercase body keys
+    // UAZAPI zynk2/Wuzapi format: token in URL path, specific endpoints per type
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
+          endpoint = `${UAZAPI_URL}/${instanceToken}/sendImage`;
           body = {
             phone: formattedPhone,
             image: mediaUrl,
@@ -82,6 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'video':
+          endpoint = `${UAZAPI_URL}/${instanceToken}/sendVideo`;
           body = {
             phone: formattedPhone,
             video: mediaUrl,
@@ -89,12 +92,14 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         case 'audio':
+          endpoint = `${UAZAPI_URL}/${instanceToken}/sendAudio`;
           body = {
             phone: formattedPhone,
             audio: mediaUrl
           };
           break;
         case 'document':
+          endpoint = `${UAZAPI_URL}/${instanceToken}/sendDocument`;
           body = {
             phone: formattedPhone,
             document: mediaUrl,
@@ -102,6 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
           };
           break;
         default:
+          endpoint = `${UAZAPI_URL}/${instanceToken}/sendText`;
           body = {
             phone: formattedPhone,
             message: message || ''
@@ -118,24 +124,20 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
+      endpoint = `${UAZAPI_URL}/${instanceToken}/sendText`;
       body = {
         phone: formattedPhone,
         message: message
       };
     }
 
-    // UAZAPI zynk2 format: single endpoint /chat/send
-    const fullUrl = `${UAZAPI_URL}/chat/send`;
-    console.log(`Calling UAZAPI endpoint: /chat/send`);
-    console.log(`Full URL: ${fullUrl}`);
-    console.log(`Token (first 8 chars): ${instanceToken.substring(0, 8)}...`);
+    console.log(`Calling UAZAPI endpoint: ${endpoint}`);
     console.log(`Request body:`, JSON.stringify(body));
 
-    const response = await fetch(fullUrl, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "token": instanceToken,
       },
       body: JSON.stringify(body),
     });
@@ -159,13 +161,11 @@ const handler = async (req: Request): Promise<Response> => {
     if (autoArchive) {
       try {
         console.log(`[Archive] Attempting to archive chat with: ${formattedPhone}`);
-        console.log(`[Archive] Using instance token: ${instanceKey ? 'custom' : 'default'}`);
         
-        const archiveResponse = await fetch(`${UAZAPI_URL}/chat/archiveChat`, {
+        const archiveResponse = await fetch(`${UAZAPI_URL}/${instanceToken}/archiveChat`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "token": instanceToken,
           },
           body: JSON.stringify({
             phone: formattedPhone,
