@@ -46,31 +46,39 @@ export function useClientByPhone(phone: string | null) {
       // Normalize phone number (remove non-digits)
       const normalizedPhone = phone.replace(/\D/g, '');
       
-      // Try different phone formats
+      // Remove country code 55 if present
+      const phoneWithoutCountry = normalizedPhone.startsWith('55') 
+        ? normalizedPhone.slice(2) 
+        : normalizedPhone;
+      
+      // Generate phone variants for flexible matching
       const phoneVariants = [
-        normalizedPhone,
-        normalizedPhone.slice(-11), // Last 11 digits
-        normalizedPhone.slice(-10), // Last 10 digits
-        `55${normalizedPhone.slice(-11)}`, // With country code
-      ];
+        normalizedPhone,                    // Full: 559181612105
+        phoneWithoutCountry,                // Without 55: 9181612105
+        phoneWithoutCountry.slice(-11),     // Last 11: 9181612105
+        phoneWithoutCountry.slice(-10),     // Last 10: 181612105
+        phoneWithoutCountry.slice(-9),      // Last 9: 81612105
+        phoneWithoutCountry.slice(-8),      // Last 8: 1612105
+      ].filter(v => v.length >= 8); // Only valid phone lengths
 
-      let foundClient: DbClient | null = null;
+      console.log('[useClientByPhone] Searching for:', phone);
+      console.log('[useClientByPhone] Variants:', phoneVariants);
 
-      for (const variant of phoneVariants) {
-        if (foundClient) break;
+      // Build OR conditions for all variants in a single query
+      const orConditions = phoneVariants
+        .map(v => `whatsapp.ilike.%${v}%`)
+        .join(',');
 
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('user_id', user.id)
-          .or(`whatsapp.ilike.%${variant}%,whatsapp.eq.${variant}`)
-          .limit(1)
-          .single();
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', user.id)
+        .or(orConditions)
+        .limit(1);
 
-        if (!error && data) {
-          foundClient = data;
-        }
-      }
+      const foundClient = data && data.length > 0 ? data[0] : null;
+
+      console.log('[useClientByPhone] Found:', foundClient?.name || 'not found');
 
       if (!foundClient) {
         setClient(null);
