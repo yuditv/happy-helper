@@ -12,6 +12,13 @@ serve(async (req) => {
   }
 
   try {
+    const apiKey = Deno.env.get("SERVEX_API_KEY");
+    
+    if (!apiKey) {
+      console.error("SERVEX_API_KEY not configured");
+      throw new Error("API key not configured");
+    }
+
     console.log("Fetching VPN test from servex.ws...");
     
     const response = await fetch(
@@ -20,6 +27,8 @@ serve(async (req) => {
         method: "GET",
         headers: {
           "Accept": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+          "X-API-Key": apiKey,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         },
       }
@@ -27,6 +36,8 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error("API responded with status:", response.status);
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
       throw new Error(`API error: ${response.status}`);
     }
 
