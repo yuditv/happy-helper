@@ -65,7 +65,9 @@ export default function Atendimento() {
     markAsRead,
     snoozeConversation,
     setPriority,
-    deleteConversation
+    deleteConversation,
+    saveContactToWhatsApp,
+    renameContact
   } = useInboxConversations();
 
   const {
@@ -520,6 +522,8 @@ export default function Atendimento() {
               onSyncMessages={(limit) => syncMessages({ limit, silent: false })}
               onDeleteConversation={handleDeleteConversation}
               onDeleteMessage={deleteMessage}
+              onSaveContact={saveContactToWhatsApp}
+              onRenameContact={renameContact}
             />
           </>
         )}

@@ -338,6 +338,52 @@ export function useInboxConversations() {
       .eq('is_read', false);
   };
 
+  const saveContactToWhatsApp = async (conversationId: string, customName?: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'save_contact', conversationId, name: customName }
+      });
+      
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao salvar contato');
+      
+      toast({ title: 'Contato salvo na agenda!' });
+      await fetchConversations();
+      return true;
+    } catch (error: unknown) {
+      console.error('Error saving contact:', error);
+      toast({ 
+        title: 'Erro ao salvar contato', 
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive' 
+      });
+      return false;
+    }
+  };
+
+  const renameContact = async (conversationId: string, newName: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
+        body: { action: 'rename_contact', conversationId, name: newName }
+      });
+      
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao renomear');
+      
+      toast({ title: 'Nome atualizado' });
+      await fetchConversations();
+      return true;
+    } catch (error: unknown) {
+      console.error('Error renaming contact:', error);
+      toast({ 
+        title: 'Erro ao renomear', 
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive' 
+      });
+      return false;
+    }
+  };
+
   const deleteConversation = async (conversationId: string, deleteFromWhatsApp: boolean = false): Promise<boolean> => {
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instances', {
@@ -435,6 +481,8 @@ export function useInboxConversations() {
     markAsRead,
     snoozeConversation,
     setPriority,
-    deleteConversation
+    deleteConversation,
+    saveContactToWhatsApp,
+    renameContact
   };
 }

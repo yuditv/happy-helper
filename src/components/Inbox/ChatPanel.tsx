@@ -27,7 +27,9 @@ import {
   UserCheck,
   Search,
   ChevronDown,
-  Settings
+  Settings,
+  Pencil,
+  BookUser
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -102,6 +104,8 @@ interface ChatPanelProps {
   onSyncMessages?: (limit?: number) => void;
   onDeleteConversation?: (conversationId: string, deleteFromWhatsApp: boolean) => Promise<boolean>;
   onDeleteMessage?: (messageId: string, deleteForEveryone: boolean) => Promise<boolean>;
+  onSaveContact?: (conversationId: string, name?: string) => Promise<boolean>;
+  onRenameContact?: (conversationId: string, name: string) => Promise<boolean>;
 }
 
 interface AttachmentState {
@@ -130,7 +134,9 @@ export function ChatPanel({
   onRetryMessage,
   onSyncMessages,
   onDeleteConversation,
-  onDeleteMessage
+  onDeleteMessage,
+  onSaveContact,
+  onRenameContact
 }: ChatPanelProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -154,6 +160,10 @@ export function ChatPanel({
   const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [showSyncDialog, setShowSyncDialog] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<ChatMessage | null>(null);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showSaveContactDialog, setShowSaveContactDialog] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [isSavingContact, setIsSavingContact] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -361,6 +371,29 @@ export function ChatPanel({
       setMessageToDelete(null);
     }
     return success;
+  };
+
+  const handleRenameContact = async () => {
+    if (!conversation || !onRenameContact || !newContactName.trim()) return;
+    
+    const success = await onRenameContact(conversation.id, newContactName.trim());
+    if (success) {
+      setShowRenameDialog(false);
+      setNewContactName("");
+    }
+  };
+
+  const handleSaveContact = async () => {
+    if (!conversation || !onSaveContact) return;
+    
+    setIsSavingContact(true);
+    const success = await onSaveContact(conversation.id, newContactName.trim() || undefined);
+    setIsSavingContact(false);
+    
+    if (success) {
+      setShowSaveContactDialog(false);
+      setNewContactName("");
+    }
   };
 
   // handleQuickSend and handleEditFromQuick removed - panel moved to Inbox Settings
@@ -714,6 +747,26 @@ export function ChatPanel({
               >
                 <Camera className="h-4 w-4 mr-2" />
                 {isFetchingAvatar ? 'Buscando...' : 'Atualizar foto de perfil'}
+              </DropdownMenuItem>
+              {/* Rename contact */}
+              <DropdownMenuItem 
+                onClick={() => {
+                  setNewContactName(conversation.contact_name || "");
+                  setShowRenameDialog(true);
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Renomear contato
+              </DropdownMenuItem>
+              {/* Save to WhatsApp contacts */}
+              <DropdownMenuItem 
+                onClick={() => {
+                  setNewContactName(conversation.contact_name || "");
+                  setShowSaveContactDialog(true);
+                }}
+              >
+                <BookUser className="h-4 w-4 mr-2" />
+                Salvar na agenda
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Archive className="h-4 w-4 mr-2" />
@@ -1253,6 +1306,82 @@ export function ChatPanel({
         onDelete={handleDeleteMessage}
         isDeleting={isDeleting || false}
       />
+
+      {/* Rename Contact Dialog */}
+      <AlertDialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Renomear Contato</AlertDialogTitle>
+            <AlertDialogDescription>
+              Digite o novo nome para este contato. O nome será salvo apenas localmente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <input
+              type="text"
+              value={newContactName}
+              onChange={(e) => setNewContactName(e.target.value)}
+              placeholder="Nome do contato"
+              className="w-full px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-ring"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleRenameContact();
+                }
+              }}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setNewContactName("")}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRenameContact}
+              disabled={!newContactName.trim()}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Save Contact to WhatsApp Dialog */}
+      <AlertDialog open={showSaveContactDialog} onOpenChange={setShowSaveContactDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Salvar na Agenda do WhatsApp</AlertDialogTitle>
+            <AlertDialogDescription>
+              O contato será adicionado à agenda do celular conectado a esta instância do WhatsApp.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-3">
+            <div>
+              <label className="text-sm font-medium text-foreground">Nome do contato</label>
+              <input
+                type="text"
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                placeholder="Nome para salvar na agenda"
+                className="w-full mt-1 px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-ring"
+                autoFocus
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              📞 Telefone: {formatPhone(conversation?.phone || '')}
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setNewContactName("")}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleSaveContact}
+              disabled={isSavingContact}
+            >
+              <BookUser className="h-4 w-4 mr-2" />
+              {isSavingContact ? 'Salvando...' : 'Salvar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

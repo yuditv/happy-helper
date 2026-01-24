@@ -1813,6 +1813,132 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // SAVE CONTACT - Add contact to WhatsApp agenda via UAZAPI
+    if (action === "save_contact") {
+      const conversationId = body.conversationId as string;
+      const customName = body.name as string;
+
+      if (!conversationId) {
+        return new Response(
+          JSON.stringify({ error: "ID da conversa obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Save Contact] conversationId: ${conversationId}, name: ${customName}`);
+
+      // Get conversation to find phone and instance
+      const { data: conversation, error: convError } = await supabase
+        .from("conversations")
+        .select("phone, instance_id, contact_name")
+        .eq("id", conversationId)
+        .single();
+
+      if (convError || !conversation) {
+        return new Response(
+          JSON.stringify({ error: "Conversa não encontrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get instance key
+      const { data: instance } = await supabase
+        .from("whatsapp_instances")
+        .select("instance_key")
+        .eq("id", conversation.instance_id)
+        .single();
+
+      if (!instance?.instance_key) {
+        return new Response(
+          JSON.stringify({ error: "Instância não conectada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        // Call UAZAPI /contact/add
+        const contactName = customName || conversation.contact_name || conversation.phone;
+        console.log(`[Save Contact] Calling UAZAPI /contact/add for phone: ${conversation.phone}, name: ${contactName}`);
+        
+        const addResponse = await fetch(`${uazapiUrl}/contact/add`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({
+            phone: formatPhoneNumber(conversation.phone),
+            name: contactName
+          }),
+        });
+
+        console.log(`[Save Contact] UAZAPI response status: ${addResponse.status}`);
+        const addData = await addResponse.json();
+        console.log(`[Save Contact] UAZAPI response:`, JSON.stringify(addData));
+
+        if (!addResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: "Erro ao salvar contato", details: addData }),
+            { status: addResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Also update the local contact_name if a custom name was provided
+        if (customName) {
+          await supabase
+            .from("conversations")
+            .update({ contact_name: customName })
+            .eq("id", conversationId);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: "Contato salvo na agenda!" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        console.error("[Save Contact] Error:", e);
+        return new Response(
+          JSON.stringify({ error: `Erro ao salvar contato: ${String(e)}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // RENAME CONTACT - Update contact name locally
+    if (action === "rename_contact") {
+      const conversationId = body.conversationId as string;
+      const newName = body.name as string;
+
+      if (!conversationId || !newName?.trim()) {
+        return new Response(
+          JSON.stringify({ error: "ID e nome do contato obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Rename Contact] conversationId: ${conversationId}, newName: ${newName}`);
+
+      const { error: updateError } = await supabase
+        .from("conversations")
+        .update({ contact_name: newName.trim() })
+        .eq("id", conversationId);
+
+      if (updateError) {
+        console.error("[Rename Contact] Error:", updateError);
+        return new Response(
+          JSON.stringify({ error: `Erro ao renomear: ${updateError.message}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Rename Contact] ✓ Contact renamed successfully`);
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Nome atualizado com sucesso" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase
