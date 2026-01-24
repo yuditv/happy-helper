@@ -69,52 +69,29 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedPhone = formatPhoneNumber(phone);
     console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
-    // Wuzapi format: Token header (capital T), /chat/send/[type] endpoints, PascalCase keys
-    let endpoint: string;
+    // Aligned with whatsapp-ai-webhook format: /chat/send endpoint, lowercase token header
+    const endpoint = `${UAZAPI_URL}/chat/send`;
     let body: Record<string, any>;
 
     if (mediaType && mediaType !== 'none' && mediaUrl) {
       switch (mediaType) {
         case 'image':
-          endpoint = `${UAZAPI_URL}/chat/send/image`;
-          body = {
-            Phone: formattedPhone,
-            Image: mediaUrl,
-            Caption: caption || message || ''
-          };
+          body = { phone: formattedPhone, image: mediaUrl, caption: caption || message || '' };
           break;
         case 'video':
-          endpoint = `${UAZAPI_URL}/chat/send/video`;
-          body = {
-            Phone: formattedPhone,
-            Video: mediaUrl,
-            Caption: caption || message || ''
-          };
+          body = { phone: formattedPhone, video: mediaUrl, caption: caption || message || '' };
           break;
         case 'audio':
-          endpoint = `${UAZAPI_URL}/chat/send/audio`;
-          body = {
-            Phone: formattedPhone,
-            Audio: mediaUrl
-          };
+          body = { phone: formattedPhone, audio: mediaUrl };
           break;
         case 'document':
-          endpoint = `${UAZAPI_URL}/chat/send/document`;
-          body = {
-            Phone: formattedPhone,
-            Document: mediaUrl,
-            FileName: fileName || 'document'
-          };
+          body = { phone: formattedPhone, document: mediaUrl, filename: fileName || 'document' };
           break;
         default:
-          endpoint = `${UAZAPI_URL}/chat/send/text`;
-          body = {
-            Phone: formattedPhone,
-            Body: message || ''
-          };
+          body = { phone: formattedPhone, message: message || '' };
       }
     } else {
-      // Text message
+      // Text message - same format as whatsapp-ai-webhook
       if (!message) {
         return new Response(
           JSON.stringify({ error: "Missing required field: message (for text messages)" }),
@@ -124,21 +101,18 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-      endpoint = `${UAZAPI_URL}/chat/send/text`;
-      body = {
-        Phone: formattedPhone,
-        Body: message
-      };
+      body = { phone: formattedPhone, message };
     }
 
     console.log(`Calling UAZAPI endpoint: ${endpoint}`);
+    console.log(`Headers: token=${instanceToken.substring(0, 8)}...`);
     console.log(`Request body:`, JSON.stringify(body));
 
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Token": instanceToken
+        "token": instanceToken  // lowercase 'token' header like whatsapp-ai-webhook
       },
       body: JSON.stringify(body),
     });
@@ -167,11 +141,11 @@ const handler = async (req: Request): Promise<Response> => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Token": instanceToken
+            "token": instanceToken  // lowercase 'token' header
           },
           body: JSON.stringify({
-            Phone: formattedPhone,
-            Archive: true
+            phone: formattedPhone,
+            archive: true
           }),
         });
         

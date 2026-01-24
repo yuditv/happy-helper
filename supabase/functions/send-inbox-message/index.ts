@@ -145,39 +145,35 @@ serve(async (req: Request) => {
       console.log(`[Send Inbox] Sending to WhatsApp: ${phone} via instance ${instance.instance_name}`);
 
       try {
-        // Wuzapi format: Token header (capital T), /chat/send/text endpoint, Phone/Body keys (capital)
-        let uazapiEndpoint: string;
+        // Aligned with whatsapp-ai-webhook format: /chat/send endpoint, lowercase token header, lowercase keys
+        const uazapiEndpoint = `${uazapiUrl}/chat/send`;
         let uazapiBody: Record<string, unknown>;
 
-        // Handle media with specific endpoints
+        // Handle media types
         if (mediaUrl && mediaType) {
           if (mediaType.startsWith('image/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/image`;
-            uazapiBody = { Phone: phone, Image: mediaUrl, Caption: content || '' };
+            uazapiBody = { phone, image: mediaUrl, caption: content || '' };
           } else if (mediaType.startsWith('video/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/video`;
-            uazapiBody = { Phone: phone, Video: mediaUrl, Caption: content || '' };
+            uazapiBody = { phone, video: mediaUrl, caption: content || '' };
           } else if (mediaType.startsWith('audio/')) {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/audio`;
-            uazapiBody = { Phone: phone, Audio: mediaUrl };
+            uazapiBody = { phone, audio: mediaUrl };
           } else {
-            uazapiEndpoint = `${uazapiUrl}/chat/send/document`;
-            uazapiBody = { Phone: phone, Document: mediaUrl, FileName: 'file' };
+            uazapiBody = { phone, document: mediaUrl, filename: 'file' };
           }
         } else {
-          // Text message
-          uazapiEndpoint = `${uazapiUrl}/chat/send/text`;
-          uazapiBody = { Phone: phone, Body: content };
+          // Text message - same format as whatsapp-ai-webhook
+          uazapiBody = { phone, message: content };
         }
 
         console.log(`[Send Inbox] UAZAPI endpoint: ${uazapiEndpoint}`);
+        console.log(`[Send Inbox] Headers: token=${instanceToken.substring(0, 8)}...`);
         console.log(`[Send Inbox] Body:`, JSON.stringify(uazapiBody));
 
         const sendResponse = await fetch(uazapiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Token': instanceToken
+            'token': instanceToken  // lowercase 'token' header like whatsapp-ai-webhook
           },
           body: JSON.stringify(uazapiBody)
         });
