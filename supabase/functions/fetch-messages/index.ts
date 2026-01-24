@@ -47,10 +47,10 @@ Deno.serve(async (req) => {
 
     console.log(`[fetch-messages] Fetching messages for conversation: ${conversationId}`);
 
-    // Get conversation with instance details
+    // Get conversation
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
-      .select('*, instance:whatsapp_instances(instance_key)')
+      .select('*')
       .eq('id', conversationId)
       .single();
 
@@ -62,14 +62,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const instanceKey = conversation.instance?.instance_key;
-    if (!instanceKey) {
-      console.error('[fetch-messages] No instance key found');
+    // Get instance key separately
+    const { data: instance, error: instanceError } = await supabase
+      .from('whatsapp_instances')
+      .select('instance_key')
+      .eq('id', conversation.instance_id)
+      .single();
+
+    if (instanceError || !instance?.instance_key) {
+      console.error('[fetch-messages] Instance not found:', instanceError);
       return new Response(JSON.stringify({ error: 'WhatsApp instance not configured' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    const instanceKey = instance.instance_key;
 
     // Format phone to WhatsApp JID
     const phone = conversation.phone.replace(/[^\d]/g, '');
