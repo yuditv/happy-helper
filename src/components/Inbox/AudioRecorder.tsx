@@ -8,9 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 interface AudioRecorderProps {
   onAudioReady: (url: string, type: string, fileName: string) => void;
   disabled?: boolean;
+  onRecordingStart?: () => void;
+  onRecordingEnd?: () => void;
 }
 
-export function AudioRecorder({ onAudioReady, disabled }: AudioRecorderProps) {
+export function AudioRecorder({ onAudioReady, disabled, onRecordingStart, onRecordingEnd }: AudioRecorderProps) {
   const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -89,6 +91,9 @@ export function AudioRecorder({ onAudioReady, disabled }: AudioRecorderProps) {
   // Start recording
   const startRecording = async () => {
     try {
+      // Notify parent about recording start
+      onRecordingStart?.();
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -168,6 +173,8 @@ export function AudioRecorder({ onAudioReady, disabled }: AudioRecorderProps) {
     setAudioBlob(null);
     setWaveformData([]);
     setDuration(0);
+    // Notify parent about recording end
+    onRecordingEnd?.();
   };
 
   // Upload and send audio
@@ -193,7 +200,13 @@ export function AudioRecorder({ onAudioReady, disabled }: AudioRecorderProps) {
         .getPublicUrl(filePath);
 
       onAudioReady(publicUrl, 'audio/webm', fileName);
-      cancelRecording();
+      // Notify parent about recording end
+      onRecordingEnd?.();
+      // Reset state without calling onRecordingEnd again
+      stopRecording();
+      setAudioBlob(null);
+      setWaveformData([]);
+      setDuration(0);
 
     } catch (error) {
       console.error('Error uploading audio:', error);

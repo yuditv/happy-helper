@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.fetch-messages]
 verify_jwt = false
+
+[functions.send-presence]
+verify_jwt = false
