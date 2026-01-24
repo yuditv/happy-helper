@@ -133,8 +133,8 @@ const handler = async (req: Request): Promise<Response> => {
       };
     }
 
-    // UAZAPI uses token in URL path: {base_url}/{token}/endpoint
-    const fullUrl = `${UAZAPI_URL}/${instanceToken}${endpoint}`;
+    // UAZAPI uses token in header, not in URL path
+    const fullUrl = `${UAZAPI_URL}${endpoint}`;
     console.log(`Calling UAZAPI endpoint: ${endpoint}`);
     console.log(`Full URL: ${fullUrl}`);
     console.log(`Token (first 8 chars): ${instanceToken.substring(0, 8)}...`);
@@ -144,6 +144,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Token": instanceToken,
       },
       body: JSON.stringify(body),
     });
