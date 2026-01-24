@@ -819,21 +819,34 @@ serve(async (req: Request): Promise<Response> => {
         );
       }
 
-      // Get conversation with instance
-      const { data: conversation, error: convError } = await supabase
+      // Use service role to bypass RLS for fetching conversation
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!);
+
+      // Get conversation first
+      const { data: conversation, error: convError } = await supabaseAdmin
         .from("conversations")
-        .select("*, instance:whatsapp_instances(*)")
+        .select("id, instance_id, phone, contact_avatar")
         .eq("id", conversationId)
         .single();
 
       if (convError || !conversation) {
+        console.error("[Avatar] Conversation not found:", convError);
         return new Response(
           JSON.stringify({ error: "Conversation not found" }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      if (!conversation.instance?.instance_key) {
+      // Get instance separately
+      const { data: instance, error: instanceError } = await supabaseAdmin
+        .from("whatsapp_instances")
+        .select("id, instance_key, instance_name")
+        .eq("id", conversation.instance_id)
+        .single();
+
+      if (instanceError || !instance?.instance_key) {
+        console.error("[Avatar] Instance not found or not configured:", instanceError);
         return new Response(
           JSON.stringify({ error: "Instance not configured" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -847,13 +860,13 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       try {
-        console.log(`[Avatar] Fetching avatar for: ${formattedPhone}`);
+        console.log(`[Avatar] Fetching avatar for: ${formattedPhone} via instance ${instance.instance_name}`);
         
         const avatarResponse = await fetch(`${uazapiUrl}/user/avatar`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "token": conversation.instance.instance_key,
+            "token": instance.instance_key,
           },
           body: JSON.stringify({
             Phone: formattedPhone,
@@ -867,8 +880,8 @@ serve(async (req: Request): Promise<Response> => {
         const avatarUrl = avatarData.url || avatarData.URL || avatarData.imgUrl || avatarData.profilePicUrl || avatarData.avatar || null;
 
         if (avatarUrl) {
-          // Update conversation with avatar
-          await supabase
+          // Update conversation with avatar using admin client
+          await supabaseAdmin
             .from("conversations")
             .update({ contact_avatar: avatarUrl })
             .eq("id", conversationId);
