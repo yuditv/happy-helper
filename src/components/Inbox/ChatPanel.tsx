@@ -573,22 +573,6 @@ export function ChatPanel({
             </Tooltip>
           )}
 
-          {/* Sync Messages */}
-          {onSyncMessages && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={onSyncMessages}
-                  disabled={isSyncing}
-                >
-                  <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Sincronizar mensagens</TooltipContent>
-            </Tooltip>
-          )}
 
           {/* AI Toggle */}
           <Tooltip>
