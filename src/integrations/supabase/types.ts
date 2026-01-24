@@ -46,6 +46,7 @@ export type Database = {
       }
       ai_agents: {
         Row: {
+          ai_model: string | null
           color: string | null
           created_at: string | null
           created_by: string
@@ -56,10 +57,13 @@ export type Database = {
           is_chat_enabled: boolean | null
           is_whatsapp_enabled: boolean | null
           name: string
+          system_prompt: string | null
           updated_at: string | null
-          webhook_url: string
+          use_native_ai: boolean | null
+          webhook_url: string | null
         }
         Insert: {
+          ai_model?: string | null
           color?: string | null
           created_at?: string | null
           created_by: string
@@ -70,10 +74,13 @@ export type Database = {
           is_chat_enabled?: boolean | null
           is_whatsapp_enabled?: boolean | null
           name: string
+          system_prompt?: string | null
           updated_at?: string | null
-          webhook_url: string
+          use_native_ai?: boolean | null
+          webhook_url?: string | null
         }
         Update: {
+          ai_model?: string | null
           color?: string | null
           created_at?: string | null
           created_by?: string
@@ -84,8 +91,10 @@ export type Database = {
           is_chat_enabled?: boolean | null
           is_whatsapp_enabled?: boolean | null
           name?: string
+          system_prompt?: string | null
           updated_at?: string | null
-          webhook_url?: string
+          use_native_ai?: boolean | null
+          webhook_url?: string | null
         }
         Relationships: []
       }

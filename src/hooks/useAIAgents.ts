@@ -6,12 +6,15 @@ export interface AIAgent {
   id: string;
   name: string;
   description: string | null;
-  webhook_url: string;
+  webhook_url: string | null;
   icon: string;
   color: string;
   is_active: boolean;
   is_whatsapp_enabled: boolean;
   is_chat_enabled: boolean;
+  use_native_ai: boolean;
+  system_prompt: string | null;
+  ai_model: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -41,12 +44,15 @@ export interface WhatsAppAgentRouting {
 export interface CreateAgentInput {
   name: string;
   description?: string;
-  webhook_url: string;
+  webhook_url?: string;
   icon?: string;
   color?: string;
   is_active?: boolean;
   is_whatsapp_enabled?: boolean;
   is_chat_enabled?: boolean;
+  use_native_ai?: boolean;
+  system_prompt?: string;
+  ai_model?: string;
 }
 
 export interface UpdateAgentInput extends Partial<CreateAgentInput> {
