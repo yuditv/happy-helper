@@ -236,7 +236,7 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="sm:max-w-[520px] h-[85vh] flex flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Tv className="h-5 w-5 text-primary" />
@@ -270,8 +270,8 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
           )}
           
           {credentials && (
-            <ScrollArea className="flex-1 min-h-0">
-              <div className="space-y-4 pr-4">
+            <ScrollArea className="flex-1 min-h-0 overflow-auto">
+              <div className="space-y-4 pr-4 pb-4">
                 {/* Credenciais Básicas */}
                 <CredentialSection 
                   title="Usuário e Senha" 
