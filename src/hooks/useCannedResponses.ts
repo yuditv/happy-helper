@@ -8,6 +8,9 @@ export interface CannedResponse {
   short_code: string;
   content: string;
   is_global: boolean;
+  media_url: string | null;
+  media_type: string | null;
+  media_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,6 +52,9 @@ export function useCannedResponses() {
     short_code: string;
     content: string;
     is_global?: boolean;
+    media_url?: string | null;
+    media_type?: string | null;
+    media_name?: string | null;
   }) => {
     if (!user) throw new Error('User not authenticated');
 
@@ -59,6 +65,9 @@ export function useCannedResponses() {
         short_code: data.short_code,
         content: data.content,
         is_global: data.is_global || false,
+        media_url: data.media_url || null,
+        media_type: data.media_type || null,
+        media_name: data.media_name || null,
       })
       .select()
       .single();
@@ -76,6 +85,9 @@ export function useCannedResponses() {
     short_code?: string;
     content?: string;
     is_global?: boolean;
+    media_url?: string | null;
+    media_type?: string | null;
+    media_name?: string | null;
   }) => {
     const { data: updated, error } = await supabase
       .from('canned_responses')

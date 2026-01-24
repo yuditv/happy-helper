@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Plus, Search, Edit2, Trash2, Globe, User } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Globe, User, Image, Video, Music, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useCannedResponses, CannedResponse } from "@/hooks/useCannedResponses";
 import { useToast } from "@/hooks/use-toast";
+import { MediaUploadField, MediaType } from "./MediaUploadField";
 
 export function CannedResponsesSettings() {
   const { responses, isLoading, createResponse, updateResponse, deleteResponse } = useCannedResponses();
@@ -41,7 +42,15 @@ export function CannedResponsesSettings() {
     short_code: "",
     content: "",
     is_global: false,
+    media: null as { url: string; type: MediaType; name: string } | null,
   });
+
+  const MEDIA_TYPE_ICONS: Record<string, React.ElementType> = {
+    image: Image,
+    video: Video,
+    audio: Music,
+    document: FileText,
+  };
 
   const filteredResponses = responses.filter(r => 
     r.short_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -50,7 +59,7 @@ export function CannedResponsesSettings() {
 
   const handleOpenCreate = () => {
     setEditingResponse(null);
-    setFormData({ short_code: "", content: "", is_global: false });
+    setFormData({ short_code: "", content: "", is_global: false, media: null });
     setIsDialogOpen(true);
   };
 
@@ -60,15 +69,29 @@ export function CannedResponsesSettings() {
       short_code: response.short_code,
       content: response.content,
       is_global: response.is_global,
+      media: response.media_url ? {
+        url: response.media_url,
+        type: response.media_type as MediaType,
+        name: response.media_name || 'Arquivo',
+      } : null,
     });
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!formData.short_code.trim() || !formData.content.trim()) {
+    if (!formData.short_code.trim()) {
       toast({
         title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
+        description: "O código de atalho é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.content.trim() && !formData.media) {
+      toast({
+        title: "Erro",
+        description: "Adicione um texto ou uma mídia",
         variant: "destructive",
       });
       return;
@@ -85,6 +108,9 @@ export function CannedResponsesSettings() {
           short_code: shortCode,
           content: formData.content,
           is_global: formData.is_global,
+          media_url: formData.media?.url || null,
+          media_type: formData.media?.type || null,
+          media_name: formData.media?.name || null,
         });
         toast({ title: "Resposta atualizada com sucesso" });
       } else {
@@ -92,6 +118,9 @@ export function CannedResponsesSettings() {
           short_code: shortCode,
           content: formData.content,
           is_global: formData.is_global,
+          media_url: formData.media?.url || null,
+          media_type: formData.media?.type || null,
+          media_name: formData.media?.name || null,
         });
         toast({ title: "Resposta criada com sucesso" });
       }
@@ -166,53 +195,88 @@ export function CannedResponsesSettings() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {filteredResponses.map((response) => (
-            <Card key={response.id} className="hover:border-primary/50 transition-colors">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <code className="bg-muted px-2 py-0.5 rounded text-sm font-mono">
-                        {response.short_code}
-                      </code>
-                      {response.is_global ? (
-                        <Badge variant="secondary" className="gap-1">
-                          <Globe className="h-3 w-3" />
-                          Global
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1">
-                          <User className="h-3 w-3" />
-                          Pessoal
-                        </Badge>
+          {filteredResponses.map((response) => {
+            const MediaIcon = response.media_type ? MEDIA_TYPE_ICONS[response.media_type] : null;
+            
+            return (
+              <Card key={response.id} className="hover:border-primary/50 transition-colors">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      {/* Media Preview */}
+                      {response.media_url && (
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex items-center justify-center flex-shrink-0">
+                          {response.media_type === 'image' ? (
+                            <img 
+                              src={response.media_url} 
+                              alt={response.media_name || ''} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : response.media_type === 'video' ? (
+                            <video 
+                              src={response.media_url} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : MediaIcon ? (
+                            <MediaIcon className="h-6 w-6 text-muted-foreground" />
+                          ) : null}
+                        </div>
                       )}
-                    </CardTitle>
+
+                      <div className="space-y-1">
+                        <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                          <code className="bg-muted px-2 py-0.5 rounded text-sm font-mono">
+                            {response.short_code}
+                          </code>
+                          {response.media_type && (
+                            <Badge variant="outline" className="gap-1 capitalize">
+                              {MediaIcon && <MediaIcon className="h-3 w-3" />}
+                              {response.media_type === 'image' ? 'Imagem' : 
+                               response.media_type === 'video' ? 'Vídeo' :
+                               response.media_type === 'audio' ? 'Áudio' : 'Arquivo'}
+                            </Badge>
+                          )}
+                          {response.is_global ? (
+                            <Badge variant="secondary" className="gap-1">
+                              <Globe className="h-3 w-3" />
+                              Global
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1">
+                              <User className="h-3 w-3" />
+                              Pessoal
+                            </Badge>
+                          )}
+                        </CardTitle>
+                        {response.content && (
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">
+                            {response.content}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenEdit(response)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteId(response.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleOpenEdit(response)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteId(response.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">
-                  {response.content}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+                </CardHeader>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -254,6 +318,15 @@ export function CannedResponsesSettings() {
               <p className="text-xs text-muted-foreground">
                 Use {"{{nome}}"} para inserir o nome do contato
               </p>
+            </div>
+
+            {/* Media Upload Field */}
+            <div className="space-y-2">
+              <Label>Mídia (opcional)</Label>
+              <MediaUploadField
+                value={formData.media}
+                onChange={(media) => setFormData(prev => ({ ...prev, media }))}
+              />
             </div>
 
             <div className="flex items-center justify-between rounded-lg border p-3">
