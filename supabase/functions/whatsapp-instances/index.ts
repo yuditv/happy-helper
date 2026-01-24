@@ -647,12 +647,14 @@ serve(async (req: Request): Promise<Response> => {
       console.log("Configuring webhook URL in UAZAPI:", webhookUrl);
 
       try {
-        // UAZAPI v2 webhook configuration format
+        // UAZAPI v2 webhook configuration format (based on docs.uazapi.com)
         const webhookPayload = {
           enabled: true,
           url: webhookUrl,
-          events: ["messages", "connection", "messages_update"],
-          excludeMessages: ["wasSentByApi"] // Critical: prevents infinite loops
+          events: ["messages", "connection", "messages_update", "presence"],
+          excludeMessages: ["wasSentByApi", "isGroupNo"], // Prevent loops + ignore groups
+          addUrlEvents: true,      // Include URLs in events
+          addUrlTypesMessages: true // Include media type URLs
         };
         
         console.log("Webhook payload:", JSON.stringify(webhookPayload));
