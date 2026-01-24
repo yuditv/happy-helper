@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
-import { Paperclip, Image, FileText, Film, Loader2, X } from 'lucide-react';
+import { Paperclip, Image, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { compressImage, isCompressibleImage } from '@/lib/imageCompression';
 
 interface FileUploadButtonProps {
   onFileUploaded: (url: string, type: string, fileName: string) => void;
@@ -20,6 +20,7 @@ interface UploadState {
   isUploading: boolean;
   progress: number;
   fileName: string | null;
+  isCompressing: boolean;
 }
 
 const ALLOWED_TYPES = {
@@ -37,7 +38,8 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
     progress: 0,
-    fileName: null
+    fileName: null,
+    isCompressing: false
   });
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,17 +70,36 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
     setUploadState({
       isUploading: true,
       progress: 0,
-      fileName: file.name
+      fileName: file.name,
+      isCompressing: false
     });
 
     try {
-      const fileExt = file.name.split('.').pop();
+      let fileToUpload = file;
+      
+      // Compress image if applicable
+      if (isCompressibleImage(file)) {
+        setUploadState(prev => ({ ...prev, isCompressing: true }));
+        try {
+          fileToUpload = await compressImage(file, {
+            maxWidth: 1920,
+            maxHeight: 1920,
+            quality: 0.8,
+            maxSizeMB: 2
+          });
+        } catch (compressError) {
+          console.warn('Compression failed, using original:', compressError);
+        }
+        setUploadState(prev => ({ ...prev, isCompressing: false }));
+      }
+
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `inbox-attachments/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('dispatch-media')
-        .upload(filePath, file, {
+        .upload(filePath, fileToUpload, {
           cacheControl: '3600',
           upsert: false
         });
@@ -89,7 +110,7 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
         .from('dispatch-media')
         .getPublicUrl(filePath);
 
-      onFileUploaded(publicUrl, file.type, file.name);
+      onFileUploaded(publicUrl, fileToUpload.type, file.name);
 
       toast({
         title: 'Arquivo anexado',
@@ -103,7 +124,7 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
         variant: 'destructive'
       });
     } finally {
-      setUploadState({ isUploading: false, progress: 0, fileName: null });
+      setUploadState({ isUploading: false, progress: 0, fileName: null, isCompressing: false });
       // Reset inputs
       if (imageInputRef.current) imageInputRef.current.value = '';
       if (documentInputRef.current) documentInputRef.current.value = '';
@@ -114,7 +135,9 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="truncate max-w-[100px]">{uploadState.fileName}</span>
+        <span className="truncate max-w-[100px]">
+          {uploadState.isCompressing ? 'Comprimindo...' : uploadState.fileName}
+        </span>
       </div>
     );
   }
