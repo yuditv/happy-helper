@@ -132,9 +132,13 @@ const handler = async (req: Request): Promise<Response> => {
       };
     }
 
+    const fullUrl = `${UAZAPI_URL}${endpoint}`;
     console.log(`Calling UAZAPI endpoint: ${endpoint}`);
+    console.log(`Full URL: ${fullUrl}`);
+    console.log(`Token (first 8 chars): ${instanceToken.substring(0, 8)}...`);
+    console.log(`Request body:`, JSON.stringify(body));
 
-    const response = await fetch(`${UAZAPI_URL}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -144,6 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const responseData = await response.json();
+    console.log("Uazapi response status:", response.status);
     console.log("Uazapi response:", responseData);
 
     if (!response.ok) {
