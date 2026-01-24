@@ -27,7 +27,14 @@ export function TestGeneratorDialog({ open, onOpenChange }: TestGeneratorDialogP
     
     try {
       const response = await fetch(
-        "https://sportplay.sigmab.pro/api/chatbot/80m1Eev1lE/VpKDaPJLRA"
+        "https://sportplay.sigmab.pro/api/chatbot/80m1Eev1lE/VpKDaPJLRA",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        }
       );
       
       if (!response.ok) {
