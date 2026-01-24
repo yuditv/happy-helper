@@ -230,22 +230,27 @@ export function ChatPanel({
     textareaRef.current?.focus();
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if ((!message.trim() && !attachment) || isSending) return;
     
-    const success = await onSendMessage(
-      message.trim(), 
-      isPrivate,
-      attachment?.url,
-      attachment?.type,
-      attachment?.fileName
-    );
+    // Capturar valores antes de limpar
+    const messageToSend = message.trim();
+    const privateToSend = isPrivate;
+    const attachmentToSend = attachment;
     
-    if (success) {
-      setMessage("");
-      setIsPrivate(false);
-      setAttachment(null);
-    }
+    // Limpar imediatamente - UX instantânea
+    setMessage("");
+    setIsPrivate(false);
+    setAttachment(null);
+    
+    // Enviar em background (não aguardar)
+    onSendMessage(
+      messageToSend, 
+      privateToSend,
+      attachmentToSend?.url,
+      attachmentToSend?.type,
+      attachmentToSend?.fileName
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
