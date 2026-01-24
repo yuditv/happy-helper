@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { ArrowLeft, Settings, Users, UserPlus, Tag, MessageSquare, Zap, Play, ScrollText, Clock, Ban } from "lucide-react";
+import { ArrowLeft, Settings, Users, Tag, Zap, Play, ScrollText, Clock, Ban } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 // Settings components
-import { CannedResponsesSettings } from "@/components/Inbox/Settings/CannedResponsesSettings";
 import { LabelsSettings } from "@/components/Inbox/Settings/LabelsSettings";
 import { TeamsSettings } from "@/components/Inbox/Settings/TeamsSettings";
 import { MacrosSettings } from "@/components/Inbox/Settings/MacrosSettings";
@@ -16,7 +15,6 @@ import { BusinessHoursSettings } from "@/components/Inbox/Settings/BusinessHours
 import { BlockedContactsSettings } from "@/components/Inbox/Settings/BlockedContactsSettings";
 
 type SettingsSection = 
-  | "canned-responses"
   | "labels"
   | "teams"
   | "macros"
@@ -33,12 +31,6 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  {
-    id: "canned-responses",
-    title: "Respostas Prontas",
-    description: "Templates de mensagens rápidas",
-    icon: MessageSquare,
-  },
   {
     id: "labels",
     title: "Etiquetas",
@@ -85,12 +77,10 @@ const menuItems: MenuItem[] = [
 
 export default function InboxSettings() {
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<SettingsSection>("canned-responses");
+  const [activeSection, setActiveSection] = useState<SettingsSection>("labels");
 
   const renderContent = () => {
     switch (activeSection) {
-      case "canned-responses":
-        return <CannedResponsesSettings />;
       case "labels":
         return <LabelsSettings />;
       case "teams":
@@ -106,7 +96,7 @@ export default function InboxSettings() {
       case "audit-logs":
         return <AuditLogsSettings />;
       default:
-        return <CannedResponsesSettings />;
+        return <LabelsSettings />;
     }
   };
 
