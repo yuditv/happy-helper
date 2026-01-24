@@ -689,32 +689,6 @@ export function ChatPanel({
             <TooltipContent>Buscar mensagens</TooltipContent>
           </Tooltip>
 
-          {/* Sync Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" disabled={isSyncing}>
-                <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onSyncMessages?.()}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Sincronizar rápido (50)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSyncMessages?.(100)}>
-                Sincronizar 100 mensagens
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSyncMessages?.(200)}>
-                Sincronizar 200 mensagens
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowSyncDialog(true)}>
-                <Settings className="h-4 w-4 mr-2" />
-                Opções avançadas...
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {/* AI Toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
