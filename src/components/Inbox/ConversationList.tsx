@@ -64,9 +64,9 @@ export function ConversationList({
   };
 
   return (
-    <div className="w-80 border-r flex flex-col h-full bg-background overflow-hidden">
+    <div className="w-80 border-r flex flex-col h-full inbox-sidebar overflow-hidden">
       {/* Search Header */}
-      <div className="p-3 border-b space-y-2">
+      <div className="p-3 border-b border-border/50 space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -100,7 +100,7 @@ export function ConversationList({
       </div>
 
       {/* Conversations List */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 inbox-scroll">
         {isLoading ? (
           <div className="p-4 space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -125,8 +125,9 @@ export function ConversationList({
                 key={conversation.id}
                 onClick={() => onSelect(conversation)}
                 className={cn(
-                  "w-full p-3 flex items-start gap-3 hover:bg-muted/50 transition-colors text-left",
-                  selectedId === conversation.id && "bg-muted"
+                  "w-full p-3 flex items-start gap-3 transition-colors text-left border-b border-border/30",
+                  "hover:bg-inbox-hover",
+                  selectedId === conversation.id && "bg-inbox-active border-l-2 border-l-primary"
                 )}
               >
                 {/* Avatar */}
