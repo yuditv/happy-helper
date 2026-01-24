@@ -1040,9 +1040,9 @@ export function ChatPanel({
       <AnimatePresence>
         {!showQuickPanel && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
             transition={{ duration: 0.15 }}
             className="border-l flex items-start pt-3"
           >
@@ -1051,10 +1051,10 @@ export function ChatPanel({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 mx-1"
+                  className="h-9 w-9 mx-1.5 hover:bg-primary/10 hover:text-primary transition-colors"
                   onClick={() => setShowQuickPanel(true)}
                 >
-                  <PanelRightOpen className="h-4 w-4" />
+                  <MessageSquareText className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">Mensagens rápidas</TooltipContent>
