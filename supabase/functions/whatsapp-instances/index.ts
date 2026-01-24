@@ -1644,6 +1644,96 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // DELETE MESSAGE - Remove message locally and optionally from WhatsApp
+    if (action === "delete_message") {
+      const messageId = body.messageId as string;
+      const deleteForEveryone = body.deleteForEveryone as boolean || false;
+      const whatsappId = body.whatsappId as string; // ID from metadata.whatsapp_id
+      const instanceId = body.instanceId as string;
+
+      if (!messageId) {
+        return new Response(
+          JSON.stringify({ error: "ID da mensagem obrigatório" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Delete Message] messageId: ${messageId}, deleteForEveryone: ${deleteForEveryone}, whatsappId: ${whatsappId}`);
+
+      // Get instance for API call if deleting for everyone
+      if (deleteForEveryone && whatsappId && instanceId) {
+        const { data: instance } = await supabase
+          .from("whatsapp_instances")
+          .select("instance_key")
+          .eq("id", instanceId)
+          .single();
+
+        if (instance?.instance_key) {
+          try {
+            // Call UAZAPI /message/delete endpoint
+            console.log(`[Delete Message] Calling UAZAPI to delete message: ${whatsappId}`);
+            const deleteResponse = await fetch(`${uazapiUrl}/message/delete`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "token": instance.instance_key,
+              },
+              body: JSON.stringify({ id: whatsappId }),
+            });
+
+            console.log(`[Delete Message] UAZAPI response status: ${deleteResponse.status}`);
+            const deleteData = await deleteResponse.json();
+            console.log(`[Delete Message] UAZAPI response:`, JSON.stringify(deleteData));
+            // Even if UAZAPI fails, we still delete locally
+          } catch (e) {
+            console.error("[Delete Message] UAZAPI error:", e);
+            // Continue with local deletion
+          }
+        }
+      }
+
+      // Update local database (soft delete with metadata)
+      if (deleteForEveryone) {
+        // Mark as deleted for everyone - keep record but clear content
+        const { error: updateError } = await supabase
+          .from("chat_inbox_messages")
+          .update({
+            content: "🚫 Mensagem apagada",
+            media_url: null,
+            media_type: null,
+            metadata: {
+              deleted: true,
+              deleted_for_everyone: true,
+              deleted_at: new Date().toISOString()
+            }
+          })
+          .eq("id", messageId);
+
+        if (updateError) {
+          console.error("[Delete Message] DB update error:", updateError);
+          throw new Error(`Erro ao apagar mensagem: ${updateError.message}`);
+        }
+      } else {
+        // Delete only for current user - hard delete
+        const { error: deleteError } = await supabase
+          .from("chat_inbox_messages")
+          .delete()
+          .eq("id", messageId);
+
+        if (deleteError) {
+          console.error("[Delete Message] DB delete error:", deleteError);
+          throw new Error(`Erro ao apagar mensagem: ${deleteError.message}`);
+        }
+      }
+
+      console.log(`[Delete Message] ✓ Message deleted successfully`);
+
+      return new Response(
+        JSON.stringify({ success: true, deletedForEveryone: deleteForEveryone }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // LIST instances
     if (action === "list" || !action) {
       const { data: instances, error } = await supabase

@@ -73,8 +73,10 @@ export default function Atendimento() {
     isLoading: messagesLoading,
     isSending,
     isSyncing,
+    isDeleting,
     sendMessage,
     retryMessage,
+    deleteMessage,
     syncMessages
   } = useInboxMessages(selectedConversation?.id || null);
 
@@ -504,6 +506,7 @@ export default function Atendimento() {
               isLoading={messagesLoading}
               isSending={isSending}
               isSyncing={isSyncing}
+              isDeleting={isDeleting}
               onSendMessage={handleSendMessage}
               onAssignToMe={handleAssignToMe}
               onResolve={handleResolve}
@@ -516,6 +519,7 @@ export default function Atendimento() {
               onRetryMessage={retryMessage}
               onSyncMessages={(limit) => syncMessages({ limit, silent: false })}
               onDeleteConversation={handleDeleteConversation}
+              onDeleteMessage={deleteMessage}
             />
           </>
         )}
