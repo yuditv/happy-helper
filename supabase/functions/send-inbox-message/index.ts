@@ -22,6 +22,48 @@ function getMediaType(mimeType: string): string {
   return 'document';
 }
 
+/**
+ * Format phone number for WhatsApp API - supports international numbers
+ * - Brazilian numbers (10-11 digits without country code): adds 55 prefix
+ * - International numbers (already have country code): preserved as-is
+ * - USA numbers (1 + 10 digits): preserved with country code 1
+ */
+function formatPhoneNumber(phone: string): string {
+  // Remove all non-numeric characters
+  let cleaned = phone.replace(/\D/g, '');
+  
+  // If number already has 12+ digits, assume it has country code
+  if (cleaned.length >= 12) {
+    return cleaned;
+  }
+  
+  // Check for USA/Canada numbers: 1 + 10 digits = 11 digits
+  // USA area codes don't start with 0 or 1
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    const areaCode = cleaned.substring(1, 4);
+    if (!areaCode.startsWith('0') && !areaCode.startsWith('1')) {
+      // Likely USA number - keep as-is
+      return cleaned;
+    }
+  }
+  
+  // Check for other international prefixes
+  const internationalPrefixes = ['44', '351', '54', '56', '57', '58', '34', '33', '49', '39'];
+  for (const prefix of internationalPrefixes) {
+    if (cleaned.startsWith(prefix) && cleaned.length >= 10 + prefix.length - 1) {
+      // Likely international number - keep as-is
+      return cleaned;
+    }
+  }
+  
+  // Default: assume Brazilian number, add 55 if not present
+  if (!cleaned.startsWith('55')) {
+    cleaned = '55' + cleaned;
+  }
+  
+  return cleaned;
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -168,11 +210,8 @@ serve(async (req: Request) => {
         let sendSuccess = false;
         let lastError = '';
 
-        // Format phone number
-        let formattedPhone = phone.replace(/\D/g, '');
-        if (!formattedPhone.startsWith('55')) {
-          formattedPhone = '55' + formattedPhone;
-        }
+        // Format phone number with international support
+        const formattedPhone = formatPhoneNumber(phone);
 
         // Determine if sending media or text
         if (mediaUrl && mediaType) {

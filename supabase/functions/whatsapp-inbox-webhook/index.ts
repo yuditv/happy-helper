@@ -6,6 +6,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Format phone number for WhatsApp API - supports international numbers
+ */
+function formatPhoneNumber(phone: string): string {
+  let cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length >= 12) return cleaned;
+  
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    const areaCode = cleaned.substring(1, 4);
+    if (!areaCode.startsWith('0') && !areaCode.startsWith('1')) {
+      return cleaned;
+    }
+  }
+  
+  const internationalPrefixes = ['44', '351', '54', '56', '57', '58', '34', '33', '49', '39'];
+  for (const prefix of internationalPrefixes) {
+    if (cleaned.startsWith(prefix) && cleaned.length >= 10 + prefix.length - 1) {
+      return cleaned;
+    }
+  }
+  
+  if (!cleaned.startsWith('55')) {
+    cleaned = '55' + cleaned;
+  }
+  
+  return cleaned;
+}
+
 // Fetch contact avatar from UAZAPI
 async function fetchContactAvatar(
   uazapiUrl: string,
@@ -1125,11 +1154,8 @@ serve(async (req: Request) => {
                   metadata: { agent_id: agent.id, agent_name: agent.name }
                 });
 
-              // Format phone number
-              let formattedPhone = normalizedPhone;
-              if (!formattedPhone.startsWith('55')) {
-                formattedPhone = '55' + formattedPhone;
-              }
+              // Format phone number with international support
+              const formattedPhone = formatPhoneNumber(normalizedPhone);
 
               // Send via UAZAPI - format: /send/text with token header and { number, text }
               await fetch(`${uazapiUrl}/send/text`, {
