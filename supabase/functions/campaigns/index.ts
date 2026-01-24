@@ -16,8 +16,8 @@ class UazapiService {
     this.token = Deno.env.get("UAZAPI_TOKEN") || "";
   }
 
-  async sendText(instanceKey: string, phone: string, message: string) {
-    // UAZAPI format: /sendText with token header and { number, text }
+  async sendText(instanceKey: string, instanceName: string, phone: string, message: string) {
+    // UAZAPI format: /sendText with token header and { session, number, text }
     const response = await fetch(`${this.baseUrl}/sendText`, {
       method: "POST",
       headers: {
@@ -25,6 +25,7 @@ class UazapiService {
         "token": instanceKey,
       },
       body: JSON.stringify({
+        session: instanceName,
         number: this.formatPhone(phone),
         text: message,
       }),
@@ -473,7 +474,7 @@ async function processCampaign(supabase: any, campaign: any, instance: any) {
     const message = replaceVariables(campaign.message_template, contact);
 
     try {
-      await uazapi.sendText(instance.instance_key, contact.phone, message);
+      await uazapi.sendText(instance.instance_key, instance.instance_name, contact.phone, message);
 
       // Update contact status
       await supabase

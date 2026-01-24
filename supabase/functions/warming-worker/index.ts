@@ -24,6 +24,7 @@ interface WarmingSession {
 interface InstanceInfo {
   id: string;
   instance_key: string;
+  instance_name: string;
   phone_connected: string;
   instance_token: string;
 }
@@ -118,6 +119,7 @@ Use linguagem informal, gírias. Exemplos: "e aí, beleza?", "tudo certo?", "opa
 // Send WhatsApp message via UAZAPI
 async function sendWhatsAppMessage(
   instanceToken: string,
+  instanceName: string,
   phone: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -134,7 +136,7 @@ async function sendWhatsAppMessage(
       formattedPhone = '55' + formattedPhone;
     }
 
-    // UAZAPI format: /sendText with token header and { number, text }
+    // UAZAPI format: /sendText with token header and { session, number, text }
     const response = await fetch(`${UAZAPI_URL}/sendText`, {
       method: "POST",
       headers: {
@@ -142,6 +144,7 @@ async function sendWhatsAppMessage(
         "token": instanceToken,
       },
       body: JSON.stringify({
+        session: instanceName,
         number: formattedPhone,
         text: message,
       }),
@@ -190,7 +193,7 @@ serve(async (req) => {
       // Get instance details
       const { data: instances, error: instancesError } = await supabase
         .from('whatsapp_instances')
-        .select('id, instance_key, phone_connected, instance_token')
+        .select('id, instance_key, instance_name, phone_connected, instance_token')
         .in('id', session.selected_instances)
         .eq('status', 'connected');
 
@@ -256,6 +259,7 @@ serve(async (req) => {
           // Send message
           const result = await sendWhatsAppMessage(
             fromInstance.instance_token,
+            fromInstance.instance_name,
             toInstance.phone_connected,
             message
           );

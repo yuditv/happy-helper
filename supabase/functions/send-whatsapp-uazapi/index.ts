@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface WhatsAppRequest {
   instanceKey?: string;
+  instanceName?: string;  // Session name for uazapiGO v2
   phone: string;
   message?: string;
   // Media fields
@@ -51,7 +52,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const requestData: WhatsAppRequest = await req.json();
-    const { phone, message, mediaType, mediaUrl, fileName, caption, autoArchive, instanceKey } = requestData;
+    const { phone, message, mediaType, mediaUrl, fileName, caption, autoArchive, instanceKey, instanceName } = requestData;
 
     if (!phone) {
       return new Response(
@@ -65,9 +66,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Use instance-specific token if provided, otherwise fallback to default
     const instanceToken = instanceKey || UAZAPI_TOKEN;
+    // Session name for uazapiGO v2
+    const sessionName = instanceName || '';
     
     const formattedPhone = formatPhoneNumber(phone);
-    console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, using instance: ${instanceKey ? 'custom' : 'default'}`);
+    console.log(`Sending WhatsApp to: ${formattedPhone}, mediaType: ${mediaType || 'text'}, session: ${sessionName}, using instance: ${instanceKey ? 'custom' : 'default'}`);
 
     // Validate message for text messages
     if ((!mediaType || mediaType === 'none') && !message) {
@@ -96,7 +99,10 @@ const handler = async (req: Request): Promise<Response> => {
       // Media message
       let endpoint = '/sendImage';
       // deno-lint-ignore no-explicit-any
-      const body: Record<string, any> = { number: formattedPhone };
+      const body: Record<string, any> = { 
+        session: sessionName,  // uazapiGO v2 session
+        number: formattedPhone 
+      };
       
       switch (mediaType) {
         case 'image':
@@ -150,9 +156,10 @@ const handler = async (req: Request): Promise<Response> => {
         lastError = `${response.status}: ${respText}`;
       }
     } else {
-      // Text message - use /sendText with { number, text }
+      // Text message - use /sendText with { session, number, text }
       console.log(`Sending text via /sendText`);
       console.log(`URL: ${UAZAPI_URL}/sendText`);
+      console.log(`Session: ${sessionName}`);
       
       const response = await fetch(`${UAZAPI_URL}/sendText`, {
         method: "POST",
@@ -161,6 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
           "token": instanceToken
         },
         body: JSON.stringify({
+          session: sessionName,
           number: formattedPhone,
           text: message
         }),

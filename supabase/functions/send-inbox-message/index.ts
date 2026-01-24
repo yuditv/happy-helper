@@ -165,7 +165,10 @@ serve(async (req: Request) => {
           // deno-lint-ignore no-explicit-any
           const requestBody: Record<string, any> = { number: formattedPhone };
           
-          if (mediaType.startsWith('image/')) {
+        // Add session (instance name) for uazapiGO v2
+        requestBody.session = instance.instance_name;
+        
+        if (mediaType.startsWith('image/')) {
             endpoint = '/sendImage';
             requestBody.url = mediaUrl;
             requestBody.caption = content || '';
@@ -184,6 +187,7 @@ serve(async (req: Request) => {
           
           console.log(`[Send Inbox] Sending media via ${endpoint}`);
           console.log(`[Send Inbox] URL: ${uazapiUrl}${endpoint}`);
+          console.log(`[Send Inbox] Session: ${instance.instance_name}`);
           
           const sendResponse = await fetch(`${uazapiUrl}${endpoint}`, {
             method: 'POST',
@@ -205,9 +209,10 @@ serve(async (req: Request) => {
             lastError = `${sendResponse.status}: ${responseText}`;
           }
         } else {
-          // Text message - use UAZAPI format /sendText with { number, text }
+          // Text message - use UAZAPI format /sendText with { session, number, text }
           console.log(`[Send Inbox] Sending via /sendText`);
           console.log(`[Send Inbox] URL: ${uazapiUrl}/sendText`);
+          console.log(`[Send Inbox] Session: ${instance.instance_name}`);
           console.log(`[Send Inbox] Phone: ${formattedPhone}`);
           
           const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
@@ -217,6 +222,7 @@ serve(async (req: Request) => {
               'token': instanceToken
             },
             body: JSON.stringify({
+              session: instance.instance_name,
               number: formattedPhone,
               text: content
             })

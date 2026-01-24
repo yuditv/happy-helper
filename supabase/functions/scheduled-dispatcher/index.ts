@@ -145,7 +145,7 @@ serve(async (req: Request): Promise<Response> => {
 
         console.log(`Sending message to ${phone}: ${content.substring(0, 50)}...`);
 
-        // Send via UAZAPI
+        // Send via UAZAPI - format: /sendText with { session, number, text }
         const sendResponse = await fetch(`${uazapiUrl}/sendText`, {
           method: "POST",
           headers: {
@@ -153,6 +153,7 @@ serve(async (req: Request): Promise<Response> => {
             "token": instance.instance_key,
           },
           body: JSON.stringify({
+            session: instance.instance_name,
             number: phone,
             text: content,
           }),
