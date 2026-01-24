@@ -1304,6 +1304,75 @@ export type Database = {
         }
         Relationships: []
       }
+      status_schedules: {
+        Row: {
+          background_color: number | null
+          created_at: string | null
+          error_message: string | null
+          fail_count: number | null
+          font_style: number | null
+          id: string
+          instance_ids: string[]
+          media_mimetype: string | null
+          media_url: string | null
+          recurrence_days: number[] | null
+          recurrence_end_date: string | null
+          recurrence_type: string | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string | null
+          status_type: string
+          success_count: number | null
+          text_content: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          background_color?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          fail_count?: number | null
+          font_style?: number | null
+          id?: string
+          instance_ids: string[]
+          media_mimetype?: string | null
+          media_url?: string | null
+          recurrence_days?: number[] | null
+          recurrence_end_date?: string | null
+          recurrence_type?: string | null
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string | null
+          status_type: string
+          success_count?: number | null
+          text_content?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          background_color?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          fail_count?: number | null
+          font_style?: number | null
+          id?: string
+          instance_ids?: string[]
+          media_mimetype?: string | null
+          media_url?: string | null
+          recurrence_days?: number[] | null
+          recurrence_end_date?: string | null
+          recurrence_type?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string | null
+          status_type?: string
+          success_count?: number | null
+          text_content?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscription_notification_settings: {
         Row: {
           created_at: string

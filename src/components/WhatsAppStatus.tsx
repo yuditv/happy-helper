@@ -43,6 +43,9 @@ import { cn } from '@/lib/utils';
 import { MediaUploader, MediaType as UploaderMediaType } from '@/components/BulkDispatcher/MediaUploader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { useStatusSchedules } from '@/hooks/useStatusSchedules';
+import { StatusScheduleDialog } from '@/components/StatusScheduleDialog';
+import { StatusScheduleCard } from '@/components/StatusScheduleCard';
 
 interface WhatsAppStatusProps {
   instances: WhatsAppInstance[];
@@ -119,6 +122,19 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
     mediaUrl?: string;
     mediaFilename?: string;
   }>>([]);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+
+  // Hook for status schedules
+  const {
+    pendingSchedules,
+    sentSchedules,
+    failedSchedules,
+    cancelledSchedules,
+    isLoading: schedulesLoading,
+    createSchedule,
+    cancelSchedule,
+    deleteSchedule,
+  } = useStatusSchedules();
 
   const connectedInstances = useMemo(() => 
     instances.filter(i => i.status === 'connected'),
@@ -889,34 +905,127 @@ export function WhatsAppStatus({ instances }: WhatsAppStatusProps) {
           <TabsContent value="schedule" className="space-y-6 mt-6">
             <Card className="glass-card">
               <CardHeader className="border-b border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/15">
-                    <Calendar className="h-4 w-4 text-blue-500" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/15">
+                      <Calendar className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Agendamentos</CardTitle>
+                      <CardDescription className="text-xs">
+                        {pendingSchedules.length} pendente(s) • {sentSchedules.length} enviado(s)
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-base">Agendamentos</CardTitle>
-                    <CardDescription className="text-xs">Programe seus status para o futuro</CardDescription>
-                  </div>
+                  <Button 
+                    onClick={() => setScheduleDialogOpen(true)}
+                    className="gap-2"
+                    disabled={connectedInstances.length === 0}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Novo Agendamento
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-8">
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="relative mb-6">
-                    <div className="p-6 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/20">
-                      <Calendar className="h-12 w-12 text-blue-400" />
-                    </div>
-                    <Badge className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-primary/80 text-primary-foreground text-[10px]">
-                      Em breve
-                    </Badge>
+              <CardContent className="p-4">
+                {schedulesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
-                  <p className="font-semibold text-lg mb-2">Agendamento de Status</p>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Em breve você poderá agendar seus status para serem publicados automaticamente
-                  </p>
-                </div>
+                ) : pendingSchedules.length === 0 && sentSchedules.length === 0 && failedSchedules.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="p-4 rounded-full bg-muted/30 mb-4">
+                      <Calendar className="h-10 w-10 text-muted-foreground/30" />
+                    </div>
+                    <p className="font-medium text-muted-foreground mb-1">Nenhum agendamento</p>
+                    <p className="text-sm text-muted-foreground/70 mb-4">
+                      Crie seu primeiro agendamento de status
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setScheduleDialogOpen(true)}
+                      disabled={connectedInstances.length === 0}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Agendamento
+                    </Button>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[500px] pr-4">
+                    <div className="space-y-6">
+                      {/* Pending */}
+                      {pendingSchedules.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-amber-500" />
+                            <span className="text-sm font-medium">Pendentes ({pendingSchedules.length})</span>
+                          </div>
+                          <div className="space-y-2">
+                            {pendingSchedules.map((schedule) => (
+                              <StatusScheduleCard
+                                key={schedule.id}
+                                schedule={schedule}
+                                onCancel={cancelSchedule}
+                                onDelete={deleteSchedule}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sent */}
+                      {sentSchedules.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Send className="h-4 w-4 text-green-500" />
+                            <span className="text-sm font-medium">Enviados ({sentSchedules.length})</span>
+                          </div>
+                          <div className="space-y-2">
+                            {sentSchedules.slice(0, 10).map((schedule) => (
+                              <StatusScheduleCard
+                                key={schedule.id}
+                                schedule={schedule}
+                                onCancel={cancelSchedule}
+                                onDelete={deleteSchedule}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Failed */}
+                      {failedSchedules.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-destructive" />
+                            <span className="text-sm font-medium">Falharam ({failedSchedules.length})</span>
+                          </div>
+                          <div className="space-y-2">
+                            {failedSchedules.map((schedule) => (
+                              <StatusScheduleCard
+                                key={schedule.id}
+                                schedule={schedule}
+                                onCancel={cancelSchedule}
+                                onDelete={deleteSchedule}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Schedule Dialog */}
+          <StatusScheduleDialog
+            open={scheduleDialogOpen}
+            onOpenChange={setScheduleDialogOpen}
+            onSave={createSchedule}
+            instances={instances}
+          />
         </Tabs>
       </motion.div>
     </motion.div>

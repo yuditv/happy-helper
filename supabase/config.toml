@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.send-whatsapp-status]
 verify_jwt = false
+
+[functions.status-scheduler]
+verify_jwt = false
