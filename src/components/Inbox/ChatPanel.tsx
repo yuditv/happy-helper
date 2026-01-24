@@ -29,7 +29,8 @@ import {
   ChevronDown,
   Settings,
   Pencil,
-  BookUser
+  BookUser,
+  SquareStack
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ import { useClientByPhone } from "@/hooks/useClientByPhone";
 import { useCannedResponses, CannedResponse } from "@/hooks/useCannedResponses";
 import { useContactAvatar } from "@/hooks/useContactAvatar";
 import { usePresence } from "@/hooks/usePresence";
+import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 // ClientInfoPanel removed - client registration now in dropdown menu
@@ -82,6 +84,7 @@ import { useCRMLead, CRM_STATUSES } from "@/hooks/useCRMLead";
 import { MessageSearchDialog } from "./MessageSearchDialog";
 import { SyncOptionsDialog } from "./SyncOptionsDialog";
 import { DeleteMessageDialog } from "./DeleteMessageDialog";
+import { InteractiveMenuComposer } from "./InteractiveMenuComposer";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -164,6 +167,7 @@ export function ChatPanel({
   const [showSaveContactDialog, setShowSaveContactDialog] = useState(false);
   const [newContactName, setNewContactName] = useState("");
   const [isSavingContact, setIsSavingContact] = useState(false);
+  const [showInteractiveMenu, setShowInteractiveMenu] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -184,6 +188,11 @@ export function ChatPanel({
   
   // Presence hook for typing/recording indicators
   const { sendPresence } = usePresence(conversation?.id || null);
+  
+  // Get WhatsApp instances to find instance_key
+  const { instances } = useWhatsAppInstances();
+  const currentInstance = instances.find(i => i.id === conversation?.instance_id);
+  const instanceKey = currentInstance?.instance_key || "";
 
   // Check if contact is blocked from conversation metadata
   const isContactBlocked = (conversation?.metadata as Record<string, unknown> | null)?.is_blocked === true;
@@ -1133,6 +1142,22 @@ export function ChatPanel({
                 disabled={isSending}
               />
 
+              {/* Interactive Menu Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setShowInteractiveMenu(true)}
+                    disabled={!instanceKey}
+                  >
+                    <SquareStack className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Menu Interativo</TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <AudioRecorder
@@ -1382,6 +1407,19 @@ export function ChatPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Interactive Menu Composer */}
+      {conversation && instanceKey && (
+        <InteractiveMenuComposer
+          open={showInteractiveMenu}
+          onOpenChange={setShowInteractiveMenu}
+          phone={conversation.phone}
+          instanceKey={instanceKey}
+          onSent={() => {
+            // Refresh messages after sending
+          }}
+        />
+      )}
     </div>
   );
 }
