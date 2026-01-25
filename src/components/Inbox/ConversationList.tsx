@@ -102,6 +102,7 @@ interface ConversationListProps {
   isLoading: boolean;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  defaultAgentId?: string | null;
 }
 
 export function ConversationList({
@@ -110,7 +111,8 @@ export function ConversationList({
   onSelect,
   isLoading,
   searchQuery,
-  onSearchChange
+  onSearchChange,
+  defaultAgentId
 }: ConversationListProps) {
   const [sortBy, setSortBy] = useState<'recent' | 'unread'>('recent');
 
@@ -277,8 +279,33 @@ export function ConversationList({
                       </p>
                     </div>
 
-                    {/* Labels & Unread badge row */}
+                    {/* Labels, Agent Badge & Unread badge row */}
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* Active Agent Badge - only show if different from default */}
+                      {conversation.active_agent && 
+                       conversation.active_agent_id !== defaultAgentId && (
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span 
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[100px]"
+                                style={{ 
+                                  backgroundColor: `${conversation.active_agent.color || '#3b82f6'}20`,
+                                  color: conversation.active_agent.color || '#3b82f6',
+                                  border: `1px solid ${conversation.active_agent.color || '#3b82f6'}40`
+                                }}
+                              >
+                                <Bot className="h-3 w-3 shrink-0" />
+                                {conversation.active_agent.name}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Agente especialista ativo
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      
                       {conversation.labels?.slice(0, 2).map((l) => (
                         <span
                           key={l.id}
