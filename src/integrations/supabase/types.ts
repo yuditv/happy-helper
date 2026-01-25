@@ -47,6 +47,9 @@ export type Database = {
       ai_agents: {
         Row: {
           ai_model: string | null
+          anti_hallucination_enabled: boolean | null
+          buffer_max_messages: number | null
+          buffer_wait_seconds: number | null
           color: string | null
           created_at: string | null
           created_by: string
@@ -63,6 +66,7 @@ export type Database = {
           memory_generate_summary: boolean | null
           memory_max_items: number | null
           memory_sync_clients: boolean | null
+          message_buffer_enabled: boolean | null
           name: string
           response_delay_max: number | null
           response_delay_min: number | null
@@ -77,6 +81,9 @@ export type Database = {
         }
         Insert: {
           ai_model?: string | null
+          anti_hallucination_enabled?: boolean | null
+          buffer_max_messages?: number | null
+          buffer_wait_seconds?: number | null
           color?: string | null
           created_at?: string | null
           created_by: string
@@ -93,6 +100,7 @@ export type Database = {
           memory_generate_summary?: boolean | null
           memory_max_items?: number | null
           memory_sync_clients?: boolean | null
+          message_buffer_enabled?: boolean | null
           name: string
           response_delay_max?: number | null
           response_delay_min?: number | null
@@ -107,6 +115,9 @@ export type Database = {
         }
         Update: {
           ai_model?: string | null
+          anti_hallucination_enabled?: boolean | null
+          buffer_max_messages?: number | null
+          buffer_wait_seconds?: number | null
           color?: string | null
           created_at?: string | null
           created_by?: string
@@ -123,6 +134,7 @@ export type Database = {
           memory_generate_summary?: boolean | null
           memory_max_items?: number | null
           memory_sync_clients?: boolean | null
+          message_buffer_enabled?: boolean | null
           name?: string
           response_delay_max?: number | null
           response_delay_min?: number | null
@@ -254,6 +266,66 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_message_buffer: {
+        Row: {
+          agent_id: string | null
+          conversation_id: string
+          created_at: string | null
+          first_message_at: string | null
+          id: string
+          instance_id: string
+          last_message_at: string | null
+          messages: Json | null
+          phone: string
+          scheduled_response_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          conversation_id: string
+          created_at?: string | null
+          first_message_at?: string | null
+          id?: string
+          instance_id: string
+          last_message_at?: string | null
+          messages?: Json | null
+          phone: string
+          scheduled_response_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          conversation_id?: string
+          created_at?: string | null
+          first_message_at?: string | null
+          id?: string
+          instance_id?: string
+          last_message_at?: string | null
+          messages?: Json | null
+          phone?: string
+          scheduled_response_at?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_message_buffer_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_message_buffer_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]

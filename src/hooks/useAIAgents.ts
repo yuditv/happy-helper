@@ -34,6 +34,12 @@ export interface AIAgent {
   memory_sync_clients: boolean | null;
   memory_generate_summary: boolean | null;
   memory_max_items: number | null;
+  // Buffer config
+  message_buffer_enabled: boolean | null;
+  buffer_wait_seconds: number | null;
+  buffer_max_messages: number | null;
+  // Anti-hallucination
+  anti_hallucination_enabled: boolean | null;
 }
 
 export interface AIChatMessage {
@@ -84,6 +90,12 @@ export interface CreateAgentInput {
   memory_sync_clients?: boolean;
   memory_generate_summary?: boolean;
   memory_max_items?: number;
+  // Buffer config
+  message_buffer_enabled?: boolean;
+  buffer_wait_seconds?: number;
+  buffer_max_messages?: number;
+  // Anti-hallucination
+  anti_hallucination_enabled?: boolean;
 }
 
 export interface UpdateAgentInput extends Partial<CreateAgentInput> {

@@ -1444,122 +1444,198 @@ serve(async (req: Request) => {
         const agent = routing.agent;
         
         if (agent.is_whatsapp_enabled && agent.is_active) {
-          console.log(`[Inbox Webhook] Routing to AI agent: ${agent.name} (native: ${agent.use_native_ai})`);
+          console.log(`[Inbox Webhook] Routing to AI agent: ${agent.name} (buffer: ${agent.message_buffer_enabled})`);
           
-          const sessionId = conversation.id; // Use raw UUID for ai_chat_messages compatibility
-          let assistantResponse = '';
-          
-          try {
-            if (agent.use_native_ai) {
-              // Call native AI agent via ai-agent-chat Edge Function
-              console.log(`[Inbox Webhook] Calling native AI agent with model: ${agent.ai_model || 'google/gemini-2.5-flash'}`);
+          // Check if message buffer is enabled
+          if (agent.message_buffer_enabled) {
+            // ============ MESSAGE BUFFER SYSTEM ============
+            const bufferWaitSeconds = agent.buffer_wait_seconds || 5;
+            const scheduledAt = new Date(Date.now() + bufferWaitSeconds * 1000).toISOString();
+            
+            // Check for existing active buffer
+            const { data: existingBuffer } = await supabase
+              .from('ai_message_buffer')
+              .select('*')
+              .eq('conversation_id', conversation.id)
+              .eq('status', 'buffering')
+              .single();
+            
+            if (existingBuffer) {
+              // Add message to existing buffer and reschedule
+              const currentMessages = existingBuffer.messages as Array<{ content: string; timestamp: string }>;
+              const updatedMessages = [...currentMessages, {
+                content: message || caption || '',
+                timestamp: new Date().toISOString()
+              }];
               
-              const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-              const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+              // Check if we hit max messages
+              const maxMessages = agent.buffer_max_messages || 10;
+              const shouldForceProcess = updatedMessages.length >= maxMessages;
               
-              const aiChatResponse = await fetch(
-                `${supabaseUrl}/functions/v1/ai-agent-chat`,
-                {
+              await supabase
+                .from('ai_message_buffer')
+                .update({
+                  messages: updatedMessages,
+                  last_message_at: new Date().toISOString(),
+                  scheduled_response_at: shouldForceProcess ? new Date().toISOString() : scheduledAt
+                })
+                .eq('id', existingBuffer.id);
+              
+              console.log(`[Inbox Webhook] Added to buffer (${updatedMessages.length}/${maxMessages} msgs), ${shouldForceProcess ? 'forcing process' : `will respond in ${bufferWaitSeconds}s`}`);
+            } else {
+              // Create new buffer
+              await supabase
+                .from('ai_message_buffer')
+                .insert({
+                  conversation_id: conversation.id,
+                  phone: normalizedPhone,
+                  instance_id: instance.id,
+                  user_id: instance.user_id,
+                  agent_id: agent.id,
+                  messages: [{ content: message || caption || '', timestamp: new Date().toISOString() }],
+                  scheduled_response_at: scheduledAt
+                });
+              
+              console.log(`[Inbox Webhook] Created new buffer, AI will respond in ${bufferWaitSeconds}s`);
+            }
+            
+            // Don't call AI here - the buffer processor will handle it
+            // Trigger the processor after a delay using fire-and-forget fetch
+            // We don't await this - it runs in the background
+            const supabaseUrlForBuffer = Deno.env.get('SUPABASE_URL') || '';
+            const supabaseServiceKeyForBuffer = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+            
+            // Fire and forget - trigger processor after buffer wait time
+            // The processor will check scheduled_response_at and only process ready buffers
+            setTimeout(async () => {
+              try {
+                await fetch(`${supabaseUrlForBuffer}/functions/v1/ai-buffer-processor`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${supabaseServiceKey}`
-                  },
-                  body: JSON.stringify({
-                    agentId: agent.id,
-                    message: message,
-                    sessionId: sessionId,
-                    source: 'whatsapp-inbox',
-                    phone: normalizedPhone
-                  })
-                }
-              );
-
-              if (aiChatResponse.ok) {
-                const aiData = await aiChatResponse.json();
-                // ai-agent-chat returns response in message.content for native AI
-                assistantResponse = aiData.message?.content || aiData.response || '';
-                console.log(`[Inbox Webhook] Native AI response received: ${assistantResponse.substring(0, 100)}...`);
-              } else {
-                const errorText = await aiChatResponse.text();
-                console.error('[Inbox Webhook] Native AI error:', errorText);
-              }
-            } else if (agent.webhook_url) {
-              // Call n8n webhook for external AI
-              console.log(`[Inbox Webhook] Calling n8n webhook: ${agent.webhook_url}`);
-              
-              const n8nResponse = await fetch(agent.webhook_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  message,
-                  sessionId,
-                  phone: normalizedPhone,
-                  source: 'whatsapp-inbox',
-                  agentName: agent.name,
-                  instanceName: instance.instance_name,
-                  conversationId: conversation.id,
-                  contactName: conversation.contact_name,
-                  metadata: {
-                    instance_id: instance.id,
-                    instance_key: instance.instance_key
+                    'Authorization': `Bearer ${supabaseServiceKeyForBuffer}`
                   }
-                }),
-              });
-
-              if (n8nResponse.ok) {
-                const n8nData = await n8nResponse.json();
-                assistantResponse = 
-                  n8nData.response || 
-                  n8nData.message || 
-                  n8nData.output || 
-                  n8nData.text ||
-                  n8nData.reply ||
-                  (typeof n8nData === 'string' ? n8nData : '');
+                });
+                console.log('[Inbox Webhook] Buffer processor triggered');
+              } catch (e) {
+                console.error('[Inbox Webhook] Error triggering buffer processor:', e);
               }
-            } else {
-              console.log('[Inbox Webhook] Agent has no webhook URL and native AI is disabled');
-            }
+            }, (bufferWaitSeconds + 1) * 1000);
+            
+          } else {
+            // ============ IMMEDIATE RESPONSE (OLD BEHAVIOR) ============
+            const sessionId = conversation.id;
+            let assistantResponse = '';
+            
+            try {
+              if (agent.use_native_ai) {
+                console.log(`[Inbox Webhook] Calling native AI agent with model: ${agent.ai_model || 'google/gemini-2.5-flash'}`);
+                
+                const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+                const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+                
+                const aiChatResponse = await fetch(
+                  `${supabaseUrl}/functions/v1/ai-agent-chat`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${supabaseServiceKey}`
+                    },
+                    body: JSON.stringify({
+                      agentId: agent.id,
+                      message: message,
+                      sessionId: sessionId,
+                      source: 'whatsapp-inbox',
+                      phone: normalizedPhone
+                    })
+                  }
+                );
 
-            if (assistantResponse) {
-              // Save AI response
-              await supabase
-                .from('chat_inbox_messages')
-                .insert({
-                  conversation_id: conversation.id,
-                  sender_type: 'ai',
-                  content: assistantResponse,
-                  metadata: { agent_id: agent.id, agent_name: agent.name }
+                if (aiChatResponse.ok) {
+                  const aiData = await aiChatResponse.json();
+                  assistantResponse = aiData.message?.content || aiData.response || '';
+                  console.log(`[Inbox Webhook] Native AI response received: ${assistantResponse.substring(0, 100)}...`);
+                } else {
+                  const errorText = await aiChatResponse.text();
+                  console.error('[Inbox Webhook] Native AI error:', errorText);
+                }
+              } else if (agent.webhook_url) {
+                console.log(`[Inbox Webhook] Calling n8n webhook: ${agent.webhook_url}`);
+                
+                const n8nResponse = await fetch(agent.webhook_url, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    message,
+                    sessionId,
+                    phone: normalizedPhone,
+                    source: 'whatsapp-inbox',
+                    agentName: agent.name,
+                    instanceName: instance.instance_name,
+                    conversationId: conversation.id,
+                    contactName: conversation.contact_name,
+                    metadata: {
+                      instance_id: instance.id,
+                      instance_key: instance.instance_key
+                    }
+                  }),
                 });
 
-              // Format phone number with international support
-              const formattedPhone = formatPhoneNumber(normalizedPhone);
+                if (n8nResponse.ok) {
+                  const n8nData = await n8nResponse.json();
+                  assistantResponse = 
+                    n8nData.response || 
+                    n8nData.message || 
+                    n8nData.output || 
+                    n8nData.text ||
+                    n8nData.reply ||
+                    (typeof n8nData === 'string' ? n8nData : '');
+                }
+              } else {
+                console.log('[Inbox Webhook] Agent has no webhook URL and native AI is disabled');
+              }
 
-              // Build send configuration from agent settings
-              const sendConfig: MessageSendConfig = {
-                response_delay_min: agent.response_delay_min ?? DEFAULT_SEND_CONFIG.response_delay_min,
-                response_delay_max: agent.response_delay_max ?? DEFAULT_SEND_CONFIG.response_delay_max,
-                max_lines_per_message: agent.max_lines_per_message ?? DEFAULT_SEND_CONFIG.max_lines_per_message,
-                split_mode: agent.split_mode ?? DEFAULT_SEND_CONFIG.split_mode,
-                split_delay_min: agent.split_delay_min ?? DEFAULT_SEND_CONFIG.split_delay_min,
-                split_delay_max: agent.split_delay_max ?? DEFAULT_SEND_CONFIG.split_delay_max,
-                max_chars_per_message: agent.max_chars_per_message ?? DEFAULT_SEND_CONFIG.max_chars_per_message,
-                typing_simulation: agent.typing_simulation ?? DEFAULT_SEND_CONFIG.typing_simulation
-              };
+              if (assistantResponse) {
+                // Save AI response
+                await supabase
+                  .from('chat_inbox_messages')
+                  .insert({
+                    conversation_id: conversation.id,
+                    sender_type: 'ai',
+                    content: assistantResponse,
+                    metadata: { agent_id: agent.id, agent_name: agent.name }
+                  });
 
-              // Send via UAZAPI with configured delays and splitting
-              await sendAIResponseWithConfig(
-                uazapiUrl,
-                instance.instance_key || uazapiToken,
-                formattedPhone,
-                assistantResponse,
-                sendConfig
-              );
+                // Format phone number with international support
+                const formattedPhone = formatPhoneNumber(normalizedPhone);
 
-              console.log('[Inbox Webhook] AI response sent successfully with config');
+                // Build send configuration from agent settings
+                const sendConfig: MessageSendConfig = {
+                  response_delay_min: agent.response_delay_min ?? DEFAULT_SEND_CONFIG.response_delay_min,
+                  response_delay_max: agent.response_delay_max ?? DEFAULT_SEND_CONFIG.response_delay_max,
+                  max_lines_per_message: agent.max_lines_per_message ?? DEFAULT_SEND_CONFIG.max_lines_per_message,
+                  split_mode: agent.split_mode ?? DEFAULT_SEND_CONFIG.split_mode,
+                  split_delay_min: agent.split_delay_min ?? DEFAULT_SEND_CONFIG.split_delay_min,
+                  split_delay_max: agent.split_delay_max ?? DEFAULT_SEND_CONFIG.split_delay_max,
+                  max_chars_per_message: agent.max_chars_per_message ?? DEFAULT_SEND_CONFIG.max_chars_per_message,
+                  typing_simulation: agent.typing_simulation ?? DEFAULT_SEND_CONFIG.typing_simulation
+                };
+
+                // Send via UAZAPI with configured delays and splitting
+                await sendAIResponseWithConfig(
+                  uazapiUrl,
+                  instance.instance_key || uazapiToken,
+                  formattedPhone,
+                  assistantResponse,
+                  sendConfig
+                );
+
+                console.log('[Inbox Webhook] AI response sent successfully with config');
+              }
+            } catch (aiError) {
+              console.error('[Inbox Webhook] Error calling AI agent:', aiError);
             }
-          } catch (aiError) {
-            console.error('[Inbox Webhook] Error calling AI agent:', aiError);
           }
         }
       } else {

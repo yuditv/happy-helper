@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, Link, Globe, Smartphone, Palette, Cpu, Brain, Clock, MessageSquare, Settings2, Zap, Database } from "lucide-react";
+import { Bot, Link, Globe, Smartphone, Palette, Cpu, Brain, Clock, MessageSquare, Settings2, Zap, Database, Layers, ShieldCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +78,12 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
     memory_sync_clients: true,
     memory_generate_summary: true,
     memory_max_items: 20,
+    // Buffer defaults
+    message_buffer_enabled: true,
+    buffer_wait_seconds: 5,
+    buffer_max_messages: 10,
+    // Anti-hallucination
+    anti_hallucination_enabled: true,
   });
 
   useEffect(() => {
@@ -109,6 +115,12 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         memory_sync_clients: editingAgent.memory_sync_clients ?? true,
         memory_generate_summary: editingAgent.memory_generate_summary ?? true,
         memory_max_items: editingAgent.memory_max_items ?? 20,
+        // Buffer config
+        message_buffer_enabled: editingAgent.message_buffer_enabled ?? true,
+        buffer_wait_seconds: editingAgent.buffer_wait_seconds ?? 5,
+        buffer_max_messages: editingAgent.buffer_max_messages ?? 10,
+        // Anti-hallucination
+        anti_hallucination_enabled: editingAgent.anti_hallucination_enabled ?? true,
       });
     } else {
       setFormData({
@@ -137,6 +149,12 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         memory_sync_clients: true,
         memory_generate_summary: true,
         memory_max_items: 20,
+        // Buffer defaults
+        message_buffer_enabled: true,
+        buffer_wait_seconds: 5,
+        buffer_max_messages: 10,
+        // Anti-hallucination
+        anti_hallucination_enabled: true,
       });
     }
   }, [editingAgent, open]);
@@ -220,7 +238,7 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
 
         <form onSubmit={handleSubmit} className="relative z-10">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Brain className="h-4 w-4" />
                 Geral
@@ -228,6 +246,10 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
               <TabsTrigger value="sending" className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
                 Envio
+              </TabsTrigger>
+              <TabsTrigger value="buffer" className="flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                Buffer
               </TabsTrigger>
               <TabsTrigger value="memory" className="flex items-center gap-2">
                 <Database className="h-4 w-4" />
@@ -665,6 +687,137 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
                   checked={formData.typing_simulation}
                   onCheckedChange={(checked) => 
                     setFormData({ ...formData, typing_simulation: checked })
+                  }
+                />
+              </motion.div>
+            </TabsContent>
+
+            {/* Buffer Configuration Tab */}
+            <TabsContent value="buffer" className="space-y-5">
+              {/* Buffer Enable */}
+              <motion.div 
+                custom={0}
+                variants={formItemVariants}
+                initial="hidden"
+                animate="visible"
+                className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/20">
+                      <Layers className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Buffer de Mensagens</p>
+                      <p className="text-xs text-muted-foreground">
+                        Aguarda múltiplas mensagens antes de responder
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={formData.message_buffer_enabled}
+                    onCheckedChange={(checked) => 
+                      setFormData({ ...formData, message_buffer_enabled: checked })
+                    }
+                  />
+                </div>
+              </motion.div>
+
+              {formData.message_buffer_enabled && (
+                <>
+                  {/* Wait Time */}
+                  <motion.div 
+                    custom={1}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-3 p-4 rounded-lg bg-muted/20 border border-border/30"
+                  >
+                    <Label className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      Tempo de Espera (segundos)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Após a última mensagem do cliente, a IA aguarda esse tempo antes de responder
+                    </p>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={30}
+                      value={formData.buffer_wait_seconds}
+                      onChange={(e) => setFormData({ ...formData, buffer_wait_seconds: parseInt(e.target.value) || 5 })}
+                      className="bg-background/50 border-border/50 w-32"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      💡 Recomendado: 3-7 segundos. Permite que o cliente termine de digitar.
+                    </p>
+                  </motion.div>
+
+                  {/* Max Messages */}
+                  <motion.div 
+                    custom={2}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-3 p-4 rounded-lg bg-muted/20 border border-border/30"
+                  >
+                    <Label className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      Máximo de Mensagens no Buffer
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Força resposta após atingir esse limite, mesmo sem esperar o tempo
+                    </p>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={50}
+                      value={formData.buffer_max_messages}
+                      onChange={(e) => setFormData({ ...formData, buffer_max_messages: parseInt(e.target.value) || 10 })}
+                      className="bg-background/50 border-border/50 w-32"
+                    />
+                  </motion.div>
+
+                  {/* How it works info */}
+                  <motion.div 
+                    custom={3}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="p-4 rounded-lg bg-muted/10 border border-border/20"
+                  >
+                    <p className="text-sm font-medium mb-2">📝 Como funciona:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Cliente envia "oi" → Timer de {formData.buffer_wait_seconds}s inicia</li>
+                      <li>Cliente envia "quero saber preços" → Timer reinicia</li>
+                      <li>Cliente para de digitar → Após {formData.buffer_wait_seconds}s, IA responde</li>
+                      <li>A IA vê TODAS as mensagens como contexto único</li>
+                    </ul>
+                  </motion.div>
+                </>
+              )}
+
+              {/* Anti-Hallucination */}
+              <motion.div 
+                custom={4}
+                variants={formItemVariants}
+                initial="hidden"
+                animate="visible"
+                className="flex items-center justify-between p-4 rounded-lg bg-muted/20 border border-border/30"
+              >
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Regras Anti-Alucinação</p>
+                    <p className="text-xs text-muted-foreground">
+                      Impede que a IA invente informações (preços, planos, etc)
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.anti_hallucination_enabled}
+                  onCheckedChange={(checked) => 
+                    setFormData({ ...formData, anti_hallucination_enabled: checked })
                   }
                 />
               </motion.div>

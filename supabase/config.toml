@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.crm-uazapi]
 verify_jwt = false
+
+[functions.ai-buffer-processor]
+verify_jwt = false
