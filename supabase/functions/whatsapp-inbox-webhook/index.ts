@@ -264,6 +264,148 @@ async function sendAIResponseWithConfig(
   console.log('[Inbox Webhook] All message parts sent successfully');
 }
 
+// ===== Owner Notification Event Detection =====
+
+type NotificationEventType = 
+  | 'ai_uncertainty'
+  | 'payment_proof'
+  | 'new_contact'
+  | 'complaint'
+  | 'vip_message'
+  | 'long_wait';
+
+interface DetectedEvent {
+  shouldNotify: boolean;
+  eventType: NotificationEventType;
+  summary: string;
+  urgency: 'low' | 'medium' | 'high';
+}
+
+/**
+ * Detect if a message/event should trigger an owner notification
+ */
+function detectNotifiableEvent(
+  messageContent: string,
+  mediaType: string | undefined,
+  isNewContact: boolean,
+  clientMemory: any
+): DetectedEvent {
+  const lowerMessage = (messageContent || '').toLowerCase();
+  
+  // Payment proof detection (image + payment keywords)
+  const paymentKeywords = ['paguei', 'comprovante', 'pix', 'transferi', 'pagamento', 'pago', 'deposito', 'depositei', 'boleto'];
+  const hasPaymentKeyword = paymentKeywords.some(kw => lowerMessage.includes(kw));
+  
+  if (mediaType === 'image' && (hasPaymentKeyword || lowerMessage.length < 50)) {
+    // Image with payment keyword or short message = likely payment proof
+    if (hasPaymentKeyword || lowerMessage === '' || lowerMessage.length < 20) {
+      return {
+        shouldNotify: true,
+        eventType: 'payment_proof',
+        summary: `Cliente enviou imagem${hasPaymentKeyword ? ' com menção a pagamento' : ' (possível comprovante)'}`,
+        urgency: 'medium'
+      };
+    }
+  }
+  
+  // Complaint detection
+  const complaintKeywords = [
+    'problema', 'não funciona', 'travando', 'ruim', 'péssimo', 'reclamar', 
+    'insatisfeito', 'devolução', 'reembolso', 'cancelar', 'não abre', 
+    'não carrega', 'parou', 'quebrou', 'horrível', 'lixo'
+  ];
+  const hasComplaint = complaintKeywords.some(kw => lowerMessage.includes(kw));
+  
+  if (hasComplaint) {
+    return {
+      shouldNotify: true,
+      eventType: 'complaint',
+      summary: `Possível reclamação: "${messageContent.substring(0, 80)}${messageContent.length > 80 ? '...' : ''}"`,
+      urgency: 'high'
+    };
+  }
+  
+  // Urgency detection
+  const urgentKeywords = ['urgente', 'emergência', 'socorro', 'ajuda', 'por favor'];
+  const hasUrgency = urgentKeywords.some(kw => lowerMessage.includes(kw));
+  
+  if (hasUrgency && lowerMessage.length > 10) {
+    return {
+      shouldNotify: true,
+      eventType: 'complaint',
+      summary: `Mensagem urgente: "${messageContent.substring(0, 80)}${messageContent.length > 80 ? '...' : ''}"`,
+      urgency: 'high'
+    };
+  }
+  
+  // VIP client detection
+  if (clientMemory?.is_vip) {
+    return {
+      shouldNotify: true,
+      eventType: 'vip_message',
+      summary: `Cliente VIP ${clientMemory.client_name || ''} mandou mensagem: "${messageContent.substring(0, 60)}..."`,
+      urgency: 'medium'
+    };
+  }
+  
+  // New contact detection
+  if (isNewContact) {
+    return {
+      shouldNotify: true,
+      eventType: 'new_contact',
+      summary: `Primeira mensagem: "${messageContent.substring(0, 80)}${messageContent.length > 80 ? '...' : ''}"`,
+      urgency: 'low'
+    };
+  }
+  
+  return {
+    shouldNotify: false,
+    eventType: 'new_contact',
+    summary: '',
+    urgency: 'low'
+  };
+}
+
+/**
+ * Send owner notification via edge function (fire and forget)
+ */
+async function sendOwnerNotification(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  userId: string,
+  eventType: NotificationEventType,
+  contactPhone: string,
+  contactName: string | null,
+  summary: string,
+  conversationId: string,
+  instanceId: string,
+  urgency: 'low' | 'medium' | 'high'
+): Promise<void> {
+  try {
+    console.log(`[Inbox Webhook] Triggering owner notification: ${eventType}`);
+    
+    await fetch(`${supabaseUrl}/functions/v1/send-owner-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`
+      },
+      body: JSON.stringify({
+        userId,
+        eventType,
+        contactPhone,
+        contactName,
+        summary,
+        conversationId,
+        instanceId,
+        urgency
+      })
+    });
+  } catch (e) {
+    console.error('[Inbox Webhook] Error sending owner notification:', e);
+  }
+}
+
 /**
  * Detect country code from phone number
  * Returns ISO 2-letter country code (e.g., 'US', 'BR', 'UK')
@@ -1423,6 +1565,55 @@ serve(async (req: Request) => {
       console.error('[Inbox Webhook] Error saving message:', msgError);
     } else {
       console.log(`[Inbox Webhook] Saved ${senderType} message: ${savedMessage.id}`);
+    }
+
+    // ===== OWNER NOTIFICATION SYSTEM =====
+    // Only trigger for INCOMING messages (not fromMe)
+    if (!fromMe && savedMessage) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+      
+      // Determine if this is a new contact (conversation was just created)
+      const isNewContact = !conversation.created_at || 
+        (new Date().getTime() - new Date(conversation.created_at).getTime()) < 5000;
+      
+      // Try to fetch client memory for VIP detection
+      let clientMemory: any = null;
+      try {
+        const { data: memoryData } = await supabase
+          .from('ai_client_memories')
+          .select('is_vip, client_name')
+          .eq('phone', normalizedPhone)
+          .eq('user_id', instance.user_id)
+          .maybeSingle();
+        clientMemory = memoryData;
+      } catch (e) {
+        // Memory fetch is optional, continue without it
+      }
+      
+      // Detect if this event should trigger a notification
+      const detectedEvent = detectNotifiableEvent(
+        message || caption || '',
+        mediaType,
+        isNewContact,
+        clientMemory
+      );
+      
+      if (detectedEvent.shouldNotify) {
+        // Fire and forget - don't await
+        sendOwnerNotification(
+          supabaseUrl,
+          supabaseServiceKey,
+          instance.user_id,
+          detectedEvent.eventType,
+          normalizedPhone,
+          conversation.contact_name,
+          detectedEvent.summary,
+          conversation.id,
+          instance.id,
+          detectedEvent.urgency
+        );
+      }
     }
 
     // Check if AI should respond - only for INCOMING messages (not fromMe)

@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       // Check if conversation exists
       const { data: existingConv } = await supabase
         .from('conversations')
-        .select('id, last_message_at')
+        .select('id, last_message_at, contact_name')
         .eq('instance_id', instanceId)
         .eq('phone', phone)
         .single();

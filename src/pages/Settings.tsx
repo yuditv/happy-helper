@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, DollarSign, Palette, Save, Moon, Sun, Monitor, Loader2, Bell, CreditCard } from 'lucide-react';
+import { ArrowLeft, DollarSign, Palette, Save, Moon, Sun, Monitor, Loader2, Bell, CreditCard, BellRing } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanSettings, PlanSetting } from '@/hooks/usePlanSettings';
 import { RenewalReminderSettings } from '@/components/RenewalReminderSettings';
 import { SubscriptionReminderSettings } from '@/components/SubscriptionReminderSettings';
+import { OwnerNotificationSettings } from '@/components/OwnerNotificationSettings';
 import { toast } from 'sonner';
 
 export default function Settings() {
@@ -89,7 +90,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="plans" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="plans" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Planos</span>
@@ -101,6 +102,10 @@ export default function Settings() {
             <TabsTrigger value="subscription-reminders" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               <span className="hidden sm:inline">Assinatura</span>
+            </TabsTrigger>
+            <TabsTrigger value="owner-notifications" className="flex items-center gap-2">
+              <BellRing className="h-4 w-4" />
+              <span className="hidden sm:inline">Alertas</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
@@ -180,6 +185,11 @@ export default function Settings() {
           {/* Subscription Reminders Tab */}
           <TabsContent value="subscription-reminders" className="space-y-6">
             <SubscriptionReminderSettings />
+          </TabsContent>
+
+          {/* Owner Notifications Tab */}
+          <TabsContent value="owner-notifications" className="space-y-6">
+            <OwnerNotificationSettings />
           </TabsContent>
 
           {/* Appearance Tab */}

@@ -74,3 +74,12 @@ verify_jwt = false
 
 [functions.ai-buffer-processor]
 verify_jwt = false
+
+[functions.send-owner-notification]
+verify_jwt = false
+
+[functions.vpn-test-generator]
+verify_jwt = false
+
+[functions.sync-chats]
+verify_jwt = false
