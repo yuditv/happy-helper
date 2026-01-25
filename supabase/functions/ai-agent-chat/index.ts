@@ -10,7 +10,7 @@ interface ChatRequest {
   agentId: string;
   message: string;
   sessionId?: string;
-  source?: 'web' | 'whatsapp';
+  source?: 'web' | 'whatsapp' | 'whatsapp-inbox';
   metadata?: Record<string, unknown>;
 }
 
@@ -43,29 +43,63 @@ serve(async (req: Request) => {
 
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '') || '';
     
-    // Create client with user's token for RLS
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader || '' } }
-    });
-
     // Create admin client for fetching agent data (bypasses RLS)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Parse request body first to check source
     const body: ChatRequest = await req.json();
     const { agentId, message, sessionId, source = 'web', metadata = {} } = body;
 
-    console.log(`Processing chat request for agent: ${agentId}, user: ${user.id}`);
+    // Check if this is an internal call from whatsapp-inbox-webhook
+    const isInternalCall = source === 'whatsapp-inbox' || source === 'whatsapp';
+    const isServiceRoleKey = token === supabaseServiceKey;
+
+    let userId: string;
+    let supabaseUser;
+
+    if (isInternalCall && isServiceRoleKey) {
+      // Internal webhook call - bypass user auth, use service role for DB operations
+      console.log(`[ai-agent-chat] Internal webhook call detected for agent: ${agentId}`);
+      
+      // Fetch agent to get created_by as the user context
+      const { data: agentForUser } = await supabaseAdmin
+        .from('ai_agents')
+        .select('created_by')
+        .eq('id', agentId)
+        .single();
+      
+      userId = agentForUser?.created_by || '';
+      if (!userId) {
+        console.error('[ai-agent-chat] Could not determine user context for internal call');
+        return new Response(
+          JSON.stringify({ error: 'Could not determine user context' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Use admin client for internal calls
+      supabaseUser = supabaseAdmin;
+      console.log(`[ai-agent-chat] Using agent owner as user context: ${userId}`);
+    } else {
+      // Normal web/chat call - require user authentication
+      supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader || '' } }
+      });
+
+      const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+      if (authError || !user) {
+        console.error('[ai-agent-chat] Auth error:', authError);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      userId = user.id;
+    }
+
+    console.log(`[ai-agent-chat] Processing chat request for agent: ${agentId}, user: ${userId}, source: ${source}`);
 
     if (!agentId || !message) {
       return new Response(
@@ -113,7 +147,7 @@ serve(async (req: Request) => {
       .from('ai_chat_messages')
       .insert({
         agent_id: agentId,
-        user_id: user.id,
+        user_id: userId,
         session_id: chatSessionId,
         role: 'user',
         content: message,
@@ -244,12 +278,11 @@ serve(async (req: Request) => {
             body: JSON.stringify({
               message,
               sessionId: chatSessionId,
-              userId: user.id,
+              userId: userId,
               source,
               agentName: agent.name,
               metadata: {
                 ...metadata,
-                userEmail: user.email,
               }
             }),
           });
@@ -285,7 +318,7 @@ serve(async (req: Request) => {
       .from('ai_chat_messages')
       .insert({
         agent_id: agentId,
-        user_id: user.id,
+        user_id: userId,
         session_id: chatSessionId,
         role: 'assistant',
         content: assistantResponse,
@@ -293,7 +326,7 @@ serve(async (req: Request) => {
           source, 
           error: aiError,
           model: agent.use_native_ai ? agent.ai_model : 'webhook',
-          ...metadata 
+          ...metadata
         }
       })
       .select()
