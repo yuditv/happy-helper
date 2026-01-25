@@ -79,14 +79,6 @@ const menuItems: MenuItem[] = [
     permissionKey: "can_view_inbox",
   },
   {
-    id: "filter-numbers",
-    title: "Filtrar",
-    icon: Search,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500",
-    permissionKey: "can_view_whatsapp",
-  },
-  {
     id: "ai-agent",
     title: "Agente IA",
     icon: Bot,

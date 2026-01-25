@@ -42,6 +42,7 @@ import {
   Settings,
   TestTube2,
   Database,
+  Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WhatsAppTemplateManager } from '@/components/WhatsAppTemplateManager';
@@ -59,8 +60,9 @@ import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
 import { InstanceSettingsDialog } from '@/components/InstanceSettingsDialog';
 import { motion } from 'framer-motion';
 
-// Lazy load Contacts page
+// Lazy load pages
 const Contacts = lazy(() => import('@/pages/Contacts'));
+const FilterNumbers = lazy(() => import('@/pages/FilterNumbers'));
 
 export default function WhatsApp() {
   const { 
@@ -327,7 +329,7 @@ export default function WhatsApp() {
         )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="w-full max-w-5xl grid grid-cols-8">
+        <TabsList className="w-full max-w-5xl grid grid-cols-9">
           <TabsTrigger value="dispatch" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Disparo</span>
@@ -335,6 +337,10 @@ export default function WhatsApp() {
           <TabsTrigger value="contacts" className="gap-2">
             <Database className="h-4 w-4" />
             <span className="hidden sm:inline">Contatos</span>
+          </TabsTrigger>
+          <TabsTrigger value="filter" className="gap-2">
+            <Search className="h-4 w-4" />
+            <span className="hidden sm:inline">Filtrar</span>
           </TabsTrigger>
           <TabsTrigger value="status" className="gap-2">
             <CircleDot className="h-4 w-4" />
@@ -365,6 +371,17 @@ export default function WhatsApp() {
         {/* Dispatch Tab */}
         <TabsContent value="dispatch" className="space-y-6">
           <BulkDispatcher />
+        </TabsContent>
+
+        {/* Filter Numbers Tab */}
+        <TabsContent value="filter" className="space-y-6">
+          <Suspense fallback={
+            <div className="flex justify-center py-12">
+              <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          }>
+            <FilterNumbers />
+          </Suspense>
         </TabsContent>
 
         {/* Instances Tab */}
