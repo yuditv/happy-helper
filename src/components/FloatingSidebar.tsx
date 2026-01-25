@@ -147,26 +147,26 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        <div className="flex items-center h-14 px-4 gap-2">
+        <div className="flex items-center h-16 px-6 gap-4">
           {/* Logo */}
-          <div className="flex items-center gap-2 pr-4 border-r border-border/50 shrink-0">
+          <div className="flex items-center gap-3 pr-6 border-r border-border/50 shrink-0">
             <div className="relative">
               <img
                 src={logoFuturistic}
                 alt="Logo"
-                className="h-8 w-8 rounded-lg object-contain"
+                className="h-10 w-10 rounded-lg object-contain"
               />
               <motion.div 
-                className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary"
+                className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary"
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
             </div>
-            <span className="font-bold text-lg text-gradient hidden sm:inline">Painel</span>
+            <span className="font-bold text-xl text-gradient hidden sm:inline">Painel</span>
           </div>
 
           {/* Menu Items */}
-          <nav className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
+          <nav className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
             {visibleMenuItems.map((item) => {
               const isActive = activeSection === item.id;
               const Icon = item.icon;
@@ -177,7 +177,7 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
                     <motion.button
                       onClick={() => handleClick(item)}
                       className={cn(
-                        "relative flex items-center gap-2 px-3 py-2 rounded-lg shrink-0",
+                        "relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0",
                         "transition-all duration-200 ease-out",
                         "hover:bg-muted/50",
                         isActive && "bg-primary text-primary-foreground shadow-lg"
@@ -192,7 +192,7 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
                       {isActive && (
                         <motion.div
                           layoutId="activeIndicator"
-                          className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 w-8 h-1 rounded-t-full bg-primary"
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5 w-10 h-1 rounded-t-full bg-primary"
                           style={{
                             boxShadow: "0 0 10px hsl(var(--primary))"
                           }}
@@ -200,12 +200,12 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
                       )}
 
                       <Icon className={cn(
-                        "h-4 w-4 shrink-0 transition-colors",
+                        "h-5 w-5 shrink-0 transition-colors",
                         isActive ? "text-current" : item.color
                       )} />
 
                       <span className={cn(
-                        "text-sm font-medium whitespace-nowrap hidden md:inline",
+                        "text-base font-medium whitespace-nowrap hidden md:inline",
                         isActive ? "text-current" : "text-foreground"
                       )}>
                         {item.title}
@@ -221,30 +221,30 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
           </nav>
 
           {/* User Menu */}
-          <div className="pl-4 border-l border-border/50 shrink-0">
+          <div className="pl-6 border-l border-border/50 shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <motion.button
                   className={cn(
-                    "flex items-center gap-2 p-1.5 rounded-lg",
+                    "flex items-center gap-3 p-2 rounded-xl",
                     "transition-all duration-200 ease-out",
                     "hover:bg-muted/50"
                   )}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-10 w-10">
                     <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                    <AvatarFallback className="bg-primary/10 text-primary text-base">
                       {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden lg:flex flex-col items-start overflow-hidden">
-                    <span className="text-sm font-medium text-foreground truncate max-w-[100px]">
+                    <span className="text-base font-medium text-foreground truncate max-w-[120px]">
                       {profile?.display_name || 'Usuário'}
                     </span>
                   </div>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden lg:block" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground hidden lg:block" />
                 </motion.button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" sideOffset={8} className="glass-card border-border/50 w-56">
