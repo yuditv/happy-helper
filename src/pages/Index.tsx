@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import logoFuturistic from '@/assets/logo-red-futuristic.png';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
 import { useClientTags } from '@/hooks/useClientTags';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -38,7 +37,6 @@ import { NotificationCenter } from '@/components/NotificationCenter';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,9 +44,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Users, Download, FileSpreadsheet, History, LogOut, User, Settings, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, BarChart3, Smartphone, Package, Upload, Search, MessageSquare, Lock, CreditCard } from 'lucide-react';
+import { Plus, Users, Download, FileSpreadsheet, History, FileText, Sparkles, Zap, ArrowUpDown, ChevronLeft, ChevronRight, LayoutGrid, List, CheckSquare, Square, X, RefreshCw as RefreshCwIcon, Trash2, Send, Upload, Search, MessageSquare, Lock } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { exportClientsToCSV, exportRenewalHistoryToCSV } from '@/lib/exportClients';
@@ -57,9 +55,7 @@ import { getDaysUntilExpiration } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const { profile } = useProfile();
+  const { user } = useAuth();
   const { getPlanName } = usePlanSettings();
   const { clients, isLoading, addClient, updateClient, deleteClient, renewClient, importClients, expiringClients, expiredClients } = useClients();
   const { tags, createTag, updateTag, deleteTag, assignTag, removeTag, getClientTags, getClientsByTag } = useClientTags();
@@ -432,10 +428,6 @@ const Index = () => {
     handleOpenEdit(client);
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast.success('Logout realizado com sucesso!');
-  };
 
   if (isLoading) {
     return (
@@ -531,66 +523,6 @@ const Index = () => {
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Novo Cliente</span>
               </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="glass-card border-primary/30 hover:border-primary hover:neon-glow transition-all duration-300 p-0 overflow-hidden">
-                    {profile?.avatar_url ? (
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={profile.avatar_url} alt="Avatar" />
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {profile.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <User className="h-4 w-4" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="glass-card border-border/50">
-                  <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border/50 flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-foreground truncate max-w-[150px]">{profile?.display_name || 'Usuário'}</p>
-                      <span className="text-xs text-muted-foreground truncate block max-w-[150px]">{user?.email}</span>
-                    </div>
-                  </div>
-                  <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
-                    <User className="h-4 w-4 mr-2 text-primary" />
-                    Meu Perfil
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/payment-history')} className="hover:bg-primary/10">
-                    <CreditCard className="h-4 w-4 mr-2 text-primary" />
-                    Histórico de Pagamentos
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/my-dashboard')} className="hover:bg-primary/10">
-                    <BarChart3 className="h-4 w-4 mr-2 text-primary" />
-                    Meu Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/dashboard')} className="hover:bg-primary/10">
-                    <BarChart3 className="h-4 w-4 mr-2 text-accent" />
-                    Dashboard Geral
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-border/50" />
-                  <DropdownMenuItem onClick={() => navigate('/install')} className="hover:bg-primary/10">
-                    <Smartphone className="h-4 w-4 mr-2 text-primary" />
-                    Instalar App
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
-                    <Settings className="h-4 w-4 mr-2 text-primary" />
-                    Configurações
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut} className="hover:bg-destructive/10 text-destructive">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sair
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
         </div>

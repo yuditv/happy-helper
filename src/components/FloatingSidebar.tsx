@@ -1,11 +1,22 @@
 import { useState } from "react";
-import { Users, Contact, Bot, Flame, Crown, Headset, Search, ChevronRight } from "lucide-react";
+import { Users, Bot, Flame, Crown, Headset, Search, ChevronRight, User, Settings, LogOut, BarChart3, CreditCard, Smartphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import logoFuturistic from "@/assets/logo-red-futuristic.png";
 import { cn } from "@/lib/utils";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 // Custom WhatsApp icon
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -102,6 +113,8 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
   const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
   const { permissions, isAdmin } = useUserPermissions();
+  const { user, signOut } = useAuth();
+  const { profile } = useProfile();
 
   const handleClick = (item: MenuItem) => {
     if (item.id === 'admin') {
@@ -109,6 +122,11 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
     } else {
       onSectionChange(item.id);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Logout realizado com sucesso!');
   };
 
   const visibleMenuItems = menuItems.filter(item => {
@@ -178,7 +196,7 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
           <div className="divider-premium mx-2 mb-1" />
 
           {/* Menu Items */}
-          <nav className="flex flex-col gap-1">
+          <nav className="flex flex-col gap-1 flex-1">
             {visibleMenuItems.map((item) => {
               const isActive = activeSection === item.id;
               const Icon = item.icon;
@@ -253,6 +271,102 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
               );
             })}
           </nav>
+
+          {/* Divider before user section */}
+          <div className="divider-premium mx-2 my-1" />
+
+          {/* User Menu */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <motion.button
+                    className={cn(
+                      "flex items-center gap-3 p-2 rounded-xl",
+                      "transition-all duration-200 ease-out",
+                      "hover:bg-muted/50"
+                    )}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    layout
+                  >
+                    <Avatar className="h-9 w-9 flex-shrink-0">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                        {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          className="flex flex-col items-start overflow-hidden"
+                        >
+                          <span className="text-sm font-medium text-foreground truncate max-w-[140px]">
+                            {profile?.display_name || 'Usuário'}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+                            {user?.email}
+                          </span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              {!isExpanded && (
+                <TooltipContent side="right" sideOffset={12}>
+                  Minha Conta
+                </TooltipContent>
+              )}
+            </Tooltip>
+            <DropdownMenuContent align="end" side="right" sideOffset={8} className="glass-card border-border/50 w-56">
+              <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border/50 flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="overflow-hidden">
+                  <p className="font-medium text-foreground truncate">{profile?.display_name || 'Usuário'}</p>
+                  <span className="text-xs text-muted-foreground truncate block">{user?.email}</span>
+                </div>
+              </div>
+              <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
+                <User className="h-4 w-4 mr-2 text-primary" />
+                Meu Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/payment-history')} className="hover:bg-primary/10">
+                <CreditCard className="h-4 w-4 mr-2 text-primary" />
+                Histórico de Pagamentos
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/my-dashboard')} className="hover:bg-primary/10">
+                <BarChart3 className="h-4 w-4 mr-2 text-primary" />
+                Meu Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/dashboard')} className="hover:bg-primary/10">
+                <BarChart3 className="h-4 w-4 mr-2 text-accent" />
+                Dashboard Geral
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border/50" />
+              <DropdownMenuItem onClick={() => navigate('/install')} className="hover:bg-primary/10">
+                <Smartphone className="h-4 w-4 mr-2 text-primary" />
+                Instalar App
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
+                <Settings className="h-4 w-4 mr-2 text-primary" />
+                Configurações
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border/50" />
+              <DropdownMenuItem onClick={handleSignOut} className="hover:bg-destructive/10 text-destructive">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </motion.div>
         </motion.div>
       </div>
