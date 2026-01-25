@@ -58,6 +58,11 @@ export type Database = {
           is_whatsapp_enabled: boolean | null
           max_chars_per_message: number | null
           max_lines_per_message: number | null
+          memory_auto_extract: boolean | null
+          memory_enabled: boolean | null
+          memory_generate_summary: boolean | null
+          memory_max_items: number | null
+          memory_sync_clients: boolean | null
           name: string
           response_delay_max: number | null
           response_delay_min: number | null
@@ -83,6 +88,11 @@ export type Database = {
           is_whatsapp_enabled?: boolean | null
           max_chars_per_message?: number | null
           max_lines_per_message?: number | null
+          memory_auto_extract?: boolean | null
+          memory_enabled?: boolean | null
+          memory_generate_summary?: boolean | null
+          memory_max_items?: number | null
+          memory_sync_clients?: boolean | null
           name: string
           response_delay_max?: number | null
           response_delay_min?: number | null
@@ -108,6 +118,11 @@ export type Database = {
           is_whatsapp_enabled?: boolean | null
           max_chars_per_message?: number | null
           max_lines_per_message?: number | null
+          memory_auto_extract?: boolean | null
+          memory_enabled?: boolean | null
+          memory_generate_summary?: boolean | null
+          memory_max_items?: number | null
+          memory_sync_clients?: boolean | null
           name?: string
           response_delay_max?: number | null
           response_delay_min?: number | null
@@ -159,6 +174,83 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_chat_messages_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_client_memories: {
+        Row: {
+          agent_id: string | null
+          ai_summary: string | null
+          app_name: string | null
+          client_name: string | null
+          created_at: string | null
+          custom_memories: Json | null
+          device: string | null
+          expiration_date: string | null
+          id: string
+          is_vip: boolean | null
+          last_interaction_at: string | null
+          nickname: string | null
+          phone: string
+          plan_name: string | null
+          plan_price: number | null
+          purchase_date: string | null
+          sentiment: string | null
+          total_interactions: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          ai_summary?: string | null
+          app_name?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          custom_memories?: Json | null
+          device?: string | null
+          expiration_date?: string | null
+          id?: string
+          is_vip?: boolean | null
+          last_interaction_at?: string | null
+          nickname?: string | null
+          phone: string
+          plan_name?: string | null
+          plan_price?: number | null
+          purchase_date?: string | null
+          sentiment?: string | null
+          total_interactions?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          ai_summary?: string | null
+          app_name?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          custom_memories?: Json | null
+          device?: string | null
+          expiration_date?: string | null
+          id?: string
+          is_vip?: boolean | null
+          last_interaction_at?: string | null
+          nickname?: string | null
+          phone?: string
+          plan_name?: string | null
+          plan_price?: number | null
+          purchase_date?: string | null
+          sentiment?: string | null
+          total_interactions?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_client_memories_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "ai_agents"

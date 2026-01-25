@@ -1469,7 +1469,8 @@ serve(async (req: Request) => {
                     agentId: agent.id,
                     message: message,
                     sessionId: sessionId,
-                    source: 'whatsapp-inbox'
+                    source: 'whatsapp-inbox',
+                    phone: normalizedPhone
                   })
                 }
               );

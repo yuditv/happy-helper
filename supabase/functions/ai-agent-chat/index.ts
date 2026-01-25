@@ -11,6 +11,7 @@ interface ChatRequest {
   message: string;
   sessionId?: string;
   source?: 'web' | 'whatsapp' | 'whatsapp-inbox';
+  phone?: string; // Phone number for memory lookup
   metadata?: Record<string, unknown>;
 }
 
@@ -23,11 +24,163 @@ interface AIResponse {
   choices: Array<{
     message: {
       content: string;
+      tool_calls?: Array<{
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }>;
     };
   }>;
   error?: {
     message: string;
   };
+}
+
+interface ExtractedClientInfo {
+  client_name?: string;
+  nickname?: string;
+  device?: string;
+  app_name?: string;
+  plan_name?: string;
+  plan_price?: number;
+  custom_info?: Array<{ key: string; value: string }>;
+}
+
+// Tool definition for extracting client info
+const extractionTools = [{
+  type: "function",
+  function: {
+    name: "save_client_info",
+    description: "Salva informações importantes do cliente extraídas da conversa. Use quando o cliente mencionar seu nome, aparelho, plano, aplicativo ou qualquer informação relevante.",
+    parameters: {
+      type: "object",
+      properties: {
+        client_name: { type: "string", description: "Nome do cliente" },
+        nickname: { type: "string", description: "Apelido ou nome preferido do cliente" },
+        device: { type: "string", description: "Aparelho/dispositivo do cliente (ex: TV Box, Celular, Smart TV)" },
+        app_name: { type: "string", description: "Nome do aplicativo que o cliente usa" },
+        plan_name: { type: "string", description: "Nome ou tipo do plano contratado (ex: Mensal, Anual, Premium)" },
+        plan_price: { type: "number", description: "Valor do plano em reais" },
+        custom_info: { 
+          type: "array",
+          description: "Outras informações relevantes sobre o cliente",
+          items: {
+            type: "object",
+            properties: {
+              key: { type: "string", description: "Tipo da informação (ex: preferencia_horario, quantidade_tvs)" },
+              value: { type: "string", description: "Valor da informação" }
+            },
+            required: ["key", "value"]
+          }
+        }
+      }
+    }
+  }
+}];
+
+// Function to build client context from memory and client data
+function buildClientContext(memory: any, clientData: any): string {
+  if (!memory && !clientData) return '';
+
+  const name = memory?.client_name || clientData?.name;
+  const nickname = memory?.nickname;
+  const device = memory?.device || clientData?.device;
+  const appName = memory?.app_name || clientData?.app_name;
+  const planName = memory?.plan_name || clientData?.plan;
+  const planPrice = memory?.plan_price || clientData?.price;
+  const expiresAt = clientData?.expires_at;
+  const customMemories = memory?.custom_memories || [];
+  const aiSummary = memory?.ai_summary;
+  const totalInteractions = memory?.total_interactions || 1;
+  const sentiment = memory?.sentiment;
+  const isVip = memory?.is_vip;
+
+  let context = `\n\n## INFORMAÇÕES DO CLIENTE (Use para personalizar suas respostas)\n`;
+  
+  if (name) context += `- Nome: ${name}\n`;
+  if (nickname) context += `- Apelido: ${nickname} (prefira usar o apelido)\n`;
+  if (device) context += `- Aparelho: ${device}\n`;
+  if (appName) context += `- Aplicativo: ${appName}\n`;
+  if (planName) context += `- Plano: ${planName}\n`;
+  if (planPrice) context += `- Valor: R$ ${planPrice}\n`;
+  if (expiresAt) context += `- Vencimento: ${new Date(expiresAt).toLocaleDateString('pt-BR')}\n`;
+  if (totalInteractions > 1) context += `- Interações anteriores: ${totalInteractions}\n`;
+  if (isVip) context += `- Cliente VIP: Sim (trate com atenção especial)\n`;
+  if (sentiment && sentiment !== 'neutral') context += `- Sentimento detectado: ${sentiment}\n`;
+
+  if (customMemories.length > 0) {
+    context += `\n### Memórias Adicionais:\n`;
+    for (const mem of customMemories) {
+      context += `- ${mem.key}: ${mem.value}\n`;
+    }
+  }
+
+  if (aiSummary) {
+    context += `\n### Resumo do Cliente:\n${aiSummary}\n`;
+  }
+
+  context += `\nIMPORTANTE: Use essas informações para personalizar suas respostas. `;
+  context += `Sempre chame o cliente pelo nome/apelido quando souber. `;
+  context += `Demonstre que você lembra das informações anteriores.\n`;
+
+  return context;
+}
+
+// Function to save/update client memory
+async function saveClientMemory(
+  supabaseAdmin: any,
+  userId: string,
+  agentId: string,
+  phone: string,
+  extractedInfo: ExtractedClientInfo,
+  existingMemory: any
+) {
+  try {
+    const now = new Date().toISOString();
+    
+    // Build custom memories array
+    let customMemories = existingMemory?.custom_memories || [];
+    if (extractedInfo.custom_info && extractedInfo.custom_info.length > 0) {
+      for (const info of extractedInfo.custom_info) {
+        const existingIdx = customMemories.findIndex((m: any) => m.key === info.key);
+        const newMem = { key: info.key, value: info.value, extracted_at: now };
+        if (existingIdx >= 0) {
+          customMemories[existingIdx] = newMem;
+        } else {
+          customMemories.push(newMem);
+        }
+      }
+    }
+
+    const memoryData = {
+      user_id: userId,
+      agent_id: agentId,
+      phone: phone,
+      client_name: extractedInfo.client_name || existingMemory?.client_name,
+      nickname: extractedInfo.nickname || existingMemory?.nickname,
+      device: extractedInfo.device || existingMemory?.device,
+      app_name: extractedInfo.app_name || existingMemory?.app_name,
+      plan_name: extractedInfo.plan_name || existingMemory?.plan_name,
+      plan_price: extractedInfo.plan_price || existingMemory?.plan_price,
+      custom_memories: customMemories,
+      last_interaction_at: now,
+      total_interactions: (existingMemory?.total_interactions || 0) + 1,
+      updated_at: now,
+    };
+
+    const { error } = await supabaseAdmin
+      .from('ai_client_memories')
+      .upsert(memoryData, { onConflict: 'user_id,agent_id,phone' });
+
+    if (error) {
+      console.error('[ai-agent-chat] Error saving memory:', error);
+    } else {
+      console.log('[ai-agent-chat] Memory saved successfully for phone:', phone);
+    }
+  } catch (err) {
+    console.error('[ai-agent-chat] Error in saveClientMemory:', err);
+  }
 }
 
 serve(async (req: Request) => {
@@ -50,7 +203,7 @@ serve(async (req: Request) => {
 
     // Parse request body first to check source
     const body: ChatRequest = await req.json();
-    const { agentId, message, sessionId, source = 'web', metadata = {} } = body;
+    const { agentId, message, sessionId, source = 'web', phone, metadata = {} } = body;
 
     // Check if this is an internal call from whatsapp-inbox-webhook
     const isInternalCall = source === 'whatsapp-inbox' || source === 'whatsapp';
@@ -99,7 +252,7 @@ serve(async (req: Request) => {
       userId = user.id;
     }
 
-    console.log(`[ai-agent-chat] Processing chat request for agent: ${agentId}, user: ${userId}, source: ${source}`);
+    console.log(`[ai-agent-chat] Processing chat request for agent: ${agentId}, user: ${userId}, source: ${source}, phone: ${phone || 'N/A'}`);
 
     if (!agentId || !message) {
       return new Response(
@@ -142,6 +295,51 @@ serve(async (req: Request) => {
     // Generate or use provided session ID
     const chatSessionId = sessionId || crypto.randomUUID();
 
+    // ============ MEMORY SYSTEM ============
+    let clientContext = '';
+    let existingMemory: any = null;
+    let clientData: any = null;
+
+    if (agent.memory_enabled && phone) {
+      console.log(`[ai-agent-chat] Memory enabled, fetching context for phone: ${phone}`);
+      
+      // Fetch existing memory for this phone
+      const { data: memoryData } = await supabaseAdmin
+        .from('ai_client_memories')
+        .select('*')
+        .eq('phone', phone)
+        .eq('agent_id', agentId)
+        .maybeSingle();
+      
+      existingMemory = memoryData;
+
+      // If memory_sync_clients is enabled, also fetch from clients table
+      if (agent.memory_sync_clients) {
+        // Try multiple phone formats for matching
+        const phoneVariants = [
+          phone,
+          phone.replace(/\D/g, ''),
+          phone.startsWith('55') ? phone.slice(2) : `55${phone}`,
+        ];
+
+        const { data: clientResult } = await supabaseAdmin
+          .from('clients')
+          .select('*')
+          .or(phoneVariants.map(p => `whatsapp.ilike.%${p}%`).join(','))
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        clientData = clientResult;
+      }
+
+      // Build context string
+      clientContext = buildClientContext(existingMemory, clientData);
+      
+      if (clientContext) {
+        console.log(`[ai-agent-chat] Client context loaded for phone: ${phone}`);
+      }
+    }
+
     // Save user message to database
     const { error: saveUserMsgError } = await supabaseUser
       .from('ai_chat_messages')
@@ -151,7 +349,7 @@ serve(async (req: Request) => {
         session_id: chatSessionId,
         role: 'user',
         content: message,
-        metadata: { source, ...metadata }
+        metadata: { source, phone, ...metadata }
       });
 
     if (saveUserMsgError) {
@@ -160,6 +358,7 @@ serve(async (req: Request) => {
 
     let assistantResponse = '';
     let aiError = null;
+    let extractedInfo: ExtractedClientInfo | null = null;
 
     // Check if using native AI (Lovable AI Gateway with Gemini) or external webhook
     if (agent.use_native_ai) {
@@ -184,12 +383,13 @@ serve(async (req: Request) => {
             .order('created_at', { ascending: true })
             .limit(20);
 
+          // Build system prompt with client context
+          const baseSystemPrompt = agent.system_prompt || 'Você é um assistente útil e prestativo. Responda sempre em português brasileiro.';
+          const enrichedSystemPrompt = baseSystemPrompt + clientContext;
+
           // Build messages array with system prompt and history
           const messages: AIMessage[] = [
-            { 
-              role: 'system', 
-              content: agent.system_prompt || 'Você é um assistente útil e prestativo. Responda sempre em português brasileiro.' 
-            },
+            { role: 'system', content: enrichedSystemPrompt },
           ];
 
           // Add history (excluding the message we just saved)
@@ -209,6 +409,20 @@ serve(async (req: Request) => {
 
           console.log(`Sending ${messages.length} messages to Lovable AI Gateway`);
 
+          // Prepare request body
+          const requestBody: any = {
+            model: modelToUse,
+            messages,
+            temperature: 0.7,
+            max_tokens: 1000
+          };
+
+          // Add extraction tools if memory auto-extract is enabled
+          if (agent.memory_enabled && agent.memory_auto_extract && phone) {
+            requestBody.tools = extractionTools;
+            requestBody.tool_choice = "auto";
+          }
+
           // Call Lovable AI Gateway (supports Gemini models)
           const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
@@ -216,12 +430,7 @@ serve(async (req: Request) => {
               'Authorization': `Bearer ${LOVABLE_API_KEY}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              model: modelToUse,
-              messages,
-              temperature: 0.7,
-              max_tokens: 1000
-            })
+            body: JSON.stringify(requestBody)
           });
 
           if (!aiResponse.ok) {
@@ -247,7 +456,23 @@ serve(async (req: Request) => {
               aiError = aiData.error.message;
               assistantResponse = 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.';
             } else if (aiData.choices && aiData.choices.length > 0) {
-              assistantResponse = aiData.choices[0].message.content;
+              const choice = aiData.choices[0];
+              assistantResponse = choice.message.content || '';
+              
+              // Check for tool calls (memory extraction)
+              if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
+                for (const toolCall of choice.message.tool_calls) {
+                  if (toolCall.function.name === 'save_client_info') {
+                    try {
+                      extractedInfo = JSON.parse(toolCall.function.arguments) as ExtractedClientInfo;
+                      console.log('[ai-agent-chat] Extracted client info:', extractedInfo);
+                    } catch (parseErr) {
+                      console.error('[ai-agent-chat] Error parsing tool call arguments:', parseErr);
+                    }
+                  }
+                }
+              }
+              
               console.log('Lovable AI Gateway response received successfully');
             } else {
               aiError = 'No response from AI';
@@ -270,6 +495,7 @@ serve(async (req: Request) => {
         console.log(`Calling external webhook: ${agent.webhook_url}`);
         
         try {
+          // Include client context in webhook payload
           const n8nResponse = await fetch(agent.webhook_url, {
             method: 'POST',
             headers: {
@@ -280,7 +506,16 @@ serve(async (req: Request) => {
               sessionId: chatSessionId,
               userId: userId,
               source,
+              phone,
               agentName: agent.name,
+              clientContext: existingMemory || clientData ? {
+                name: existingMemory?.client_name || clientData?.name,
+                nickname: existingMemory?.nickname,
+                device: existingMemory?.device || clientData?.device,
+                appName: existingMemory?.app_name || clientData?.app_name,
+                planName: existingMemory?.plan_name || clientData?.plan,
+                customMemories: existingMemory?.custom_memories || [],
+              } : null,
               metadata: {
                 ...metadata,
               }
@@ -304,6 +539,11 @@ serve(async (req: Request) => {
               n8nData.text ||
               n8nData.reply ||
               (typeof n8nData === 'string' ? n8nData : JSON.stringify(n8nData));
+            
+            // n8n can also return extracted info
+            if (n8nData.extractedInfo) {
+              extractedInfo = n8nData.extractedInfo as ExtractedClientInfo;
+            }
           }
         } catch (fetchError: unknown) {
           console.error('Error calling webhook:', fetchError);
@@ -311,6 +551,34 @@ serve(async (req: Request) => {
           assistantResponse = 'Desculpe, não foi possível conectar ao agente. Por favor, tente novamente.';
         }
       }
+    }
+
+    // ============ SAVE EXTRACTED MEMORY ============
+    if (agent.memory_enabled && phone && extractedInfo) {
+      // Check if any info was actually extracted
+      const hasInfo = extractedInfo.client_name || 
+                      extractedInfo.nickname || 
+                      extractedInfo.device || 
+                      extractedInfo.app_name || 
+                      extractedInfo.plan_name || 
+                      extractedInfo.plan_price ||
+                      (extractedInfo.custom_info && extractedInfo.custom_info.length > 0);
+      
+      if (hasInfo) {
+        await saveClientMemory(supabaseAdmin, userId, agentId, phone, extractedInfo, existingMemory);
+      }
+    } else if (agent.memory_enabled && phone && !existingMemory) {
+      // Create initial memory record to track interaction count
+      await saveClientMemory(supabaseAdmin, userId, agentId, phone, {}, null);
+    } else if (agent.memory_enabled && phone && existingMemory) {
+      // Update interaction count
+      await supabaseAdmin
+        .from('ai_client_memories')
+        .update({
+          last_interaction_at: new Date().toISOString(),
+          total_interactions: (existingMemory.total_interactions || 0) + 1,
+        })
+        .eq('id', existingMemory.id);
     }
 
     // Save assistant response to database
@@ -324,8 +592,10 @@ serve(async (req: Request) => {
         content: assistantResponse,
         metadata: { 
           source, 
+          phone,
           error: aiError,
           model: agent.use_native_ai ? agent.ai_model : 'webhook',
+          extractedInfo: extractedInfo || undefined,
           ...metadata
         }
       })
@@ -346,6 +616,7 @@ serve(async (req: Request) => {
           content: assistantResponse,
           created_at: savedMessage?.created_at || new Date().toISOString()
         },
+        extractedInfo,
         error: aiError
       }),
       { 
