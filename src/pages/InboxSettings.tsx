@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Settings, Users, Tag, Zap, Play, ScrollText, Clock, Ban, Database, MessageSquareText, PhoneOff } from "lucide-react";
+import { ArrowLeft, Settings, Users, Tag, Zap, Play, ScrollText, Clock, Ban, Database, MessageSquareText, PhoneOff, Bot } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +16,7 @@ import { BlockedContactsSettings } from "@/components/Inbox/Settings/BlockedCont
 import { CRMFieldsSettings } from "@/components/Inbox/Settings/CRMFieldsSettings";
 import { CannedResponsesSettings } from "@/components/Inbox/Settings/CannedResponsesSettings";
 import { CallSettings } from "@/components/Inbox/Settings/CallSettings";
+import { BotProxySettings } from "@/components/Inbox/Settings/BotProxySettings";
 
 type SettingsSection = 
   | "labels"
@@ -27,7 +28,8 @@ type SettingsSection =
   | "audit-logs"
   | "crm-fields"
   | "canned-responses"
-  | "call-settings";
+  | "call-settings"
+  | "bot-proxy";
 
 interface MenuItem {
   id: SettingsSection;
@@ -92,6 +94,12 @@ const menuItems: MenuItem[] = [
     icon: PhoneOff,
   },
   {
+    id: "bot-proxy",
+    title: "Ponte de Bot",
+    description: "Encaminhar mensagens para bot",
+    icon: Bot,
+  },
+  {
     id: "audit-logs",
     title: "Auditoria",
     description: "Log de atividades do sistema",
@@ -123,6 +131,8 @@ export default function InboxSettings() {
         return <CannedResponsesSettings />;
       case "call-settings":
         return <CallSettings />;
+      case "bot-proxy":
+        return <BotProxySettings />;
       case "audit-logs":
         return <AuditLogsSettings />;
       default:
