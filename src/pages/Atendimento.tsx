@@ -165,9 +165,20 @@ export default function Atendimento() {
         .eq('id', conversationId);
     }, []),
     onToggleAI: useCallback(async (conversationId: string, enabled: boolean) => {
+      // When enabling AI, clear the pause timestamp and assigned_to
+      // When disabling, set the pause timestamp
+      const updateData: Record<string, unknown> = { ai_enabled: enabled };
+      
+      if (enabled) {
+        updateData.ai_paused_at = null; // Clear pause timestamp when manually enabling
+        updateData.assigned_to = null; // Allow AI to respond
+      } else {
+        updateData.ai_paused_at = new Date().toISOString(); // Track when AI was paused
+      }
+      
       await supabase
         .from('conversations')
-        .update({ ai_enabled: enabled })
+        .update(updateData)
         .eq('id', conversationId);
     }, []),
     onSnooze: useCallback(async (conversationId: string, until: Date) => {
