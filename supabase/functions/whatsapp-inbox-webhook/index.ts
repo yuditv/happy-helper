@@ -2068,7 +2068,8 @@ serve(async (req: Request) => {
                       message: message,
                       sessionId: sessionId,
                       source: 'whatsapp-inbox',
-                      phone: normalizedPhone
+                      phone: normalizedPhone,
+                      conversationId: conversation.id
                     })
                   }
                 );
@@ -2159,72 +2160,9 @@ serve(async (req: Request) => {
             }
           }
           
-          // ========== CHECK FOR AGENT TRANSFER AFTER RESPONSE ==========
-          // Check if customer's message contains transfer keywords
-          try {
-            const messageContent = (message || caption || '').toLowerCase();
-            
-            const { data: transferRules } = await supabase
-              .from('ai_agent_transfer_rules')
-              .select('*')
-              .eq('user_id', instance.user_id)
-              .eq('source_agent_id', agent.id)
-              .eq('is_active', true);
-            
-            if (transferRules && transferRules.length > 0) {
-              for (const rule of transferRules) {
-                const keywords = rule.trigger_keywords as string[] || [];
-                const matchedKeyword = keywords.find(kw => 
-                  messageContent.includes(kw.toLowerCase())
-                );
-                
-                if (matchedKeyword) {
-                  console.log(`[Inbox Webhook] Transfer triggered! Keyword "${matchedKeyword}" matched, transferring from ${agent.id} to ${rule.target_agent_id}`);
-                  
-                  // Update conversation with new active agent
-                  await supabase
-                    .from('conversations')
-                    .update({
-                      active_agent_id: rule.target_agent_id,
-                      transferred_from_agent_id: agent.id,
-                      transfer_reason: `Keyword: ${matchedKeyword}`
-                    })
-                    .eq('id', conversation.id);
-                  
-                  // Send transfer message if configured
-                  if (rule.transfer_message) {
-                    const formattedPhone = formatPhoneNumber(normalizedPhone);
-                    await sendTextViaUazapi(
-                      uazapiUrl,
-                      instance.instance_key || uazapiToken,
-                      formattedPhone,
-                      rule.transfer_message
-                    );
-                    
-                    // Save transfer message
-                    await supabase
-                      .from('chat_inbox_messages')
-                      .insert({
-                        conversation_id: conversation.id,
-                        sender_type: 'ai',
-                        content: rule.transfer_message,
-                        metadata: { 
-                          transfer: true, 
-                          from_agent_id: agent.id, 
-                          to_agent_id: rule.target_agent_id 
-                        }
-                      });
-                  }
-                  
-                  console.log(`[Inbox Webhook] Conversation ${conversation.id} transferred to agent ${rule.target_agent_id}`);
-                  break; // Only apply first matching rule
-                }
-              }
-            }
-          } catch (transferError) {
-            console.error('[Inbox Webhook] Error checking transfer rules:', transferError);
-          }
-      }
+          // NOTE: Agent transfer is now handled by AI tool calling inside ai-agent-chat
+          // The AI decides when to transfer based on customer intent, not keywords
+        }
     } else {
       console.log('[Inbox Webhook] AI disabled or conversation assigned, waiting for human response');
     }
