@@ -383,9 +383,44 @@ serve(async (req: Request) => {
             .order('created_at', { ascending: true })
             .limit(20);
 
-          // Build system prompt with client context
+          // Build system prompt with client context and anti-hallucination rules
           const baseSystemPrompt = agent.system_prompt || 'Você é um assistente útil e prestativo. Responda sempre em português brasileiro.';
-          const enrichedSystemPrompt = baseSystemPrompt + clientContext;
+          
+          // Anti-hallucination rules
+          const antiHallucinationRules = agent.anti_hallucination_enabled !== false ? `
+
+## REGRAS CRÍTICAS DE COMPORTAMENTO (OBEDEÇA SEMPRE)
+
+1. **NUNCA INVENTE INFORMAÇÕES**
+   - Se não souber preços, planos ou detalhes, diga "não tenho essa informação disponível"
+   - Não crie valores, funcionalidades ou características fictícias
+   - Quando em dúvida, pergunte ao cliente ou peça para aguardar um atendente
+
+2. **RESPONDA APENAS AO QUE FOI PERGUNTADO**
+   - Não antecipe perguntas que o cliente não fez
+   - Uma pergunta simples = uma resposta focada e breve
+   - Evite respostas longas quando não solicitadas
+
+3. **MÚLTIPLAS MENSAGENS = CONTEXTO ÚNICO**
+   - Se receber várias mensagens seguidas, trate como UMA conversa
+   - Considere todas as mensagens antes de responder
+   - Responda de forma que cubra todos os pontos mencionados
+
+4. **SEJA CONCISO E NATURAL**
+   - Respostas de 1-3 frases para perguntas simples
+   - Use linguagem natural, como um humano conversando
+   - Evite parecer robótico ou repetitivo
+
+5. **CONSISTÊNCIA**
+   - Não contradiga informações já dadas na conversa
+   - Mantenha o mesmo tom e estilo durante toda a interação
+
+6. **LIMITAÇÕES**
+   - Você NÃO pode acessar sistemas externos, realizar pagamentos ou modificar cadastros
+   - Se o cliente pedir algo fora do seu escopo, direcione para um atendente humano
+` : '';
+
+          const enrichedSystemPrompt = baseSystemPrompt + antiHallucinationRules + clientContext;
 
           // Build messages array with system prompt and history
           const messages: AIMessage[] = [
