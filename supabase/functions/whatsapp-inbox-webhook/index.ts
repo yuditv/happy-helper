@@ -1622,18 +1622,27 @@ serve(async (req: Request) => {
     
     try {
       // First, check if message is FROM the bot (to forward to client)
+      // Try multiple phone formats for matching
+      const phoneVariants = [
+        normalizedPhone,
+        normalizedPhone.replace(/^55/, ''),
+        '55' + normalizedPhone.replace(/^55/, '')
+      ];
+      
+      console.log(`[Bot Proxy] Checking if sender is a configured bot. Phone variants:`, phoneVariants);
+      
       const { data: proxyConfigByBot } = await supabase
         .from('bot_proxy_config')
         .select('*, trigger_label:inbox_labels(*)')
         .eq('is_active', true)
-        .eq('bot_phone', normalizedPhone)
+        .in('bot_phone', phoneVariants)
         .maybeSingle();
       
       if (proxyConfigByBot && !fromMe) {
         // Message is FROM the bot - find the active session to forward to client
-        console.log(`[Bot Proxy] Message from bot ${normalizedPhone}, looking for active session...`);
+        console.log(`[Bot Proxy] Message from bot ${normalizedPhone}, config found:`, proxyConfigByBot.id);
         
-        const { data: activeSession } = await supabase
+        const { data: activeSession, error: sessionError } = await supabase
           .from('bot_proxy_sessions')
           .select('*, config:bot_proxy_config(*)')
           .eq('config_id', proxyConfigByBot.id)
@@ -1642,8 +1651,12 @@ serve(async (req: Request) => {
           .limit(1)
           .maybeSingle();
         
+        if (sessionError) {
+          console.error(`[Bot Proxy] Error fetching session:`, sessionError);
+        }
+        
         if (activeSession && activeSession.client_conversation_id) {
-          console.log(`[Bot Proxy] Found active session for client ${activeSession.client_phone}`);
+          console.log(`[Bot Proxy] Found active session for client ${activeSession.client_phone}, session ID: ${activeSession.id}`);
           
           // Update bot_conversation_id if not set
           if (!activeSession.bot_conversation_id) {
@@ -1657,13 +1670,20 @@ serve(async (req: Request) => {
           }
           
           // Get the client conversation to find instance
-          const { data: clientConv } = await supabase
+          const { data: clientConv, error: convError } = await supabase
             .from('conversations')
             .select('*, instance:whatsapp_instances(*)')
             .eq('id', activeSession.client_conversation_id)
             .single();
           
-          if (clientConv && clientConv.instance) {
+          if (convError) {
+            console.error(`[Bot Proxy] Error fetching client conversation:`, convError);
+          }
+          
+          console.log(`[Bot Proxy] Client conversation found:`, clientConv ? `ID: ${clientConv.id}` : 'NULL');
+          console.log(`[Bot Proxy] Instance found:`, clientConv?.instance ? `Key: ${clientConv.instance.instance_key?.substring(0, 8)}...` : 'NULL');
+          
+          if (clientConv && clientConv.instance && clientConv.instance.instance_key) {
             // Forward message to client
             const clientPhone = formatPhoneNumber(activeSession.client_phone);
             const messageContent = message || caption || '';
@@ -1678,9 +1698,11 @@ serve(async (req: Request) => {
               messageContent
             );
             
+            console.log(`[Bot Proxy] Send result:`, sendResult);
+            
             if (sendResult) {
               // Save forwarded message in client conversation
-              await supabase
+              const { error: insertError } = await supabase
                 .from('chat_inbox_messages')
                 .insert({
                   conversation_id: activeSession.client_conversation_id,
@@ -1693,16 +1715,35 @@ serve(async (req: Request) => {
                   }
                 });
               
+              if (insertError) {
+                console.error(`[Bot Proxy] Error saving forwarded message:`, insertError);
+              }
+              
               // Update session activity
               await supabase
                 .from('bot_proxy_sessions')
                 .update({ last_activity_at: new Date().toISOString() })
                 .eq('id', activeSession.id);
               
+              // Update client conversation last_message
+              await supabase
+                .from('conversations')
+                .update({
+                  last_message_at: new Date().toISOString(),
+                  last_message_preview: messageContent.substring(0, 100)
+                })
+                .eq('id', activeSession.client_conversation_id);
+              
               console.log(`[Bot Proxy] Successfully forwarded bot message to client`);
               botProxyHandled = true;
+            } else {
+              console.error(`[Bot Proxy] Failed to send message to client via UAZAPI`);
             }
+          } else {
+            console.error(`[Bot Proxy] Missing client conversation or instance data`);
           }
+        } else {
+          console.log(`[Bot Proxy] No active session found for this bot config`);
         }
       }
       
