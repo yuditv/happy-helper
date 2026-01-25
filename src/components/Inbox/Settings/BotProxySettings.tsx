@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft } from 'lucide-react';
+import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft, CreditCard, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,11 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { useBotProxy, BotProxyReplacement } from '@/hooks/useBotProxy';
 import { useInboxLabels } from '@/hooks/useInboxLabels';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
 
-function ReplacementItem({ 
+function ReplacementItem({
   replacement, 
   onUpdate, 
   onDelete,
@@ -109,6 +110,8 @@ export function BotProxySettings() {
   const [triggerLabelId, setTriggerLabelId] = useState<string>('');
   const [instanceId, setInstanceId] = useState<string>('');
   const [isActive, setIsActive] = useState(true);
+  const [ownerPaymentInfo, setOwnerPaymentInfo] = useState('');
+  const [blockBotPayment, setBlockBotPayment] = useState(false);
 
   // New replacement form
   const [newSearchText, setNewSearchText] = useState('');
@@ -121,6 +124,8 @@ export function BotProxySettings() {
       setTriggerLabelId(config.trigger_label_id || '');
       setInstanceId(config.instance_id || '');
       setIsActive(config.is_active);
+      setOwnerPaymentInfo(config.owner_payment_info || '');
+      setBlockBotPayment(config.block_bot_payment || false);
     }
   }, [config]);
 
@@ -134,6 +139,8 @@ export function BotProxySettings() {
       trigger_label_id: triggerLabelId || null,
       instance_id: instanceId || null,
       is_active: isActive,
+      owner_payment_info: ownerPaymentInfo.trim() || null,
+      block_bot_payment: blockBotPayment,
     });
   };
 
@@ -308,6 +315,60 @@ export function BotProxySettings() {
           <Button onClick={handleSave} disabled={isSaving || !botPhone.trim()}>
             {isSaving ? 'Salvando...' : config ? 'Atualizar Configuração' : 'Criar Configuração'}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Payment Override */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              <CardTitle className="text-base">Bloqueio de Pagamento do Bot</CardTitle>
+            </div>
+            <Switch
+              checked={blockBotPayment}
+              onCheckedChange={setBlockBotPayment}
+            />
+          </div>
+          <CardDescription>
+            {blockBotPayment ? (
+              <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                Ativo - Seus dados serão enviados
+              </Badge>
+            ) : (
+              <Badge variant="secondary">
+                Desativado - Mensagens do bot passam normalmente
+              </Badge>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="owner-payment-info">
+              Seus Dados de Pagamento
+            </Label>
+            <Textarea
+              id="owner-payment-info"
+              placeholder={`Ex:\n💳 *Dados para Pagamento*\n\nPIX: seu-email@gmail.com\nChave: CPF ou Celular\nNome: Seu Nome\nValor: R$ XX,XX`}
+              value={ownerPaymentInfo}
+              onChange={(e) => setOwnerPaymentInfo(e.target.value)}
+              rows={6}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Quando o bot enviar uma mensagem com palavras como "pix", "pagamento", "chave pix", etc., 
+              essa mensagem será <strong>bloqueada</strong> e substituída pelos seus dados acima.
+            </p>
+          </div>
+          
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              <strong>⚠️ Palavras-chave detectadas:</strong> pix, pagamento, pagar, chave pix, transferir, 
+              deposito, depositar, banco, conta, R$, reais, cpf, cnpj
+            </p>
+          </div>
         </CardContent>
       </Card>
 

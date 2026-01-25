@@ -365,31 +365,40 @@ export type Database = {
       }
       bot_proxy_config: {
         Row: {
+          block_bot_payment: boolean | null
           bot_phone: string
           created_at: string
           id: string
           instance_id: string | null
           is_active: boolean | null
+          owner_payment_info: string | null
+          payment_keywords: string[] | null
           trigger_label_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          block_bot_payment?: boolean | null
           bot_phone: string
           created_at?: string
           id?: string
           instance_id?: string | null
           is_active?: boolean | null
+          owner_payment_info?: string | null
+          payment_keywords?: string[] | null
           trigger_label_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          block_bot_payment?: boolean | null
           bot_phone?: string
           created_at?: string
           id?: string
           instance_id?: string | null
           is_active?: boolean | null
+          owner_payment_info?: string | null
+          payment_keywords?: string[] | null
           trigger_label_id?: string | null
           updated_at?: string
           user_id?: string
