@@ -121,6 +121,8 @@ interface AttachmentState {
   fileName: string;
 }
 
+type AttachmentList = AttachmentState[];
+
 export function ChatPanel({
   conversation,
   messages,
@@ -150,7 +152,7 @@ export function ChatPanel({
   const [message, setMessage] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   
-  const [attachment, setAttachment] = useState<AttachmentState | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentList>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
   const [showGallery, setShowGallery] = useState(false);
@@ -277,27 +279,37 @@ export function ChatPanel({
     textareaRef.current?.focus();
   };
 
-  const handleSend = () => {
-    if ((!message.trim() && !attachment) || isSending) return;
+  const handleSend = async () => {
+    if ((!message.trim() && attachments.length === 0) || isSending) return;
     
     // Capturar valores antes de limpar
     const messageToSend = message.trim();
     const privateToSend = isPrivate;
-    const attachmentToSend = attachment;
+    const attachmentsToSend = [...attachments];
     
     // Limpar imediatamente - UX instantânea
     setMessage("");
     setIsPrivate(false);
-    setAttachment(null);
+    setAttachments([]);
     
-    // Enviar em background (não aguardar)
-    onSendMessage(
-      messageToSend, 
-      privateToSend,
-      attachmentToSend?.url,
-      attachmentToSend?.type,
-      attachmentToSend?.fileName
-    );
+    // Se tiver anexos, enviar cada um separadamente
+    if (attachmentsToSend.length > 0) {
+      for (let i = 0; i < attachmentsToSend.length; i++) {
+        const att = attachmentsToSend[i];
+        // Primeira mensagem leva o texto, as demais só a mídia
+        const textToSend = i === 0 ? messageToSend : "";
+        await onSendMessage(
+          textToSend, 
+          privateToSend,
+          att.url,
+          att.type,
+          att.fileName
+        );
+      }
+    } else {
+      // Apenas texto
+      onSendMessage(messageToSend, privateToSend);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -351,7 +363,11 @@ export function ChatPanel({
   };
 
   const handleFileUploaded = (url: string, type: string, fileName: string) => {
-    setAttachment({ url, type, fileName });
+    setAttachments(prev => [...prev, { url, type, fileName }]);
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAudioReady = (url: string, type: string, fileName: string) => {
@@ -1091,15 +1107,18 @@ export function ChatPanel({
 
       {/* Input */}
       <div className="p-3 inbox-input-area flex-shrink-0">
-        {/* Attachment Preview */}
-        {attachment && (
-          <div className="mb-2">
-            <AttachmentPreview
-              url={attachment.url}
-              type={attachment.type}
-              fileName={attachment.fileName}
-              onRemove={() => setAttachment(null)}
-            />
+        {/* Attachments Preview */}
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {attachments.map((att, index) => (
+              <AttachmentPreview
+                key={`${att.url}-${index}`}
+                url={att.url}
+                type={att.type}
+                fileName={att.fileName}
+                onRemove={() => handleRemoveAttachment(index)}
+              />
+            ))}
           </div>
         )}
 
@@ -1174,7 +1193,7 @@ export function ChatPanel({
                 <TooltipTrigger asChild>
                   <AudioRecorder
                     onAudioReady={handleAudioReady}
-                    disabled={isSending || !!attachment}
+                    disabled={isSending || attachments.length > 0}
                     onRecordingStart={() => sendPresence('recording')}
                     onRecordingEnd={() => sendPresence('paused')}
                   />
@@ -1186,7 +1205,7 @@ export function ChatPanel({
           
           <Button 
             onClick={handleSend}
-            disabled={(!message.trim() && !attachment) || isSending}
+            disabled={(!message.trim() && attachments.length === 0) || isSending}
             className="h-11"
           >
             <Send className="h-4 w-4" />

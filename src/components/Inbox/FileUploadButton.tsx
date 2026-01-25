@@ -43,8 +43,20 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
   });
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Process all selected files
+    for (let i = 0; i < files.length; i++) {
+      await processFile(files[i]);
+    }
+    
+    // Reset inputs
+    if (imageInputRef.current) imageInputRef.current.value = '';
+    if (documentInputRef.current) documentInputRef.current.value = '';
+  };
+
+  const processFile = async (file: File) => {
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
@@ -125,9 +137,6 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
       });
     } finally {
       setUploadState({ isUploading: false, progress: 0, fileName: null, isCompressing: false });
-      // Reset inputs
-      if (imageInputRef.current) imageInputRef.current.value = '';
-      if (documentInputRef.current) documentInputRef.current.value = '';
     }
   };
 
@@ -150,6 +159,7 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
         accept="image/*,video/*"
         className="hidden"
         onChange={handleFileSelect}
+        multiple
       />
       <input
         ref={documentInputRef}
@@ -157,6 +167,7 @@ export function FileUploadButton({ onFileUploaded, disabled }: FileUploadButtonP
         accept=".pdf,.doc,.docx,.txt"
         className="hidden"
         onChange={handleFileSelect}
+        multiple
       />
 
       <DropdownMenu>
