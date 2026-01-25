@@ -73,19 +73,19 @@ export function MainLayout() {
   };
 
   return (
-    <div className="min-h-screen flex w-full relative">
+    <div className="min-h-screen flex flex-col w-full relative">
       {/* Subscription Expiration Banner */}
       <SubscriptionBanner />
       
-      {/* Floating Sidebar */}
+      {/* Top Navigation Bar */}
       <FloatingSidebar
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
       />
 
-      {/* Main Content - with left padding for floating sidebar */}
+      {/* Main Content */}
       <motion.main 
-        className="flex-1 ml-20 p-6 overflow-auto pt-20"
+        className="flex-1 p-6 overflow-auto"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
