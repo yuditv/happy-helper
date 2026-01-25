@@ -2089,38 +2089,61 @@ serve(async (req: Request) => {
                         
                         // Send QR Code image first
                         if (pixQrCodeBase64) {
-                          const qrImageUrl = `data:image/png;base64,${pixQrCodeBase64}`;
-                          
-                          await fetch(`${uazapiUrl}/send/media`, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                              'token': instance.instance_key
-                            },
-                            body: JSON.stringify({
-                              number: normalizedPhone,
-                              media: qrImageUrl,
-                              type: 'image',
-                              caption: `💳 *Pagamento PIX - ${chosenPlan.name}*\n\n💰 Valor: R$ ${Number(chosenPlan.price).toFixed(2).replace('.', ',')}\n📅 Duração: ${chosenPlan.duration_days} dias\n⏰ Válido por 30 minutos`
-                            })
-                          });
-                          
-                          console.log(`[Bot Proxy] QR Code image sent to client`);
+                          try {
+                            // UAZAPI expects just the base64 string, not a data URL
+                            const qrResponse = await fetch(`${uazapiUrl}/send/media`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'token': instance.instance_key
+                              },
+                              body: JSON.stringify({
+                                number: normalizedPhone,
+                                media: pixQrCodeBase64,
+                                type: 'image',
+                                caption: `💳 *Pagamento PIX - ${chosenPlan.name}*\n\n💰 Valor: R$ ${Number(chosenPlan.price).toFixed(2).replace('.', ',')}\n📅 Duração: ${chosenPlan.duration_days} dias\n⏰ Válido por 30 minutos`
+                              })
+                            });
+                            
+                            const qrResult = await qrResponse.json();
+                            console.log(`[Bot Proxy] QR Code send response:`, JSON.stringify(qrResult));
+                          } catch (qrError) {
+                            console.error(`[Bot Proxy] Error sending QR Code:`, qrError);
+                          }
                         }
                         
-                        // Wait a bit then send the copy-paste code
-                        await sleep(1500);
+                        // Wait a bit then send the copy-paste code - CLEAN FORMAT
+                        await sleep(2000);
                         
-                        const pixMessage = `📋 *Código PIX Copia e Cola:*\n\n\`\`\`${pixCode}\`\`\`\n\n👆 Copie o código acima e cole no seu banco para pagar.\n\n✅ Após o pagamento, envie o comprovante aqui!`;
-                        
+                        // First send instruction message
                         await sendTextViaUazapi(
                           uazapiUrl,
                           instance.instance_key,
                           normalizedPhone,
-                          pixMessage
+                          `👆 *Código PIX Copia e Cola:*\n_(Copie a mensagem abaixo)_`
                         );
                         
-                        console.log(`[Bot Proxy] PIX code sent to client`);
+                        await sleep(500);
+                        
+                        // Then send ONLY the PIX code - clean, easy to copy
+                        await sendTextViaUazapi(
+                          uazapiUrl,
+                          instance.instance_key,
+                          normalizedPhone,
+                          pixCode
+                        );
+                        
+                        await sleep(500);
+                        
+                        // Then send confirmation instructions
+                        await sendTextViaUazapi(
+                          uazapiUrl,
+                          instance.instance_key,
+                          normalizedPhone,
+                          `✅ Após o pagamento, envie o comprovante aqui!`
+                        );
+                        
+                        console.log(`[Bot Proxy] PIX code sent to client (clean format)`);
                         
                         // Save the PIX info in message metadata
                         await supabase
