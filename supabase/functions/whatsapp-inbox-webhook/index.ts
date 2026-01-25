@@ -1188,7 +1188,7 @@ serve(async (req: Request) => {
         if (agent.is_whatsapp_enabled && agent.is_active) {
           console.log(`[Inbox Webhook] Routing to AI agent: ${agent.name} (native: ${agent.use_native_ai})`);
           
-          const sessionId = `inbox-${conversation.id}`;
+          const sessionId = conversation.id; // Use raw UUID for ai_chat_messages compatibility
           let assistantResponse = '';
           
           try {
