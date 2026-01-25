@@ -10,6 +10,9 @@ export interface BotProxyConfig {
   trigger_label_id: string | null;
   instance_id: string | null;
   is_active: boolean;
+  owner_payment_info: string | null;
+  payment_keywords: string[] | null;
+  block_bot_payment: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -117,6 +120,8 @@ export function useBotProxy() {
     trigger_label_id: string | null;
     instance_id: string | null;
     is_active: boolean;
+    owner_payment_info?: string | null;
+    block_bot_payment?: boolean;
   }) => {
     if (!user?.id) return null;
 
@@ -134,6 +139,8 @@ export function useBotProxy() {
             trigger_label_id: data.trigger_label_id,
             instance_id: data.instance_id,
             is_active: data.is_active,
+            owner_payment_info: data.owner_payment_info ?? null,
+            block_bot_payment: data.block_bot_payment ?? false,
           })
           .eq('id', config.id)
           .select()
@@ -153,6 +160,8 @@ export function useBotProxy() {
             trigger_label_id: data.trigger_label_id,
             instance_id: data.instance_id,
             is_active: data.is_active,
+            owner_payment_info: data.owner_payment_info ?? null,
+            block_bot_payment: data.block_bot_payment ?? false,
           })
           .select()
           .single();
