@@ -420,7 +420,38 @@ serve(async (req: Request) => {
    - Se o cliente pedir algo fora do seu escopo, direcione para um atendente humano
 ` : '';
 
-          const enrichedSystemPrompt = baseSystemPrompt + antiHallucinationRules + clientContext;
+          // ============ CANNED RESPONSES INTEGRATION ============
+          let cannedResponsesContext = '';
+          if (agent.use_canned_responses !== false) {
+            const { data: cannedResponses, error: cannedError } = await supabaseAdmin
+              .from('canned_responses')
+              .select('short_code, content')
+              .or(`user_id.eq.${agent.created_by},is_global.eq.true`)
+              .order('short_code');
+            
+            if (cannedError) {
+              console.error('[ai-agent-chat] Error fetching canned responses:', cannedError);
+            } else if (cannedResponses && cannedResponses.length > 0) {
+              console.log(`[ai-agent-chat] Loaded ${cannedResponses.length} canned responses for context`);
+              
+              cannedResponsesContext = `
+
+## RESPOSTAS RÁPIDAS DISPONÍVEIS (BASE DE CONHECIMENTO)
+
+INSTRUÇÕES IMPORTANTES:
+- Quando o cliente perguntar sobre preços, planos, formas de pagamento ou qualquer tópico coberto abaixo, USE EXATAMENTE o conteúdo fornecido
+- NÃO invente valores, preços ou informações diferentes do que está aqui
+- Você pode adaptar a linguagem para ser mais natural, mas os VALORES e INFORMAÇÕES devem ser EXATOS
+- Se não houver resposta rápida para o assunto, responda normalmente ou diga que não tem a informação
+
+`;
+              for (const response of cannedResponses) {
+                cannedResponsesContext += `### /${response.short_code}\n${response.content}\n\n`;
+              }
+            }
+          }
+
+          const enrichedSystemPrompt = baseSystemPrompt + antiHallucinationRules + cannedResponsesContext + clientContext;
 
           // Build messages array with system prompt and history
           const messages: AIMessage[] = [

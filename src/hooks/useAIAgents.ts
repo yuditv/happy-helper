@@ -40,6 +40,8 @@ export interface AIAgent {
   buffer_max_messages: number | null;
   // Anti-hallucination
   anti_hallucination_enabled: boolean | null;
+  // Canned responses
+  use_canned_responses: boolean | null;
 }
 
 export interface AIChatMessage {
@@ -96,6 +98,8 @@ export interface CreateAgentInput {
   buffer_max_messages?: number;
   // Anti-hallucination
   anti_hallucination_enabled?: boolean;
+  // Canned responses
+  use_canned_responses?: boolean;
 }
 
 export interface UpdateAgentInput extends Partial<CreateAgentInput> {

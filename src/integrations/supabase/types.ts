@@ -76,6 +76,7 @@ export type Database = {
           system_prompt: string | null
           typing_simulation: boolean | null
           updated_at: string | null
+          use_canned_responses: boolean | null
           use_native_ai: boolean | null
           webhook_url: string | null
         }
@@ -110,6 +111,7 @@ export type Database = {
           system_prompt?: string | null
           typing_simulation?: boolean | null
           updated_at?: string | null
+          use_canned_responses?: boolean | null
           use_native_ai?: boolean | null
           webhook_url?: string | null
         }
@@ -144,6 +146,7 @@ export type Database = {
           system_prompt?: string | null
           typing_simulation?: boolean | null
           updated_at?: string | null
+          use_canned_responses?: boolean | null
           use_native_ai?: boolean | null
           webhook_url?: string | null
         }
