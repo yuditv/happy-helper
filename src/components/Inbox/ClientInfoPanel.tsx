@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Client, getExpirationStatus, getDaysUntilExpiration, formatCurrency, planLabels } from '@/types/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,13 +20,16 @@ import {
   Package,
   StickyNote,
   ExternalLink,
-  UserPlus
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { AIMemoryPanel } from './AIMemoryPanel';
+import { supabase } from '@/integrations/supabase/client';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ClientInfoPanelProps {
   client: Client | null;
@@ -66,6 +69,41 @@ export function ClientInfoPanel({
   contactAvatar,
   agentId
 }: ClientInfoPanelProps) {
+  const [existingClient, setExistingClient] = useState<{ name: string; whatsapp: string } | null>(null);
+  const [checkingClient, setCheckingClient] = useState(false);
+
+  // Check if client already exists when client is null but phone is available
+  useEffect(() => {
+    const checkExistingClient = async () => {
+      if (client || !phone) {
+        setExistingClient(null);
+        return;
+      }
+
+      setCheckingClient(true);
+      try {
+        // Normalize phone for search
+        const normalizedPhone = phone.replace(/[^\d]/g, '');
+        
+        // Search for client with similar phone patterns
+        const { data } = await supabase
+          .from('clients')
+          .select('name, whatsapp')
+          .or(`whatsapp.ilike.%${normalizedPhone.slice(-8)}%,whatsapp.ilike.%${normalizedPhone.slice(-9)}%`)
+          .limit(1)
+          .maybeSingle();
+
+        setExistingClient(data);
+      } catch (error) {
+        console.error('Error checking existing client:', error);
+      } finally {
+        setCheckingClient(false);
+      }
+    };
+
+    checkExistingClient();
+  }, [client, phone]);
+
   const status = client ? getExpirationStatus(client.expiresAt) : null;
   const daysUntil = client ? getDaysUntilExpiration(client.expiresAt) : 0;
 
@@ -155,21 +193,54 @@ export function ClientInfoPanel({
                 </p>
               )}
               
-              {/* Badge indicando que não está cadastrado */}
-              <Badge variant="outline" className="text-xs mb-4">
-                Não cadastrado
-              </Badge>
+              {/* Badge indicando status de cadastro */}
+              {existingClient ? (
+                <Badge variant="secondary" className="text-xs mb-4 gap-1 bg-amber-500/10 text-amber-600 border-amber-500/30">
+                  <UserCheck className="h-3 w-3" />
+                  Já cadastrado
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs mb-4">
+                  Não cadastrado
+                </Badge>
+              )}
               
-              {/* Botão Cadastrar */}
+              {/* Botão Cadastrar com aviso se já existe */}
               {onRegisterClient && (
-                <Button 
-                  size="sm" 
-                  onClick={() => onRegisterClient(phone || '', contactName)}
-                  className="w-full gap-2"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Cadastrar Cliente
-                </Button>
+                existingClient ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        size="sm" 
+                        variant="secondary"
+                        onClick={() => onRegisterClient(phone || '', contactName)}
+                        className="w-full gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-500/30"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                        Cliente Já Cadastrado
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[250px]">
+                      <p className="text-xs">
+                        <strong>{existingClient.name}</strong> já está cadastrado com o número {existingClient.whatsapp}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    onClick={() => onRegisterClient(phone || '', contactName)}
+                    className="w-full gap-2"
+                    disabled={checkingClient}
+                  >
+                    {checkingClient ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-4 w-4" />
+                    )}
+                    Cadastrar Cliente
+                  </Button>
+                )
               )}
             </div>
           </CardContent>
