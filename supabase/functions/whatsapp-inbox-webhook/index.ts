@@ -1711,6 +1711,8 @@ serve(async (req: Request) => {
             const paymentKeywords = config?.payment_keywords || ['pix', 'pagamento', 'pagar', 'chave pix', 'transferir', 'deposito', 'depositar', 'banco', 'conta', 'R$', 'reais', 'cpf', 'cnpj'];
             const blockBotPayment = config?.block_bot_payment === true;
             const ownerPaymentInfo = config?.owner_payment_info;
+            const useMercadoPago = config?.use_mercado_pago === true;
+            const mercadoPagoPlanId = config?.mercado_pago_plan_id;
             
             // Check if message contains payment keywords
             const lowerMessage = messageContent.toLowerCase();
@@ -1718,14 +1720,137 @@ serve(async (req: Request) => {
               lowerMessage.includes(kw.toLowerCase())
             );
             
-            if (blockBotPayment && containsPaymentKeyword && ownerPaymentInfo) {
-              console.log(`[Bot Proxy] 🚫 Payment message detected! Blocking bot message and sending owner payment info`);
+            let skipBotMessage = false;
+            
+            if (blockBotPayment && containsPaymentKeyword) {
+              console.log(`[Bot Proxy] 🚫 Payment message detected! Blocking bot message`);
               console.log(`[Bot Proxy] Blocked message: "${messageContent.substring(0, 100)}..."`);
               
-              // Replace the entire message with owner's payment info
-              messageContent = ownerPaymentInfo;
-              
-              console.log(`[Bot Proxy] ✅ Replaced with owner payment info`);
+              if (useMercadoPago && mercadoPagoPlanId) {
+                // Generate Mercado Pago PIX payment
+                console.log(`[Bot Proxy] 💳 Generating Mercado Pago PIX for plan: ${mercadoPagoPlanId}`);
+                
+                try {
+                  // Get plan details
+                  const { data: plan } = await supabase
+                    .from('subscription_plans')
+                    .select('*')
+                    .eq('id', mercadoPagoPlanId)
+                    .single();
+                  
+                  if (plan) {
+                    const mercadoPagoToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
+                    
+                    if (mercadoPagoToken) {
+                      // Create PIX payment
+                      const expirationDate = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+                      
+                      const mpPayload = {
+                        transaction_amount: Number(plan.price),
+                        description: `${plan.name} - ${plan.duration_months} ${plan.duration_months === 1 ? 'mês' : 'meses'}`,
+                        payment_method_id: "pix",
+                        payer: {
+                          email: "cliente@pagamento.com",
+                        },
+                        date_of_expiration: expirationDate.toISOString(),
+                      };
+                      
+                      console.log(`[Bot Proxy] Creating MP payment:`, JSON.stringify(mpPayload));
+                      
+                      const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "Authorization": `Bearer ${mercadoPagoToken}`,
+                          "X-Idempotency-Key": `botproxy-${activeSession.id}-${Date.now()}`,
+                        },
+                        body: JSON.stringify(mpPayload),
+                      });
+                      
+                      const mpData = await mpResponse.json();
+                      
+                      if (mpResponse.ok && mpData.point_of_interaction?.transaction_data) {
+                        const pixData = mpData.point_of_interaction.transaction_data;
+                        const pixCode = pixData.qr_code || '';
+                        const pixQrCodeBase64 = pixData.qr_code_base64 || '';
+                        
+                        console.log(`[Bot Proxy] ✅ PIX generated successfully!`);
+                        
+                        // Send QR Code image first
+                        if (pixQrCodeBase64) {
+                          const qrImageUrl = `data:image/png;base64,${pixQrCodeBase64}`;
+                          
+                          // Send image via UAZAPI /send/media
+                          await fetch(`${uazapiUrl}/send/media`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'token': clientInstance.instance_key
+                            },
+                            body: JSON.stringify({
+                              number: clientPhone,
+                              media: qrImageUrl,
+                              type: 'image',
+                              caption: `💳 *Pagamento PIX - ${plan.name}*\n\n💰 Valor: R$ ${Number(plan.price).toFixed(2).replace('.', ',')}\n⏰ Válido por 30 minutos`
+                            })
+                          });
+                          
+                          console.log(`[Bot Proxy] QR Code image sent`);
+                        }
+                        
+                        // Wait a bit then send the copy-paste code
+                        await sleep(1500);
+                        
+                        const pixMessage = `📋 *Código PIX Copia e Cola:*\n\n\`\`\`${pixCode}\`\`\`\n\n👆 Copie o código acima e cole no seu banco para pagar.`;
+                        
+                        await sendTextViaUazapi(
+                          uazapiUrl,
+                          clientInstance.instance_key,
+                          clientPhone,
+                          pixMessage
+                        );
+                        
+                        console.log(`[Bot Proxy] PIX code sent to client`);
+                        skipBotMessage = true;
+                        
+                        // Save the PIX info in message metadata
+                        await supabase
+                          .from('chat_inbox_messages')
+                          .insert({
+                            conversation_id: activeSession.client_conversation_id,
+                            sender_type: 'agent',
+                            content: `💳 PIX gerado - ${plan.name}: R$ ${Number(plan.price).toFixed(2).replace('.', ',')}`,
+                            metadata: { 
+                              mercado_pago_payment: true,
+                              plan_id: plan.id,
+                              plan_name: plan.name,
+                              amount: plan.price,
+                              pix_code: pixCode.substring(0, 50) + '...',
+                              mp_payment_id: mpData.id
+                            }
+                          });
+                      } else {
+                        console.error(`[Bot Proxy] MP Error:`, JSON.stringify(mpData));
+                        // Fallback to manual payment info
+                        if (ownerPaymentInfo) {
+                          messageContent = ownerPaymentInfo;
+                        }
+                      }
+                    } else {
+                      console.error(`[Bot Proxy] MERCADO_PAGO_ACCESS_TOKEN not configured`);
+                      if (ownerPaymentInfo) {
+                        messageContent = ownerPaymentInfo;
+                      }
+                    }
+                  }
+                } catch (mpError) {
+                  console.error(`[Bot Proxy] Error generating MP PIX:`, mpError);
+                  // Fallback to manual payment info
+                  if (ownerPaymentInfo) {
+                    messageContent = ownerPaymentInfo;
+                  }
+                }
+              }
             } else {
               // Apply regular text replacements (only if not a blocked payment)
               const { data: replacements, error: replError } = await supabase
@@ -1750,36 +1875,9 @@ serve(async (req: Request) => {
               }
             }
             
-            console.log(`[Bot Proxy] Final message to client ${clientPhone}: "${messageContent.substring(0, 100)}..."`);
-            
-            // Send to client via UAZAPI
-            const sendResult = await sendTextViaUazapi(
-              uazapiUrl,
-              clientInstance.instance_key,
-              clientPhone,
-              messageContent
-            );
-            
-            console.log(`[Bot Proxy] Send result:`, sendResult);
-            
-            if (sendResult) {
-              // Save forwarded message in client conversation
-              const { error: insertError } = await supabase
-                .from('chat_inbox_messages')
-                .insert({
-                  conversation_id: activeSession.client_conversation_id,
-                  sender_type: 'agent',
-                  content: messageContent,
-                  metadata: { 
-                    proxied_from_bot: true,
-                    original_message_id: savedMessage?.id,
-                    bot_phone: normalizedPhone
-                  }
-                });
-              
-              if (insertError) {
-                console.error(`[Bot Proxy] Error saving forwarded message:`, insertError);
-              }
+            // Skip sending if PIX was already generated and sent
+            if (skipBotMessage) {
+              console.log(`[Bot Proxy] Skipping bot message - PIX already sent`);
               
               // Update session activity
               await supabase
@@ -1792,14 +1890,64 @@ serve(async (req: Request) => {
                 .from('conversations')
                 .update({
                   last_message_at: new Date().toISOString(),
-                  last_message_preview: messageContent.substring(0, 100)
+                  last_message_preview: '💳 PIX enviado'
                 })
                 .eq('id', activeSession.client_conversation_id);
               
-              console.log(`[Bot Proxy] Successfully forwarded bot message to client`);
+              console.log(`[Bot Proxy] Successfully sent Mercado Pago PIX to client`);
               botProxyHandled = true;
             } else {
-              console.error(`[Bot Proxy] Failed to send message to client via UAZAPI`);
+              console.log(`[Bot Proxy] Final message to client ${clientPhone}: "${messageContent.substring(0, 100)}..."`);
+              
+              // Send to client via UAZAPI
+              const sendResult = await sendTextViaUazapi(
+                uazapiUrl,
+                clientInstance.instance_key,
+                clientPhone,
+                messageContent
+              );
+              
+              console.log(`[Bot Proxy] Send result:`, sendResult);
+            
+              if (sendResult) {
+                // Save forwarded message in client conversation
+                const { error: insertError } = await supabase
+                  .from('chat_inbox_messages')
+                  .insert({
+                    conversation_id: activeSession.client_conversation_id,
+                    sender_type: 'agent',
+                    content: messageContent,
+                    metadata: { 
+                      proxied_from_bot: true,
+                      original_message_id: savedMessage?.id,
+                      bot_phone: normalizedPhone
+                    }
+                  });
+                
+                if (insertError) {
+                  console.error(`[Bot Proxy] Error saving forwarded message:`, insertError);
+                }
+                
+                // Update session activity
+                await supabase
+                  .from('bot_proxy_sessions')
+                  .update({ last_activity_at: new Date().toISOString() })
+                  .eq('id', activeSession.id);
+                
+                // Update client conversation last_message
+                await supabase
+                  .from('conversations')
+                  .update({
+                    last_message_at: new Date().toISOString(),
+                    last_message_preview: messageContent.substring(0, 100)
+                  })
+                  .eq('id', activeSession.client_conversation_id);
+                
+                console.log(`[Bot Proxy] Successfully forwarded bot message to client`);
+                botProxyHandled = true;
+              } else {
+                console.error(`[Bot Proxy] Failed to send message to client via UAZAPI`);
+              }
             }
           } else {
             console.error(`[Bot Proxy] Missing client conversation or instance data`);

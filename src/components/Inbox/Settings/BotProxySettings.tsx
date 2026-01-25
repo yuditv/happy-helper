@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft, CreditCard, ShieldCheck } from 'lucide-react';
+import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft, CreditCard, ShieldCheck, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,9 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useBotProxy, BotProxyReplacement } from '@/hooks/useBotProxy';
 import { useInboxLabels } from '@/hooks/useInboxLabels';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
+import { supabase } from '@/integrations/supabase/client';
+
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  duration_months: number;
+}
 
 function ReplacementItem({
   replacement, 
@@ -112,10 +121,25 @@ export function BotProxySettings() {
   const [isActive, setIsActive] = useState(true);
   const [ownerPaymentInfo, setOwnerPaymentInfo] = useState('');
   const [blockBotPayment, setBlockBotPayment] = useState(false);
+  const [useMercadoPago, setUseMercadoPago] = useState(false);
+  const [mercadoPagoPlanId, setMercadoPagoPlanId] = useState<string>('');
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
 
   // New replacement form
   const [newSearchText, setNewSearchText] = useState('');
   const [newReplaceText, setNewReplaceText] = useState('');
+
+  // Load subscription plans
+  useEffect(() => {
+    const fetchPlans = async () => {
+      const { data } = await supabase
+        .from('subscription_plans')
+        .select('id, name, price, duration_months')
+        .order('price', { ascending: true });
+      if (data) setPlans(data);
+    };
+    fetchPlans();
+  }, []);
 
   // Load config into form
   useEffect(() => {
@@ -126,6 +150,8 @@ export function BotProxySettings() {
       setIsActive(config.is_active);
       setOwnerPaymentInfo(config.owner_payment_info || '');
       setBlockBotPayment(config.block_bot_payment || false);
+      setUseMercadoPago(config.use_mercado_pago || false);
+      setMercadoPagoPlanId(config.mercado_pago_plan_id || '');
     }
   }, [config]);
 
@@ -141,6 +167,8 @@ export function BotProxySettings() {
       is_active: isActive,
       owner_payment_info: ownerPaymentInfo.trim() || null,
       block_bot_payment: blockBotPayment,
+      use_mercado_pago: useMercadoPago,
+      mercado_pago_plan_id: mercadoPagoPlanId || null,
     });
   };
 
@@ -344,32 +372,104 @@ export function BotProxySettings() {
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="owner-payment-info">
-              Seus Dados de Pagamento
-            </Label>
-            <Textarea
-              id="owner-payment-info"
-              placeholder={`Ex:\n💳 *Dados para Pagamento*\n\nPIX: seu-email@gmail.com\nChave: CPF ou Celular\nNome: Seu Nome\nValor: R$ XX,XX`}
-              value={ownerPaymentInfo}
-              onChange={(e) => setOwnerPaymentInfo(e.target.value)}
-              rows={6}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Quando o bot enviar uma mensagem com palavras como "pix", "pagamento", "chave pix", etc., 
-              essa mensagem será <strong>bloqueada</strong> e substituída pelos seus dados acima.
-            </p>
-          </div>
-          
-          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              <strong>⚠️ Palavras-chave detectadas:</strong> pix, pagamento, pagar, chave pix, transferir, 
-              deposito, depositar, banco, conta, R$, reais, cpf, cnpj
-            </p>
-          </div>
-        </CardContent>
+        {blockBotPayment && (
+          <CardContent className="space-y-4">
+            {/* Payment Method Selection */}
+            <div className="space-y-3">
+              <Label>Método de Pagamento</Label>
+              <RadioGroup 
+                value={useMercadoPago ? 'mercadopago' : 'manual'} 
+                onValueChange={(v) => setUseMercadoPago(v === 'mercadopago')}
+                className="grid grid-cols-2 gap-3"
+              >
+                <div className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${!useMercadoPago ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'}`}>
+                  <RadioGroupItem value="manual" id="payment-manual" />
+                  <Label htmlFor="payment-manual" className="cursor-pointer flex-1">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      <span>Texto Manual</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Envia seus dados de PIX fixos</p>
+                  </Label>
+                </div>
+                <div className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${useMercadoPago ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'}`}>
+                  <RadioGroupItem value="mercadopago" id="payment-mercadopago" />
+                  <Label htmlFor="payment-mercadopago" className="cursor-pointer flex-1">
+                    <div className="flex items-center gap-2">
+                      <QrCode className="h-4 w-4" />
+                      <span>Mercado Pago</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Gera PIX automático com QR Code</p>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {useMercadoPago ? (
+              /* Mercado Pago Plan Selection */
+              <div className="space-y-3">
+                <Label>Selecionar Plano</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {plans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      onClick={() => setMercadoPagoPlanId(plan.id)}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        mercadoPagoPlanId === plan.id 
+                          ? 'border-primary bg-primary/10 ring-1 ring-primary' 
+                          : 'border-border hover:border-muted-foreground'
+                      }`}
+                    >
+                      <p className="font-medium text-sm">{plan.name}</p>
+                      <p className="text-lg font-bold text-primary">
+                        R$ {plan.price.toFixed(2).replace('.', ',')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {plan.duration_months} {plan.duration_months === 1 ? 'mês' : 'meses'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    <strong>💳 Mercado Pago:</strong> Quando detectar pagamento, será gerado um PIX automático 
+                    com QR Code e código copia-e-cola, enviados diretamente ao cliente.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* Manual Payment Info */
+              <div className="space-y-2">
+                <Label htmlFor="owner-payment-info">
+                  Seus Dados de Pagamento
+                </Label>
+                <Textarea
+                  id="owner-payment-info"
+                  placeholder={`Ex:\n💳 *Dados para Pagamento*\n\nPIX: seu-email@gmail.com\nChave: CPF ou Celular\nNome: Seu Nome\nValor: R$ XX,XX`}
+                  value={ownerPaymentInfo}
+                  onChange={(e) => setOwnerPaymentInfo(e.target.value)}
+                  rows={6}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Quando o bot enviar uma mensagem com palavras como "pix", "pagamento", "chave pix", etc., 
+                  essa mensagem será <strong>bloqueada</strong> e substituída pelos seus dados acima.
+                </p>
+              </div>
+            )}
+            
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                <strong>⚠️ Palavras-chave detectadas:</strong> pix, pagamento, pagar, chave pix, transferir, 
+                deposito, depositar, banco, conta, R$, reais, cpf, cnpj
+              </p>
+            </div>
+
+            <Button onClick={handleSave} disabled={isSaving} className="w-full">
+              {isSaving ? 'Salvando...' : 'Salvar Configuração de Pagamento'}
+            </Button>
+          </CardContent>
+        )}
       </Card>
 
       {/* Text Replacements */}
