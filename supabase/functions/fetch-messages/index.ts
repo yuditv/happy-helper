@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     }
 
     // Helper function for fetch with timeout and retry
-    const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 2, timeoutMs = 15000) => {
+    const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 2, timeoutMs = 30000) => {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           const controller = new AbortController();
