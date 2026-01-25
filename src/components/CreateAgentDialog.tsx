@@ -84,6 +84,8 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
     buffer_max_messages: 10,
     // Anti-hallucination
     anti_hallucination_enabled: true,
+    // Canned responses
+    use_canned_responses: true,
   });
 
   useEffect(() => {
@@ -121,6 +123,8 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         buffer_max_messages: editingAgent.buffer_max_messages ?? 10,
         // Anti-hallucination
         anti_hallucination_enabled: editingAgent.anti_hallucination_enabled ?? true,
+        // Canned responses
+        use_canned_responses: editingAgent.use_canned_responses ?? true,
       });
     } else {
       setFormData({
@@ -155,6 +159,8 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         buffer_max_messages: 10,
         // Anti-hallucination
         anti_hallucination_enabled: true,
+        // Canned responses
+        use_canned_responses: true,
       });
     }
   }, [editingAgent, open]);
@@ -932,6 +938,40 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
                   </motion.div>
                 </>
               )}
+
+              {/* Canned Responses Section */}
+              <motion.div 
+                custom={4}
+                variants={formItemVariants}
+                initial="hidden"
+                animate="visible"
+                className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-500/20">
+                      <MessageSquare className="h-5 w-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Usar Respostas Rápidas</p>
+                      <p className="text-xs text-muted-foreground">
+                        A IA terá acesso às suas respostas rápidas cadastradas
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={formData.use_canned_responses}
+                    onCheckedChange={(checked) => 
+                      setFormData({ ...formData, use_canned_responses: checked })
+                    }
+                  />
+                </div>
+                <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border/20">
+                  <p className="text-xs text-muted-foreground">
+                    💡 Quando ativado, a IA usa os valores exatos das respostas rápidas (preços, planos, etc) para evitar inventar informações incorretas.
+                  </p>
+                </div>
+              </motion.div>
             </TabsContent>
           </Tabs>
 
