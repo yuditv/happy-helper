@@ -2005,50 +2005,191 @@ serve(async (req: Request) => {
             }
             
             if (session) {
-              // Get the instance to use for sending to bot
-              const { data: proxyInstance } = await supabase
-                .from('whatsapp_instances')
-                .select('*')
-                .eq('id', proxyConfig.instance_id)
-                .single();
+              const messageContent = message || caption || '';
+              const trimmedMessage = messageContent.trim();
               
-              if (proxyInstance && proxyInstance.instance_key) {
-                const botPhone = formatPhoneNumber(proxyConfig.bot_phone);
-                const messageContent = message || caption || '';
+              // ===== CHECK FOR PLAN CHOICE (1, 2, or 3) =====
+              if (proxyConfig.use_mercado_pago && ['1', '2', '3'].includes(trimmedMessage)) {
+                console.log(`[Bot Proxy] 🎯 Client chose plan option: ${trimmedMessage}`);
                 
-                console.log(`[Bot Proxy] Forwarding client message to bot ${botPhone}: "${messageContent.substring(0, 50)}..."`);
+                // Fetch the corresponding plan
+                const { data: chosenPlan } = await supabase
+                  .from('bot_proxy_plans')
+                  .select('*')
+                  .eq('config_id', proxyConfig.id)
+                  .eq('option_number', parseInt(trimmedMessage))
+                  .eq('is_active', true)
+                  .maybeSingle();
                 
-                // Send to bot via UAZAPI
-                const sendResult = await sendTextViaUazapi(
-                  uazapiUrl,
-                  proxyInstance.instance_key,
-                  botPhone,
-                  messageContent
-                );
-                
-                if (sendResult) {
-                  // Update session activity
-                  await supabase
-                    .from('bot_proxy_sessions')
-                    .update({ last_activity_at: new Date().toISOString() })
-                    .eq('id', session.id);
+                if (chosenPlan) {
+                  console.log(`[Bot Proxy] 💰 Generating PIX for plan: ${chosenPlan.name} - R$ ${chosenPlan.price}`);
                   
-                  // Mark message as proxied in metadata
-                  if (savedMessage) {
-                    await supabase
-                      .from('chat_inbox_messages')
-                      .update({
-                        metadata: {
-                          ...((savedMessage.metadata as Record<string, unknown>) || {}),
-                          proxied_to_bot: true,
-                          bot_phone: proxyConfig.bot_phone
+                  const mercadoPagoToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
+                  
+                  if (mercadoPagoToken) {
+                    try {
+                      const expirationDate = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+                      
+                      const mpPayload = {
+                        transaction_amount: Number(chosenPlan.price),
+                        description: `${chosenPlan.name} - ${chosenPlan.duration_days} dias`,
+                        payment_method_id: "pix",
+                        payer: {
+                          email: "cliente@pagamento.com",
+                        },
+                        date_of_expiration: expirationDate.toISOString(),
+                      };
+                      
+                      console.log(`[Bot Proxy] Creating MP payment for client choice:`, JSON.stringify(mpPayload));
+                      
+                      const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "Authorization": `Bearer ${mercadoPagoToken}`,
+                          "X-Idempotency-Key": `botproxy-choice-${session.id}-${Date.now()}`,
+                        },
+                        body: JSON.stringify(mpPayload),
+                      });
+                      
+                      const mpData = await mpResponse.json();
+                      
+                      if (mpResponse.ok && mpData.point_of_interaction?.transaction_data) {
+                        const pixData = mpData.point_of_interaction.transaction_data;
+                        const pixCode = pixData.qr_code || '';
+                        const pixQrCodeBase64 = pixData.qr_code_base64 || '';
+                        
+                        console.log(`[Bot Proxy] ✅ PIX generated for client choice!`);
+                        
+                        // Send QR Code image first
+                        if (pixQrCodeBase64) {
+                          const qrImageUrl = `data:image/png;base64,${pixQrCodeBase64}`;
+                          
+                          await fetch(`${uazapiUrl}/send/media`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'token': instance.instance_key
+                            },
+                            body: JSON.stringify({
+                              number: normalizedPhone,
+                              media: qrImageUrl,
+                              type: 'image',
+                              caption: `💳 *Pagamento PIX - ${chosenPlan.name}*\n\n💰 Valor: R$ ${Number(chosenPlan.price).toFixed(2).replace('.', ',')}\n📅 Duração: ${chosenPlan.duration_days} dias\n⏰ Válido por 30 minutos`
+                            })
+                          });
+                          
+                          console.log(`[Bot Proxy] QR Code image sent to client`);
                         }
-                      })
-                      .eq('id', savedMessage.id);
+                        
+                        // Wait a bit then send the copy-paste code
+                        await sleep(1500);
+                        
+                        const pixMessage = `📋 *Código PIX Copia e Cola:*\n\n\`\`\`${pixCode}\`\`\`\n\n👆 Copie o código acima e cole no seu banco para pagar.\n\n✅ Após o pagamento, envie o comprovante aqui!`;
+                        
+                        await sendTextViaUazapi(
+                          uazapiUrl,
+                          instance.instance_key,
+                          normalizedPhone,
+                          pixMessage
+                        );
+                        
+                        console.log(`[Bot Proxy] PIX code sent to client`);
+                        
+                        // Save the PIX info in message metadata
+                        await supabase
+                          .from('chat_inbox_messages')
+                          .insert({
+                            conversation_id: conversation.id,
+                            sender_type: 'agent',
+                            content: `💳 PIX gerado - ${chosenPlan.name}: R$ ${Number(chosenPlan.price).toFixed(2).replace('.', ',')} (${chosenPlan.duration_days} dias)`,
+                            metadata: { 
+                              mercado_pago_payment: true,
+                              plan_name: chosenPlan.name,
+                              amount: chosenPlan.price,
+                              duration_days: chosenPlan.duration_days,
+                              pix_code: pixCode.substring(0, 50) + '...',
+                              mp_payment_id: mpData.id,
+                              client_choice: trimmedMessage
+                            }
+                          });
+                        
+                        // Update session and conversation
+                        await supabase
+                          .from('bot_proxy_sessions')
+                          .update({ last_activity_at: new Date().toISOString() })
+                          .eq('id', session.id);
+                        
+                        await supabase
+                          .from('conversations')
+                          .update({
+                            last_message_at: new Date().toISOString(),
+                            last_message_preview: '💳 PIX enviado'
+                          })
+                          .eq('id', conversation.id);
+                        
+                        console.log(`[Bot Proxy] Successfully sent PIX for client plan choice`);
+                        botProxyHandled = true;
+                      } else {
+                        console.error(`[Bot Proxy] MP Error for client choice:`, JSON.stringify(mpData));
+                      }
+                    } catch (mpError) {
+                      console.error(`[Bot Proxy] Error generating MP PIX for client choice:`, mpError);
+                    }
+                  } else {
+                    console.error(`[Bot Proxy] MERCADO_PAGO_ACCESS_TOKEN not configured`);
                   }
+                } else {
+                  console.log(`[Bot Proxy] No plan configured for option ${trimmedMessage}, forwarding to bot`);
+                }
+              }
+              
+              // If not handled as plan choice, forward to bot
+              if (!botProxyHandled) {
+                // Get the instance to use for sending to bot
+                const { data: proxyInstance } = await supabase
+                  .from('whatsapp_instances')
+                  .select('*')
+                  .eq('id', proxyConfig.instance_id)
+                  .single();
+                
+                if (proxyInstance && proxyInstance.instance_key) {
+                  const botPhone = formatPhoneNumber(proxyConfig.bot_phone);
                   
-                  console.log(`[Bot Proxy] Successfully forwarded client message to bot`);
-                  botProxyHandled = true;
+                  console.log(`[Bot Proxy] Forwarding client message to bot ${botPhone}: "${messageContent.substring(0, 50)}..."`);
+                  
+                  // Send to bot via UAZAPI
+                  const sendResult = await sendTextViaUazapi(
+                    uazapiUrl,
+                    proxyInstance.instance_key,
+                    botPhone,
+                    messageContent
+                  );
+                  
+                  if (sendResult) {
+                    // Update session activity
+                    await supabase
+                      .from('bot_proxy_sessions')
+                      .update({ last_activity_at: new Date().toISOString() })
+                      .eq('id', session.id);
+                    
+                    // Mark message as proxied in metadata
+                    if (savedMessage) {
+                      await supabase
+                        .from('chat_inbox_messages')
+                        .update({
+                          metadata: {
+                            ...((savedMessage.metadata as Record<string, unknown>) || {}),
+                            proxied_to_bot: true,
+                            bot_phone: proxyConfig.bot_phone
+                          }
+                        })
+                        .eq('id', savedMessage.id);
+                    }
+                    
+                    console.log(`[Bot Proxy] Successfully forwarded client message to bot`);
+                    botProxyHandled = true;
+                  }
                 }
               }
             }
