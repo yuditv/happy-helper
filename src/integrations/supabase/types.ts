@@ -371,10 +371,12 @@ export type Database = {
           id: string
           instance_id: string | null
           is_active: boolean | null
+          mercado_pago_plan_id: string | null
           owner_payment_info: string | null
           payment_keywords: string[] | null
           trigger_label_id: string | null
           updated_at: string
+          use_mercado_pago: boolean | null
           user_id: string
         }
         Insert: {
@@ -384,10 +386,12 @@ export type Database = {
           id?: string
           instance_id?: string | null
           is_active?: boolean | null
+          mercado_pago_plan_id?: string | null
           owner_payment_info?: string | null
           payment_keywords?: string[] | null
           trigger_label_id?: string | null
           updated_at?: string
+          use_mercado_pago?: boolean | null
           user_id: string
         }
         Update: {
@@ -397,10 +401,12 @@ export type Database = {
           id?: string
           instance_id?: string | null
           is_active?: boolean | null
+          mercado_pago_plan_id?: string | null
           owner_payment_info?: string | null
           payment_keywords?: string[] | null
           trigger_label_id?: string | null
           updated_at?: string
+          use_mercado_pago?: boolean | null
           user_id?: string
         }
         Relationships: [
@@ -409,6 +415,13 @@ export type Database = {
             columns: ["instance_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_proxy_config_mercado_pago_plan_id_fkey"
+            columns: ["mercado_pago_plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
             referencedColumns: ["id"]
           },
           {

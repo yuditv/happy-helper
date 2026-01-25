@@ -13,6 +13,8 @@ export interface BotProxyConfig {
   owner_payment_info: string | null;
   payment_keywords: string[] | null;
   block_bot_payment: boolean;
+  use_mercado_pago: boolean;
+  mercado_pago_plan_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -122,6 +124,8 @@ export function useBotProxy() {
     is_active: boolean;
     owner_payment_info?: string | null;
     block_bot_payment?: boolean;
+    use_mercado_pago?: boolean;
+    mercado_pago_plan_id?: string | null;
   }) => {
     if (!user?.id) return null;
 
@@ -141,6 +145,8 @@ export function useBotProxy() {
             is_active: data.is_active,
             owner_payment_info: data.owner_payment_info ?? null,
             block_bot_payment: data.block_bot_payment ?? false,
+            use_mercado_pago: data.use_mercado_pago ?? false,
+            mercado_pago_plan_id: data.mercado_pago_plan_id ?? null,
           })
           .eq('id', config.id)
           .select()
@@ -162,6 +168,8 @@ export function useBotProxy() {
             is_active: data.is_active,
             owner_payment_info: data.owner_payment_info ?? null,
             block_bot_payment: data.block_bot_payment ?? false,
+            use_mercado_pago: data.use_mercado_pago ?? false,
+            mercado_pago_plan_id: data.mercado_pago_plan_id ?? null,
           })
           .select()
           .single();
