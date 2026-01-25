@@ -1884,40 +1884,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // ===== AUTO-RESUME AI AFTER 1 HOUR =====
-    // Check if AI was paused and should be auto-resumed (1 hour timeout)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    let shouldAutoResumeAI = false;
-    
-    if (!conversation.ai_enabled && conversation.ai_paused_at) {
-      const pausedAt = new Date(conversation.ai_paused_at).toISOString();
-      if (pausedAt < oneHourAgo) {
-        console.log(`[Inbox Webhook] AI was paused at ${pausedAt}, auto-resuming after 1 hour timeout`);
-        shouldAutoResumeAI = true;
-        
-        // Re-enable AI and clear pause timestamp
-        await supabase
-          .from('conversations')
-          .update({
-            ai_enabled: true,
-            ai_paused_at: null,
-            assigned_to: null // Also clear assignment to allow AI to respond
-          })
-          .eq('id', conversation.id);
-        
-        // Update local reference
-        conversation.ai_enabled = true;
-        conversation.ai_paused_at = null;
-        conversation.assigned_to = null;
-      }
-    }
-
     // Check if AI should respond - only for INCOMING messages (not fromMe)
     if (!fromMe && conversation.ai_enabled && !conversation.assigned_to) {
       console.log('[Inbox Webhook] AI is enabled for incoming message, checking for routing...');
-      if (shouldAutoResumeAI) {
-        console.log('[Inbox Webhook] AI was auto-resumed after 1 hour timeout');
-      }
       
       // ========== DYNAMIC AGENT ROUTING ==========
       // Priority 1: Check if conversation has an active agent assigned
