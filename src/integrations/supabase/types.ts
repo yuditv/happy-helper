@@ -433,6 +433,50 @@ export type Database = {
           },
         ]
       }
+      bot_proxy_plans: {
+        Row: {
+          config_id: string
+          created_at: string | null
+          duration_days: number
+          id: string
+          is_active: boolean | null
+          name: string
+          option_number: number
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          config_id: string
+          created_at?: string | null
+          duration_days: number
+          id?: string
+          is_active?: boolean | null
+          name: string
+          option_number: number
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          config_id?: string
+          created_at?: string | null
+          duration_days?: number
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          option_number?: number
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_proxy_plans_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "bot_proxy_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_proxy_replacements: {
         Row: {
           config_id: string

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft, CreditCard, ShieldCheck, QrCode } from 'lucide-react';
+import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft, CreditCard, ShieldCheck, QrCode, Save, ListOrdered } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,24 +10,22 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useBotProxy, BotProxyReplacement } from '@/hooks/useBotProxy';
+import { useBotProxy, BotProxyReplacement, BotProxyPlan } from '@/hooks/useBotProxy';
 import { useInboxLabels } from '@/hooks/useInboxLabels';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
-import { supabase } from '@/integrations/supabase/client';
 
-interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  duration_months: number;
-}
+const DEFAULT_PLANS = [
+  { option_number: 1, name: 'VIP Semanal', duration_days: 7, price: 10.00 },
+  { option_number: 2, name: 'VIP Quinzenal', duration_days: 15, price: 20.00 },
+  { option_number: 3, name: 'VIP Mensal', duration_days: 30, price: 30.00 },
+];
 
 function ReplacementItem({
   replacement, 
   onUpdate, 
   onDelete,
   onToggle 
-}: { 
+}: {
   replacement: BotProxyReplacement;
   onUpdate: (id: string, search: string, replace: string) => void;
   onDelete: (id: string) => void;
@@ -102,6 +100,7 @@ export function BotProxySettings() {
     config, 
     sessions, 
     replacements,
+    plans,
     isLoading, 
     isSaving, 
     saveConfig, 
@@ -110,7 +109,8 @@ export function BotProxySettings() {
     addReplacement,
     updateReplacement,
     deleteReplacement,
-    toggleReplacement
+    toggleReplacement,
+    savePlan
   } = useBotProxy();
   const { labels, isLoading: labelsLoading } = useInboxLabels();
   const { instances, isLoading: instancesLoading } = useWhatsAppInstances();
@@ -122,24 +122,33 @@ export function BotProxySettings() {
   const [ownerPaymentInfo, setOwnerPaymentInfo] = useState('');
   const [blockBotPayment, setBlockBotPayment] = useState(false);
   const [useMercadoPago, setUseMercadoPago] = useState(false);
-  const [mercadoPagoPlanId, setMercadoPagoPlanId] = useState<string>('');
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+
+  // VIP Plans state
+  const [planForms, setPlanForms] = useState<{[key: number]: {name: string; duration_days: number; price: string}}>({
+    1: { name: 'VIP Semanal', duration_days: 7, price: '10.00' },
+    2: { name: 'VIP Quinzenal', duration_days: 15, price: '20.00' },
+    3: { name: 'VIP Mensal', duration_days: 30, price: '30.00' },
+  });
+  const [savingPlans, setSavingPlans] = useState(false);
 
   // New replacement form
   const [newSearchText, setNewSearchText] = useState('');
   const [newReplaceText, setNewReplaceText] = useState('');
 
-  // Load subscription plans
+  // Load existing plans into form
   useEffect(() => {
-    const fetchPlans = async () => {
-      const { data } = await supabase
-        .from('subscription_plans')
-        .select('id, name, price, duration_months')
-        .order('price', { ascending: true });
-      if (data) setPlans(data);
-    };
-    fetchPlans();
-  }, []);
+    if (plans.length > 0) {
+      const newForms: typeof planForms = { ...planForms };
+      plans.forEach(plan => {
+        newForms[plan.option_number] = {
+          name: plan.name,
+          duration_days: plan.duration_days,
+          price: plan.price.toFixed(2)
+        };
+      });
+      setPlanForms(newForms);
+    }
+  }, [plans]);
 
   // Load config into form
   useEffect(() => {
@@ -151,7 +160,6 @@ export function BotProxySettings() {
       setOwnerPaymentInfo(config.owner_payment_info || '');
       setBlockBotPayment(config.block_bot_payment || false);
       setUseMercadoPago(config.use_mercado_pago || false);
-      setMercadoPagoPlanId(config.mercado_pago_plan_id || '');
     }
   }, [config]);
 
@@ -168,8 +176,34 @@ export function BotProxySettings() {
       owner_payment_info: ownerPaymentInfo.trim() || null,
       block_bot_payment: blockBotPayment,
       use_mercado_pago: useMercadoPago,
-      mercado_pago_plan_id: mercadoPagoPlanId || null,
+      mercado_pago_plan_id: null,
     });
+  };
+
+  const handleSavePlans = async () => {
+    if (!config?.id) {
+      return;
+    }
+    
+    setSavingPlans(true);
+    try {
+      for (const optNum of [1, 2, 3]) {
+        const form = planForms[optNum];
+        const priceValue = parseFloat(form.price.replace(',', '.'));
+        if (form.name && priceValue > 0 && form.duration_days > 0) {
+          await savePlan(optNum, form.name, form.duration_days, priceValue);
+        }
+      }
+    } finally {
+      setSavingPlans(false);
+    }
+  };
+
+  const updatePlanForm = (optNum: number, field: keyof typeof planForms[1], value: string | number) => {
+    setPlanForms(prev => ({
+      ...prev,
+      [optNum]: { ...prev[optNum], [field]: value }
+    }));
   };
 
   const handleAddReplacement = async () => {
@@ -406,34 +440,71 @@ export function BotProxySettings() {
             </div>
 
             {useMercadoPago ? (
-              /* Mercado Pago Plan Selection */
-              <div className="space-y-3">
-                <Label>Selecionar Plano</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {plans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      onClick={() => setMercadoPagoPlanId(plan.id)}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        mercadoPagoPlanId === plan.id 
-                          ? 'border-primary bg-primary/10 ring-1 ring-primary' 
-                          : 'border-border hover:border-muted-foreground'
-                      }`}
-                    >
-                      <p className="font-medium text-sm">{plan.name}</p>
-                      <p className="text-lg font-bold text-primary">
-                        R$ {plan.price.toFixed(2).replace('.', ',')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {plan.duration_months} {plan.duration_months === 1 ? 'mês' : 'meses'}
-                      </p>
+              /* VIP Plans Configuration */
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ListOrdered className="h-4 w-4" />
+                  <Label>Configurar Planos VIP</Label>
+                </div>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Quando o cliente digitar <strong>1</strong>, <strong>2</strong> ou <strong>3</strong>, 
+                  será gerado um PIX automático com o valor correspondente.
+                </p>
+                
+                <div className="space-y-3">
+                  {[1, 2, 3].map((optNum) => (
+                    <div key={optNum} className="p-3 rounded-lg border bg-muted/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge variant="outline" className="font-mono">{optNum}</Badge>
+                        <span className="text-sm font-medium">Opção {optNum}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nome</Label>
+                          <Input
+                            value={planForms[optNum]?.name || ''}
+                            onChange={(e) => updatePlanForm(optNum, 'name', e.target.value)}
+                            placeholder="VIP Semanal"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Dias</Label>
+                          <Input
+                            type="number"
+                            value={planForms[optNum]?.duration_days || 7}
+                            onChange={(e) => updatePlanForm(optNum, 'duration_days', parseInt(e.target.value) || 0)}
+                            placeholder="7"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Valor (R$)</Label>
+                          <Input
+                            value={planForms[optNum]?.price || ''}
+                            onChange={(e) => updatePlanForm(optNum, 'price', e.target.value)}
+                            placeholder="10.00"
+                            className="text-sm font-mono"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
+
+                <Button 
+                  onClick={handleSavePlans} 
+                  disabled={savingPlans || !config}
+                  className="w-full"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {savingPlans ? 'Salvando...' : 'Salvar Planos VIP'}
+                </Button>
+
                 <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
                   <p className="text-xs text-blue-600 dark:text-blue-400">
-                    <strong>💳 Mercado Pago:</strong> Quando detectar pagamento, será gerado um PIX automático 
-                    com QR Code e código copia-e-cola, enviados diretamente ao cliente.
+                    <strong>💳 Como funciona:</strong> Cliente digita "1" → PIX de R$ {planForms[1]?.price || '10.00'} | 
+                    "2" → R$ {planForms[2]?.price || '20.00'} | "3" → R$ {planForms[3]?.price || '30.00'}
                   </p>
                 </div>
               </div>

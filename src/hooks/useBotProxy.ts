@@ -30,6 +30,18 @@ export interface BotProxySession {
   last_activity_at: string;
 }
 
+export interface BotProxyPlan {
+  id: string;
+  config_id: string;
+  option_number: number;
+  name: string;
+  duration_days: number;
+  price: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface BotProxyReplacement {
   id: string;
   config_id: string;
@@ -46,6 +58,7 @@ export function useBotProxy() {
   const [config, setConfig] = useState<BotProxyConfig | null>(null);
   const [sessions, setSessions] = useState<BotProxySession[]>([]);
   const [replacements, setReplacements] = useState<BotProxyReplacement[]>([]);
+  const [plans, setPlans] = useState<BotProxyPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -101,6 +114,23 @@ export function useBotProxy() {
     }
   }, [config?.id]);
 
+  const fetchPlans = useCallback(async () => {
+    if (!config?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('bot_proxy_plans')
+        .select('*')
+        .eq('config_id', config.id)
+        .order('option_number', { ascending: true });
+
+      if (error) throw error;
+      setPlans(data || []);
+    } catch (error) {
+      console.error('Error fetching bot proxy plans:', error);
+    }
+  }, [config?.id]);
+
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -114,8 +144,9 @@ export function useBotProxy() {
     if (config?.id) {
       fetchSessions();
       fetchReplacements();
+      fetchPlans();
     }
-  }, [config?.id, fetchSessions, fetchReplacements]);
+  }, [config?.id, fetchSessions, fetchReplacements, fetchPlans]);
 
   const saveConfig = async (data: {
     bot_phone: string;
@@ -307,12 +338,79 @@ export function useBotProxy() {
     }
   };
 
+  // Plan CRUD functions
+  const savePlan = async (optionNumber: number, name: string, durationDays: number, price: number) => {
+    if (!config?.id) {
+      toast.error('Configure a ponte de bot primeiro');
+      return null;
+    }
+
+    try {
+      // Check if plan already exists for this option
+      const existingPlan = plans.find(p => p.option_number === optionNumber);
+      
+      if (existingPlan) {
+        // Update existing
+        const { data, error } = await supabase
+          .from('bot_proxy_plans')
+          .update({ name, duration_days: durationDays, price })
+          .eq('id', existingPlan.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setPlans(prev => prev.map(p => p.id === existingPlan.id ? data : p));
+        toast.success(`Plano ${optionNumber} atualizado!`);
+        return data;
+      } else {
+        // Insert new
+        const { data, error } = await supabase
+          .from('bot_proxy_plans')
+          .insert({
+            config_id: config.id,
+            option_number: optionNumber,
+            name,
+            duration_days: durationDays,
+            price
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setPlans(prev => [...prev, data].sort((a, b) => a.option_number - b.option_number));
+        toast.success(`Plano ${optionNumber} criado!`);
+        return data;
+      }
+    } catch (error) {
+      console.error('Error saving plan:', error);
+      toast.error('Erro ao salvar plano');
+      return null;
+    }
+  };
+
+  const deletePlan = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('bot_proxy_plans')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setPlans(prev => prev.filter(p => p.id !== id));
+      toast.success('Plano removido!');
+    } catch (error) {
+      console.error('Error deleting plan:', error);
+      toast.error('Erro ao remover plano');
+    }
+  };
+
   const getActiveSessionsCount = () => sessions.length;
 
   return {
     config,
     sessions,
     replacements,
+    plans,
     isLoading,
     isSaving,
     saveConfig,
@@ -322,9 +420,12 @@ export function useBotProxy() {
     updateReplacement,
     deleteReplacement,
     toggleReplacement,
+    savePlan,
+    deletePlan,
     getActiveSessionsCount,
     refetch: fetchConfig,
     refetchSessions: fetchSessions,
     refetchReplacements: fetchReplacements,
+    refetchPlans: fetchPlans,
   };
 }
