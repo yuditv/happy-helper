@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { AIMemoryPanel } from './AIMemoryPanel';
 
 interface ClientInfoPanelProps {
   client: Client | null;
@@ -36,6 +37,7 @@ interface ClientInfoPanelProps {
   phone?: string;
   contactName?: string;
   contactAvatar?: string | null;
+  agentId?: string | null;
 }
 
 // Helper function to get initials
@@ -61,7 +63,8 @@ export function ClientInfoPanel({
   onRegisterClient,
   phone,
   contactName,
-  contactAvatar
+  contactAvatar,
+  agentId
 }: ClientInfoPanelProps) {
   const status = client ? getExpirationStatus(client.expiresAt) : null;
   const daysUntil = client ? getDaysUntilExpiration(client.expiresAt) : 0;
@@ -120,211 +123,221 @@ export function ClientInfoPanel({
   // Client not found - show WhatsApp profile info + register option
   if (!client) {
     return (
-      <Card className="glass-card h-full">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Dados do Cliente
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            {/* Avatar do WhatsApp */}
-            <Avatar className="h-16 w-16 mx-auto mb-3">
-              <AvatarImage src={contactAvatar || undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                {getInitials(contactName, phone)}
-              </AvatarFallback>
-            </Avatar>
-            
-            {/* Nome do contato */}
-            {contactName && (
-              <p className="font-medium text-sm mb-1">
-                {contactName}
-              </p>
-            )}
-            
-            {/* Número de telefone */}
-            {phone && (
-              <p className="text-xs text-muted-foreground mb-2">
-                {phone}
-              </p>
-            )}
-            
-            {/* Badge indicando que não está cadastrado */}
-            <Badge variant="outline" className="text-xs mb-4">
-              Não cadastrado
-            </Badge>
-            
-            {/* Botão Cadastrar */}
-            {onRegisterClient && (
-              <Button 
-                size="sm" 
-                onClick={() => onRegisterClient(phone || '', contactName)}
-                className="w-full gap-2"
-              >
-                <UserPlus className="h-4 w-4" />
-                Cadastrar Cliente
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3 h-full">
+        <Card className="glass-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Dados do Cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-4">
+              {/* Avatar do WhatsApp */}
+              <Avatar className="h-16 w-16 mx-auto mb-3">
+                <AvatarImage src={contactAvatar || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                  {getInitials(contactName, phone)}
+                </AvatarFallback>
+              </Avatar>
+              
+              {/* Nome do contato */}
+              {contactName && (
+                <p className="font-medium text-sm mb-1">
+                  {contactName}
+                </p>
+              )}
+              
+              {/* Número de telefone */}
+              {phone && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  {phone}
+                </p>
+              )}
+              
+              {/* Badge indicando que não está cadastrado */}
+              <Badge variant="outline" className="text-xs mb-4">
+                Não cadastrado
+              </Badge>
+              
+              {/* Botão Cadastrar */}
+              {onRegisterClient && (
+                <Button 
+                  size="sm" 
+                  onClick={() => onRegisterClient(phone || '', contactName)}
+                  className="w-full gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Cadastrar Cliente
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* AI Memory Panel - also show for unregistered contacts */}
+        <AIMemoryPanel phone={phone || null} agentId={agentId} />
+      </div>
     );
   }
 
   return (
-    <Card className={cn("glass-card h-full", statusConfig?.borderColor)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Dados do Cliente
-          </div>
-          {onEdit && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6"
-              onClick={() => onEdit(client)}
-            >
-              <ExternalLink className="h-3 w-3" />
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Status Badge */}
-        {statusConfig && (
-          <div className={cn(
-            "flex items-center gap-2 p-2 rounded-lg",
-            statusConfig.bgColor
-          )}>
-            <statusConfig.icon className={cn("h-4 w-4", statusConfig.color)} />
-            <span className={cn("text-sm font-medium", statusConfig.color)}>
-              {statusConfig.label}
-            </span>
-          </div>
-        )}
-
-        {/* Client Info */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm font-medium truncate">{client.name}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm text-muted-foreground">{client.whatsapp}</span>
-          </div>
-          
-          {client.email && (
+    <div className="space-y-3 h-full">
+      <Card className={cn("glass-card", statusConfig?.borderColor)}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm text-muted-foreground truncate">{client.email}</span>
+              <User className="h-4 w-4" />
+              Dados do Cliente
+            </div>
+            {onEdit && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6"
+                onClick={() => onEdit(client)}
+              >
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Status Badge */}
+          {statusConfig && (
+            <div className={cn(
+              "flex items-center gap-2 p-2 rounded-lg",
+              statusConfig.bgColor
+            )}>
+              <statusConfig.icon className={cn("h-4 w-4", statusConfig.color)} />
+              <span className={cn("text-sm font-medium", statusConfig.color)}>
+                {statusConfig.label}
+              </span>
             </div>
           )}
-        </div>
 
-        <Separator />
-
-        {/* Plan Info */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          {/* Client Info */}
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Plano</span>
+              <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm font-medium truncate">{client.name}</span>
             </div>
-            <Badge variant="outline" className="text-xs">
-              {planLabels[client.plan]}
-            </Badge>
+            
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm text-muted-foreground">{client.whatsapp}</span>
+            </div>
+            
+            {client.email && (
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm text-muted-foreground truncate">{client.email}</span>
+              </div>
+            )}
           </div>
-          
-          {client.price !== null && (
+
+          <Separator />
+
+          {/* Plan Info */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Valor</span>
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Plano</span>
               </div>
-              <span className="text-sm font-medium">{formatCurrency(client.price)}</span>
+              <Badge variant="outline" className="text-xs">
+                {planLabels[client.plan]}
+              </Badge>
             </div>
-          )}
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Vencimento</span>
-            </div>
-            <span className="text-sm">{format(client.expiresAt, "dd/MM/yyyy")}</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Cadastrado</span>
-            </div>
-            <span className="text-sm">{format(client.createdAt, "dd/MM/yyyy")}</span>
-          </div>
-        </div>
-
-        {/* Notes */}
-        {client.notes && (
-          <>
-            <Separator />
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <StickyNote className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Notas</span>
-              </div>
-              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded line-clamp-3">
-                {client.notes}
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* Renewal History */}
-        {client.renewalHistory && client.renewalHistory.length > 0 && (
-          <>
-            <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Renovações ({client.renewalHistory.length})
-                </span>
-              </div>
-              <ScrollArea className="h-20">
-                <div className="space-y-1">
-                  {client.renewalHistory.slice(0, 3).map((renewal, i) => (
-                    <div key={renewal.id} className="text-xs text-muted-foreground flex justify-between">
-                      <span>{format(renewal.date, "dd/MM/yy", { locale: ptBR })}</span>
-                      <span>{planLabels[renewal.plan]}</span>
-                    </div>
-                  ))}
+            
+            {client.price !== null && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Valor</span>
                 </div>
-              </ScrollArea>
+                <span className="text-sm font-medium">{formatCurrency(client.price)}</span>
+              </div>
+            )}
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Vencimento</span>
+              </div>
+              <span className="text-sm">{format(client.expiresAt, "dd/MM/yyyy")}</span>
             </div>
-          </>
-        )}
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Cadastrado</span>
+              </div>
+              <span className="text-sm">{format(client.createdAt, "dd/MM/yyyy")}</span>
+            </div>
+          </div>
 
-        {/* Actions */}
-        {onRenew && (status === 'expiring' || status === 'expired') && (
-          <>
-            <Separator />
-            <Button 
-              size="sm" 
-              className="w-full gap-2"
-              variant={status === 'expired' ? 'destructive' : 'default'}
-              onClick={() => onRenew(client.id)}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Renovar Plano
-            </Button>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          {/* Notes */}
+          {client.notes && (
+            <>
+              <Separator />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Notas</span>
+                </div>
+                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded line-clamp-3">
+                  {client.notes}
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Renewal History */}
+          {client.renewalHistory && client.renewalHistory.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Renovações ({client.renewalHistory.length})
+                  </span>
+                </div>
+                <ScrollArea className="h-20">
+                  <div className="space-y-1">
+                    {client.renewalHistory.slice(0, 3).map((renewal, i) => (
+                      <div key={renewal.id} className="text-xs text-muted-foreground flex justify-between">
+                        <span>{format(renewal.date, "dd/MM/yy", { locale: ptBR })}</span>
+                        <span>{planLabels[renewal.plan]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </>
+          )}
+
+          {/* Actions */}
+          {onRenew && (status === 'expiring' || status === 'expired') && (
+            <>
+              <Separator />
+              <Button 
+                size="sm" 
+                className="w-full gap-2"
+                variant={status === 'expired' ? 'destructive' : 'default'}
+                onClick={() => onRenew(client.id)}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Renovar Plano
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* AI Memory Panel */}
+      <AIMemoryPanel phone={phone || client.whatsapp} agentId={agentId} />
+    </div>
   );
 }
