@@ -139,14 +139,14 @@ serve(async (req: Request) => {
         console.log(`[Buffer Processor] Processing buffer ${buffer.id} with ${messages.length} messages`);
 
         // Get full conversation and instance data
-        const { data: conversation } = await supabase
+        const { data: conversation, error: convError } = await supabase
           .from('conversations')
-          .select('*, instance:whatsapp_instances(*)')
+          .select('*')
           .eq('id', buffer.conversation_id)
           .single();
 
-        if (!conversation || !conversation.instance) {
-          console.error(`[Buffer Processor] Conversation or instance not found for buffer ${buffer.id}`);
+        if (convError || !conversation) {
+          console.error(`[Buffer Processor] Conversation not found for buffer ${buffer.id}:`, convError?.message);
           await supabase
             .from('ai_message_buffer')
             .update({ status: 'failed' })
@@ -155,7 +155,23 @@ serve(async (req: Request) => {
           continue;
         }
 
-        const instance = conversation.instance;
+        // Get instance data separately
+        const { data: instance, error: instanceError } = await supabase
+          .from('whatsapp_instances')
+          .select('*')
+          .eq('id', buffer.instance_id)
+          .single();
+
+        if (instanceError || !instance) {
+          console.error(`[Buffer Processor] Instance not found for buffer ${buffer.id}:`, instanceError?.message);
+          await supabase
+            .from('ai_message_buffer')
+            .update({ status: 'failed' })
+            .eq('id', buffer.id);
+          errorCount++;
+          continue;
+        }
+
         const agent = buffer.agent;
 
         if (!agent) {
