@@ -451,7 +451,7 @@ export default function Atendimento() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden relative min-h-0">
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
         {/* Subscription Expired Overlay */}
         {subscriptionExpired && (
           <motion.div
@@ -481,7 +481,7 @@ export default function Atendimento() {
           </motion.div>
         )}
 
-        {/* Left Sidebar */}
+        {/* Horizontal Navigation Bar (Top) */}
         <InboxSidebar
           instances={instances}
           labels={labels}
@@ -493,51 +493,53 @@ export default function Atendimento() {
         />
 
         {/* Content Area */}
-        {activeTab === 'dashboard' ? (
-          <InboxDashboard
-            conversations={conversations}
-            agents={agents}
-            metrics={metrics}
-          />
-        ) : (
-          <>
-            {/* Conversation List */}
-            <ConversationList
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {activeTab === 'dashboard' ? (
+            <InboxDashboard
               conversations={conversations}
-              selectedId={selectedConversation?.id || null}
-              onSelect={handleSelectConversation}
-              isLoading={isLoading}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
+              agents={agents}
+              metrics={metrics}
             />
+          ) : (
+            <>
+              {/* Conversation List */}
+              <ConversationList
+                conversations={conversations}
+                selectedId={selectedConversation?.id || null}
+                onSelect={handleSelectConversation}
+                isLoading={isLoading}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+              />
 
-            {/* Chat Panel */}
-            <ChatPanel
-              conversation={selectedConversation}
-              messages={messages}
-              labels={labels}
-              isLoading={messagesLoading}
-              isSending={isSending}
-              isSyncing={isSyncing}
-              isDeleting={isDeleting}
-              onSendMessage={handleSendMessage}
-              onAssignToMe={handleAssignToMe}
-              onResolve={handleResolve}
-              onReopen={handleReopen}
-              onToggleAI={handleToggleAI}
-              onAssignLabel={handleAssignLabel}
-              onRemoveLabel={handleRemoveLabel}
-              onMarkAsRead={handleMarkAsRead}
-              onRegisterClient={handleRegisterClient}
-              onRetryMessage={retryMessage}
-              onSyncMessages={(limit) => syncMessages({ limit, silent: false })}
-              onDeleteConversation={handleDeleteConversation}
-              onDeleteMessage={deleteMessage}
-              onSaveContact={saveContactToWhatsApp}
-              onRenameContact={renameContact}
-            />
-          </>
-        )}
+              {/* Chat Panel */}
+              <ChatPanel
+                conversation={selectedConversation}
+                messages={messages}
+                labels={labels}
+                isLoading={messagesLoading}
+                isSending={isSending}
+                isSyncing={isSyncing}
+                isDeleting={isDeleting}
+                onSendMessage={handleSendMessage}
+                onAssignToMe={handleAssignToMe}
+                onResolve={handleResolve}
+                onReopen={handleReopen}
+                onToggleAI={handleToggleAI}
+                onAssignLabel={handleAssignLabel}
+                onRemoveLabel={handleRemoveLabel}
+                onMarkAsRead={handleMarkAsRead}
+                onRegisterClient={handleRegisterClient}
+                onRetryMessage={retryMessage}
+                onSyncMessages={(limit) => syncMessages({ limit, silent: false })}
+                onDeleteConversation={handleDeleteConversation}
+                onDeleteMessage={deleteMessage}
+                onSaveContact={saveContactToWhatsApp}
+                onRenameContact={renameContact}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Subscription Plans Dialog */}
