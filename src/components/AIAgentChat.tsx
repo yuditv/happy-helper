@@ -2,29 +2,41 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bot, Send, Trash2, ChevronDown, 
-  Loader2, User, Sparkles, ThumbsUp, ThumbsDown
+  Loader2, User, Sparkles, ThumbsUp, ThumbsDown, Zap
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAIAgents, type AIAgent, type AIChatMessage } from "@/hooks/useAIAgents";
+import { useCannedResponses } from "@/hooks/useCannedResponses";
 import { cn } from "@/lib/utils";
 
 export function AIAgentChat() {
   const { agents, isLoadingAgents, useChatMessages, sendMessage, clearChatHistory, rateMessage } = useAIAgents();
+  const { responses: cannedResponses } = useCannedResponses();
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
   const [sessionId] = useState(() => crypto.randomUUID());
   const [inputMessage, setInputMessage] = useState("");
   const [localMessages, setLocalMessages] = useState<AIChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Count available canned responses
+  const cannedResponsesCount = cannedResponses?.length || 0;
 
   // Filter agents that have chat enabled
   const chatEnabledAgents = agents.filter(a => a.is_chat_enabled && a.is_active);
@@ -190,15 +202,39 @@ export function AIAgentChat() {
             </DropdownMenu>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearChat}
-            disabled={localMessages.length === 0}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedAgent?.use_canned_responses !== false && cannedResponsesCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="secondary" 
+                      className="gap-1.5 bg-accent/20 text-accent-foreground border-accent/30 hover:bg-accent/30 cursor-default"
+                    >
+                      <Zap className="h-3 w-3 text-primary" />
+                      <span className="font-medium">{cannedResponsesCount}</span>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium mb-1">Respostas Rápidas Ativas</p>
+                    <p className="text-xs text-muted-foreground">
+                      A IA tem acesso a {cannedResponsesCount} respostas rápidas para responder com precisão sobre preços, planos e outras informações.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearChat}
+              disabled={localMessages.length === 0}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         {selectedAgent?.description && (
           <p className="text-sm text-muted-foreground mt-2">
