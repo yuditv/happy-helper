@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft, CreditCard, ShieldCheck, QrCode, Save, ListOrdered } from 'lucide-react';
+import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,109 +8,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useBotProxy, BotProxyReplacement, BotProxyPlan } from '@/hooks/useBotProxy';
+import { useBotProxy } from '@/hooks/useBotProxy';
 import { useInboxLabels } from '@/hooks/useInboxLabels';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
-
-const DEFAULT_PLANS = [
-  { option_number: 1, name: 'VIP Semanal', duration_days: 7, price: 10.00 },
-  { option_number: 2, name: 'VIP Quinzenal', duration_days: 15, price: 20.00 },
-  { option_number: 3, name: 'VIP Mensal', duration_days: 30, price: 30.00 },
-];
-
-function ReplacementItem({
-  replacement, 
-  onUpdate, 
-  onDelete,
-  onToggle 
-}: {
-  replacement: BotProxyReplacement;
-  onUpdate: (id: string, search: string, replace: string) => void;
-  onDelete: (id: string) => void;
-  onToggle: (id: string, active: boolean) => void;
-}) {
-  const [searchText, setSearchText] = useState(replacement.search_text);
-  const [replaceText, setReplaceText] = useState(replacement.replace_text);
-  const [isDirty, setIsDirty] = useState(false);
-
-  useEffect(() => {
-    setSearchText(replacement.search_text);
-    setReplaceText(replacement.replace_text);
-    setIsDirty(false);
-  }, [replacement]);
-
-  const handleUpdate = () => {
-    if (searchText.trim() && replaceText.trim()) {
-      onUpdate(replacement.id, searchText, replaceText);
-      setIsDirty(false);
-    }
-  };
-
-  return (
-    <div className={`p-3 rounded-lg border ${replacement.is_active ? 'bg-muted/30' : 'bg-muted/10 opacity-60'}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <Switch
-          checked={replacement.is_active}
-          onCheckedChange={(checked) => onToggle(replacement.id, checked)}
-          className="scale-75"
-        />
-        <span className="text-xs text-muted-foreground">
-          {replacement.is_active ? 'Ativa' : 'Inativa'}
-        </span>
-        <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDelete(replacement.id)}
-          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center">
-        <Input
-          value={searchText}
-          onChange={(e) => { setSearchText(e.target.value); setIsDirty(true); }}
-          placeholder="Texto original"
-          className="text-sm"
-        />
-        <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-        <Input
-          value={replaceText}
-          onChange={(e) => { setReplaceText(e.target.value); setIsDirty(true); }}
-          placeholder="Substituir por"
-          className="text-sm"
-        />
-      </div>
-      {isDirty && (
-        <div className="flex justify-end mt-2">
-          <Button size="sm" onClick={handleUpdate} className="h-7 text-xs">
-            Salvar alteração
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function BotProxySettings() {
   const { 
     config, 
     sessions, 
-    replacements,
-    plans,
     isLoading, 
     isSaving, 
     saveConfig, 
     toggleActive, 
-    endSession,
-    addReplacement,
-    updateReplacement,
-    deleteReplacement,
-    toggleReplacement,
-    savePlan
+    endSession
   } = useBotProxy();
   const { labels, isLoading: labelsLoading } = useInboxLabels();
   const { instances, isLoading: instancesLoading } = useWhatsAppInstances();
@@ -119,36 +29,6 @@ export function BotProxySettings() {
   const [triggerLabelId, setTriggerLabelId] = useState<string>('');
   const [instanceId, setInstanceId] = useState<string>('');
   const [isActive, setIsActive] = useState(true);
-  const [ownerPaymentInfo, setOwnerPaymentInfo] = useState('');
-  const [blockBotPayment, setBlockBotPayment] = useState(false);
-  const [useMercadoPago, setUseMercadoPago] = useState(false);
-
-  // VIP Plans state
-  const [planForms, setPlanForms] = useState<{[key: number]: {name: string; duration_days: number; price: string}}>({
-    1: { name: 'VIP Semanal', duration_days: 7, price: '10.00' },
-    2: { name: 'VIP Quinzenal', duration_days: 15, price: '20.00' },
-    3: { name: 'VIP Mensal', duration_days: 30, price: '30.00' },
-  });
-  const [savingPlans, setSavingPlans] = useState(false);
-
-  // New replacement form
-  const [newSearchText, setNewSearchText] = useState('');
-  const [newReplaceText, setNewReplaceText] = useState('');
-
-  // Load existing plans into form
-  useEffect(() => {
-    if (plans.length > 0) {
-      const newForms: typeof planForms = { ...planForms };
-      plans.forEach(plan => {
-        newForms[plan.option_number] = {
-          name: plan.name,
-          duration_days: plan.duration_days,
-          price: plan.price.toFixed(2)
-        };
-      });
-      setPlanForms(newForms);
-    }
-  }, [plans]);
 
   // Load config into form
   useEffect(() => {
@@ -157,9 +37,6 @@ export function BotProxySettings() {
       setTriggerLabelId(config.trigger_label_id || '');
       setInstanceId(config.instance_id || '');
       setIsActive(config.is_active);
-      setOwnerPaymentInfo(config.owner_payment_info || '');
-      setBlockBotPayment(config.block_bot_payment || false);
-      setUseMercadoPago(config.use_mercado_pago || false);
     }
   }, [config]);
 
@@ -173,47 +50,7 @@ export function BotProxySettings() {
       trigger_label_id: triggerLabelId || null,
       instance_id: instanceId || null,
       is_active: isActive,
-      owner_payment_info: ownerPaymentInfo.trim() || null,
-      block_bot_payment: blockBotPayment,
-      use_mercado_pago: useMercadoPago,
-      mercado_pago_plan_id: null,
     });
-  };
-
-  const handleSavePlans = async () => {
-    if (!config?.id) {
-      return;
-    }
-    
-    setSavingPlans(true);
-    try {
-      for (const optNum of [1, 2, 3]) {
-        const form = planForms[optNum];
-        const priceValue = parseFloat(form.price.replace(',', '.'));
-        if (form.name && priceValue > 0 && form.duration_days > 0) {
-          await savePlan(optNum, form.name, form.duration_days, priceValue);
-        }
-      }
-    } finally {
-      setSavingPlans(false);
-    }
-  };
-
-  const updatePlanForm = (optNum: number, field: keyof typeof planForms[1], value: string | number) => {
-    setPlanForms(prev => ({
-      ...prev,
-      [optNum]: { ...prev[optNum], [field]: value }
-    }));
-  };
-
-  const handleAddReplacement = async () => {
-    if (!newSearchText.trim() || !newReplaceText.trim()) return;
-    
-    const result = await addReplacement(newSearchText.trim(), newReplaceText.trim());
-    if (result) {
-      setNewSearchText('');
-      setNewReplaceText('');
-    }
   };
 
   const connectedInstances = instances.filter(i => i.status === 'connected');
@@ -380,234 +217,6 @@ export function BotProxySettings() {
         </CardContent>
       </Card>
 
-      {/* Payment Override */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              <CardTitle className="text-base">Bloqueio de Pagamento do Bot</CardTitle>
-            </div>
-            <Switch
-              checked={blockBotPayment}
-              onCheckedChange={setBlockBotPayment}
-            />
-          </div>
-          <CardDescription>
-            {blockBotPayment ? (
-              <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
-                <ShieldCheck className="h-3 w-3 mr-1" />
-                Ativo - Seus dados serão enviados
-              </Badge>
-            ) : (
-              <Badge variant="secondary">
-                Desativado - Mensagens do bot passam normalmente
-              </Badge>
-            )}
-          </CardDescription>
-        </CardHeader>
-        {blockBotPayment && (
-          <CardContent className="space-y-4">
-            {/* Payment Method Selection */}
-            <div className="space-y-3">
-              <Label>Método de Pagamento</Label>
-              <RadioGroup 
-                value={useMercadoPago ? 'mercadopago' : 'manual'} 
-                onValueChange={(v) => setUseMercadoPago(v === 'mercadopago')}
-                className="grid grid-cols-2 gap-3"
-              >
-                <div className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${!useMercadoPago ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'}`}>
-                  <RadioGroupItem value="manual" id="payment-manual" />
-                  <Label htmlFor="payment-manual" className="cursor-pointer flex-1">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      <span>Texto Manual</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Envia seus dados de PIX fixos</p>
-                  </Label>
-                </div>
-                <div className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${useMercadoPago ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'}`}>
-                  <RadioGroupItem value="mercadopago" id="payment-mercadopago" />
-                  <Label htmlFor="payment-mercadopago" className="cursor-pointer flex-1">
-                    <div className="flex items-center gap-2">
-                      <QrCode className="h-4 w-4" />
-                      <span>Mercado Pago</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Gera PIX automático com QR Code</p>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {useMercadoPago ? (
-              /* VIP Plans Configuration */
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <ListOrdered className="h-4 w-4" />
-                  <Label>Configurar Planos VIP</Label>
-                </div>
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Quando o cliente digitar <strong>1</strong>, <strong>2</strong> ou <strong>3</strong>, 
-                  será gerado um PIX automático com o valor correspondente.
-                </p>
-                
-                <div className="space-y-3">
-                  {[1, 2, 3].map((optNum) => (
-                    <div key={optNum} className="p-3 rounded-lg border bg-muted/30">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge variant="outline" className="font-mono">{optNum}</Badge>
-                        <span className="text-sm font-medium">Opção {optNum}</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Nome</Label>
-                          <Input
-                            value={planForms[optNum]?.name || ''}
-                            onChange={(e) => updatePlanForm(optNum, 'name', e.target.value)}
-                            placeholder="VIP Semanal"
-                            className="text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Dias</Label>
-                          <Input
-                            type="number"
-                            value={planForms[optNum]?.duration_days || 7}
-                            onChange={(e) => updatePlanForm(optNum, 'duration_days', parseInt(e.target.value) || 0)}
-                            placeholder="7"
-                            className="text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Valor (R$)</Label>
-                          <Input
-                            value={planForms[optNum]?.price || ''}
-                            onChange={(e) => updatePlanForm(optNum, 'price', e.target.value)}
-                            placeholder="10.00"
-                            className="text-sm font-mono"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Button 
-                  onClick={handleSavePlans} 
-                  disabled={savingPlans || !config}
-                  className="w-full"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {savingPlans ? 'Salvando...' : 'Salvar Planos VIP'}
-                </Button>
-
-                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                  <p className="text-xs text-blue-600 dark:text-blue-400">
-                    <strong>💳 Como funciona:</strong> Cliente digita "1" → PIX de R$ {planForms[1]?.price || '10.00'} | 
-                    "2" → R$ {planForms[2]?.price || '20.00'} | "3" → R$ {planForms[3]?.price || '30.00'}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              /* Manual Payment Info */
-              <div className="space-y-2">
-                <Label htmlFor="owner-payment-info">
-                  Seus Dados de Pagamento
-                </Label>
-                <Textarea
-                  id="owner-payment-info"
-                  placeholder={`Ex:\n💳 *Dados para Pagamento*\n\nPIX: seu-email@gmail.com\nChave: CPF ou Celular\nNome: Seu Nome\nValor: R$ XX,XX`}
-                  value={ownerPaymentInfo}
-                  onChange={(e) => setOwnerPaymentInfo(e.target.value)}
-                  rows={6}
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Quando o bot enviar uma mensagem com palavras como "pix", "pagamento", "chave pix", etc., 
-                  essa mensagem será <strong>bloqueada</strong> e substituída pelos seus dados acima.
-                </p>
-              </div>
-            )}
-            
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                <strong>⚠️ Palavras-chave detectadas:</strong> pix, pagamento, pagar, chave pix, transferir, 
-                deposito, depositar, banco, conta, R$, reais, cpf, cnpj
-              </p>
-            </div>
-
-            <Button onClick={handleSave} disabled={isSaving} className="w-full">
-              {isSaving ? 'Salvando...' : 'Salvar Configuração de Pagamento'}
-            </Button>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Text Replacements */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <ArrowRightLeft className="h-4 w-4" />
-            Substituição de Texto
-          </CardTitle>
-          <CardDescription>
-            Modifique automaticamente textos nas mensagens do bot antes de enviar ao cliente
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Add new replacement */}
-          <div className="p-3 rounded-lg border border-dashed bg-muted/20">
-            <p className="text-sm font-medium mb-2">Adicionar nova regra</p>
-            <div className="grid grid-cols-[1fr,auto,1fr,auto] gap-2 items-center">
-              <Input
-                value={newSearchText}
-                onChange={(e) => setNewSearchText(e.target.value)}
-                placeholder="Texto original (ex: R$ 5.00)"
-                className="text-sm"
-              />
-              <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-              <Input
-                value={newReplaceText}
-                onChange={(e) => setNewReplaceText(e.target.value)}
-                placeholder="Substituir por (ex: R$ 10.00)"
-                className="text-sm"
-              />
-              <Button 
-                size="sm" 
-                onClick={handleAddReplacement}
-                disabled={!newSearchText.trim() || !newReplaceText.trim() || !config}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {!config && (
-              <p className="text-xs text-amber-500 mt-2">
-                Salve a configuração primeiro para adicionar regras
-              </p>
-            )}
-          </div>
-
-          {/* Existing replacements */}
-          {replacements.length > 0 ? (
-            <div className="space-y-2">
-              {replacements.map((replacement) => (
-                <ReplacementItem
-                  key={replacement.id}
-                  replacement={replacement}
-                  onUpdate={updateReplacement}
-                  onDelete={deleteReplacement}
-                  onToggle={toggleReplacement}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nenhuma regra de substituição configurada
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Active Sessions */}
       {sessions.length > 0 && (
         <Card>
@@ -658,8 +267,7 @@ export function BotProxySettings() {
           <p>2. Selecione uma etiqueta que ativará a ponte (ex: "🤖 Bot")</p>
           <p>3. Quando você adicionar essa etiqueta em uma conversa, as mensagens serão encaminhadas automaticamente</p>
           <p>4. O bot responde → você recebe → sistema encaminha para o cliente</p>
-          <p>5. <strong>Novo!</strong> Configure regras de substituição para ajustar preços ou textos</p>
-          <p>6. Para desativar, remova a etiqueta da conversa</p>
+          <p>5. Para desativar, remova a etiqueta da conversa</p>
         </CardContent>
       </Card>
     </div>
