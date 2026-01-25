@@ -6,6 +6,264 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ===== Message Sending Utilities =====
+
+interface MessageSendConfig {
+  response_delay_min: number;
+  response_delay_max: number;
+  max_lines_per_message: number;
+  split_mode: 'none' | 'paragraph' | 'lines' | 'sentences' | 'chars';
+  split_delay_min: number;
+  split_delay_max: number;
+  max_chars_per_message: number;
+  typing_simulation: boolean;
+}
+
+const DEFAULT_SEND_CONFIG: MessageSendConfig = {
+  response_delay_min: 2,
+  response_delay_max: 5,
+  max_lines_per_message: 0,
+  split_mode: 'none',
+  split_delay_min: 1,
+  split_delay_max: 3,
+  max_chars_per_message: 0,
+  typing_simulation: true
+};
+
+/**
+ * Sleep for a random duration between min and max milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Get a random number between min and max (inclusive)
+ */
+function randomBetween(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Split message into chunks based on the configured mode
+ */
+function splitMessage(text: string, config: MessageSendConfig): string[] {
+  if (!text || text.trim().length === 0) return [];
+  
+  if (config.split_mode === 'none' && config.max_lines_per_message === 0 && config.max_chars_per_message === 0) {
+    return [text];
+  }
+  
+  let parts: string[] = [];
+  
+  // First, split by mode
+  switch (config.split_mode) {
+    case 'paragraph':
+      parts = text.split(/\n\n+/).filter(p => p.trim());
+      break;
+    case 'lines':
+      parts = text.split(/\n/).filter(p => p.trim());
+      break;
+    case 'sentences':
+      // Split by sentence-ending punctuation
+      const sentenceMatches = text.match(/[^.!?]+[.!?]+[\s]*/g);
+      if (sentenceMatches && sentenceMatches.length > 0) {
+        parts = sentenceMatches.map(s => s.trim()).filter(s => s);
+      } else {
+        parts = [text];
+      }
+      break;
+    case 'chars':
+      if (config.max_chars_per_message > 0) {
+        parts = chunkByChars(text, config.max_chars_per_message);
+      } else {
+        parts = [text];
+      }
+      break;
+    default:
+      parts = [text];
+  }
+  
+  // Apply character limit if set and mode is not 'chars'
+  if (config.split_mode !== 'chars' && config.max_chars_per_message > 0) {
+    parts = parts.flatMap(p => chunkByChars(p, config.max_chars_per_message));
+  }
+  
+  // Apply line limit if set
+  if (config.max_lines_per_message > 0) {
+    parts = parts.flatMap(p => chunkByLines(p, config.max_lines_per_message));
+  }
+  
+  return parts.filter(p => p.trim());
+}
+
+/**
+ * Chunk text by maximum character count, trying to break at word boundaries
+ */
+function chunkByChars(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+  
+  const chunks: string[] = [];
+  let remaining = text;
+  
+  while (remaining.length > 0) {
+    if (remaining.length <= maxChars) {
+      chunks.push(remaining.trim());
+      break;
+    }
+    
+    // Find a good break point (space, newline)
+    let breakPoint = maxChars;
+    const lastSpace = remaining.lastIndexOf(' ', maxChars);
+    const lastNewline = remaining.lastIndexOf('\n', maxChars);
+    
+    if (lastSpace > maxChars * 0.5 || lastNewline > maxChars * 0.5) {
+      breakPoint = Math.max(lastSpace, lastNewline);
+    }
+    
+    chunks.push(remaining.substring(0, breakPoint).trim());
+    remaining = remaining.substring(breakPoint).trim();
+  }
+  
+  return chunks;
+}
+
+/**
+ * Chunk text by maximum line count
+ */
+function chunkByLines(text: string, maxLines: number): string[] {
+  const lines = text.split('\n');
+  if (lines.length <= maxLines) return [text];
+  
+  const chunks: string[] = [];
+  for (let i = 0; i < lines.length; i += maxLines) {
+    const chunk = lines.slice(i, i + maxLines).join('\n');
+    if (chunk.trim()) {
+      chunks.push(chunk);
+    }
+  }
+  
+  return chunks;
+}
+
+/**
+ * Send presence/typing indicator via UAZAPI
+ */
+async function sendTypingIndicator(
+  uazapiUrl: string, 
+  instanceKey: string, 
+  phone: string,
+  duration: number = 2000
+): Promise<void> {
+  try {
+    await fetch(`${uazapiUrl}/send/presence`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': instanceKey
+      },
+      body: JSON.stringify({
+        number: phone,
+        presence: 'composing',
+        delay: duration
+      })
+    });
+    // Wait a bit for the typing to show
+    await sleep(Math.min(duration, 1500));
+  } catch (e) {
+    console.error('[Inbox Webhook] Error sending typing indicator:', e);
+  }
+}
+
+/**
+ * Calculate typing simulation time based on message length
+ */
+function calculateTypingTime(message: string): number {
+  // Simulate typing at ~30-50 chars per second, with some randomness
+  const baseTime = (message.length / 40) * 1000;
+  return Math.min(Math.max(baseTime, 500), 3000); // Between 0.5s and 3s
+}
+
+/**
+ * Send a single text message via UAZAPI
+ */
+async function sendTextViaUazapi(
+  uazapiUrl: string,
+  instanceKey: string,
+  phone: string,
+  text: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${uazapiUrl}/send/text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': instanceKey
+      },
+      body: JSON.stringify({
+        number: phone,
+        text: text
+      })
+    });
+    return response.ok;
+  } catch (e) {
+    console.error('[Inbox Webhook] Error sending text:', e);
+    return false;
+  }
+}
+
+/**
+ * Send AI response with configured delays and splitting
+ */
+async function sendAIResponseWithConfig(
+  uazapiUrl: string,
+  instanceKey: string,
+  phone: string,
+  fullResponse: string,
+  config: MessageSendConfig
+): Promise<void> {
+  console.log(`[Inbox Webhook] Sending AI response with config:`, {
+    split_mode: config.split_mode,
+    response_delay: `${config.response_delay_min}-${config.response_delay_max}s`,
+    typing: config.typing_simulation
+  });
+  
+  // 1. Apply initial response delay
+  if (config.response_delay_max > 0) {
+    const delaySeconds = randomBetween(config.response_delay_min, config.response_delay_max);
+    console.log(`[Inbox Webhook] Waiting ${delaySeconds}s before responding...`);
+    await sleep(delaySeconds * 1000);
+  }
+  
+  // 2. Split message according to configuration
+  const messageParts = splitMessage(fullResponse, config);
+  console.log(`[Inbox Webhook] Message split into ${messageParts.length} parts`);
+  
+  // 3. Send each part with optional delays
+  for (let i = 0; i < messageParts.length; i++) {
+    const part = messageParts[i];
+    
+    // Simulate typing if enabled
+    if (config.typing_simulation) {
+      const typingTime = calculateTypingTime(part);
+      await sendTypingIndicator(uazapiUrl, instanceKey, phone, typingTime);
+    }
+    
+    // Send the message part
+    const sent = await sendTextViaUazapi(uazapiUrl, instanceKey, phone, part);
+    console.log(`[Inbox Webhook] Sent part ${i + 1}/${messageParts.length}: ${sent ? 'OK' : 'FAILED'}`);
+    
+    // Delay between parts (except for last)
+    if (i < messageParts.length - 1 && config.split_delay_max > 0) {
+      const splitDelay = randomBetween(config.split_delay_min, config.split_delay_max);
+      console.log(`[Inbox Webhook] Waiting ${splitDelay}s before next part...`);
+      await sleep(splitDelay * 1000);
+    }
+  }
+  
+  console.log('[Inbox Webhook] All message parts sent successfully');
+}
+
 /**
  * Detect country code from phone number
  * Returns ISO 2-letter country code (e.g., 'US', 'BR', 'UK')
@@ -1276,20 +1534,28 @@ serve(async (req: Request) => {
               // Format phone number with international support
               const formattedPhone = formatPhoneNumber(normalizedPhone);
 
-              // Send via UAZAPI - format: /send/text with token header and { number, text }
-              await fetch(`${uazapiUrl}/send/text`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'token': instance.instance_key || uazapiToken
-                },
-                body: JSON.stringify({
-                  number: formattedPhone,
-                  text: assistantResponse
-                })
-              });
+              // Build send configuration from agent settings
+              const sendConfig: MessageSendConfig = {
+                response_delay_min: agent.response_delay_min ?? DEFAULT_SEND_CONFIG.response_delay_min,
+                response_delay_max: agent.response_delay_max ?? DEFAULT_SEND_CONFIG.response_delay_max,
+                max_lines_per_message: agent.max_lines_per_message ?? DEFAULT_SEND_CONFIG.max_lines_per_message,
+                split_mode: agent.split_mode ?? DEFAULT_SEND_CONFIG.split_mode,
+                split_delay_min: agent.split_delay_min ?? DEFAULT_SEND_CONFIG.split_delay_min,
+                split_delay_max: agent.split_delay_max ?? DEFAULT_SEND_CONFIG.split_delay_max,
+                max_chars_per_message: agent.max_chars_per_message ?? DEFAULT_SEND_CONFIG.max_chars_per_message,
+                typing_simulation: agent.typing_simulation ?? DEFAULT_SEND_CONFIG.typing_simulation
+              };
 
-              console.log('[Inbox Webhook] AI response sent successfully');
+              // Send via UAZAPI with configured delays and splitting
+              await sendAIResponseWithConfig(
+                uazapiUrl,
+                instance.instance_key || uazapiToken,
+                formattedPhone,
+                assistantResponse,
+                sendConfig
+              );
+
+              console.log('[Inbox Webhook] AI response sent successfully with config');
             }
           } catch (aiError) {
             console.error('[Inbox Webhook] Error calling AI agent:', aiError);
