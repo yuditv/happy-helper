@@ -94,49 +94,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Helper function for fetch with timeout and retry
-    const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3, timeoutMs = 45000) => {
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        const controller = new AbortController();
-        let timeoutId: number | undefined;
-        
-        try {
-          timeoutId = setTimeout(() => {
-            console.log(`[fetch-messages] Request timeout after ${timeoutMs}ms, aborting...`);
-            controller.abort();
-          }, timeoutMs);
-          
-          const response = await fetch(url, {
-            ...options,
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          return response;
-        } catch (err) {
-          if (timeoutId) clearTimeout(timeoutId);
-          
-          const isAbortError = err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'));
-          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-          
-          console.log(`[fetch-messages] Attempt ${attempt + 1}/${maxRetries + 1} failed:`, errorMessage, isAbortError ? '(timeout)' : '');
-          
-          if (attempt === maxRetries) {
-            if (isAbortError) {
-              throw new Error(`Request timed out after ${timeoutMs}ms - UAZAPI server may be slow`);
-            }
-            throw err;
-          }
-          // Exponential backoff before retry
-          const waitTime = 1000 * Math.pow(2, attempt);
-          console.log(`[fetch-messages] Waiting ${waitTime}ms before retry...`);
-          await new Promise(r => setTimeout(r, waitTime));
+    // Helper function for fetch with timeout (no retries to save resources)
+    const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = 25000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log(`[fetch-messages] Request timeout after ${timeoutMs}ms, aborting...`);
+        controller.abort();
+      }, timeoutMs);
+      
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        const isAbortError = err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'));
+        if (isAbortError) {
+          throw new Error(`Request timed out after ${timeoutMs}ms - UAZAPI server may be slow`);
         }
+        throw err;
       }
-      throw new Error('All retry attempts failed');
     };
 
-    const uazapiResponse = await fetchWithRetry(`${UAZAPI_URL}/message/find`, {
+    const uazapiResponse = await fetchWithTimeout(`${UAZAPI_URL}/message/find`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -144,7 +127,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         chatid: chatId,
-        limit: Math.min(limit, 500), // Cap at 500 for safety
+        limit: Math.min(limit, 100), // Reduced cap to save resources
         offset: offset
       })
     });
