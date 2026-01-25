@@ -854,8 +854,9 @@ serve(async (req: Request): Promise<Response> => {
         if (Array.isArray(checkData)) {
           // Response is an array of results
           for (const item of checkData) {
-            const phone = item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
-            const exists = item.exists === true || item.registered === true || item.isRegistered === true;
+            const phone = item.query || item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
+            // UAZAPI returns isInWhatsapp field
+            const exists = item.isInWhatsapp === true || item.exists === true || item.registered === true || item.isRegistered === true;
             results.push({
               phone,
               exists,
@@ -865,8 +866,8 @@ serve(async (req: Request): Promise<Response> => {
         } else if (checkData.results && Array.isArray(checkData.results)) {
           // Response has "results" field
           for (const item of checkData.results) {
-            const phone = item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
-            const exists = item.exists === true || item.registered === true || item.isRegistered === true;
+            const phone = item.query || item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
+            const exists = item.isInWhatsapp === true || item.exists === true || item.registered === true || item.isRegistered === true;
             results.push({
               phone,
               exists,
@@ -876,8 +877,8 @@ serve(async (req: Request): Promise<Response> => {
         } else if (checkData.data && Array.isArray(checkData.data)) {
           // Response has "data" field
           for (const item of checkData.data) {
-            const phone = item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
-            const exists = item.exists === true || item.registered === true || item.isRegistered === true;
+            const phone = item.query || item.number || item.jid?.replace("@s.whatsapp.net", "") || item.phone;
+            const exists = item.isInWhatsapp === true || item.exists === true || item.registered === true || item.isRegistered === true;
             results.push({
               phone,
               exists,
