@@ -197,6 +197,15 @@ export function QRCodeDialog({ open, onOpenChange, instance, getQRCode, getPairi
           {/* Pairing Code Tab */}
           <TabsContent value="paircode" className="mt-4">
             <div className="flex flex-col space-y-4">
+              {/* Info Alert about API Support */}
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-600 dark:text-amber-400">
+                <p className="font-medium mb-1">⚠️ Recurso Experimental</p>
+                <p className="text-xs">
+                  O código de pareamento pode não estar disponível dependendo da configuração do servidor UAZAPI. 
+                  Se não funcionar, use o QR Code.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="phone">Número do WhatsApp</Label>
                 <Input
@@ -232,7 +241,17 @@ export function QRCodeDialog({ open, onOpenChange, instance, getQRCode, getPairi
 
               {pairingError && (
                 <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
-                  {pairingError}
+                  <p className="font-medium mb-1">Não disponível</p>
+                  <p className="text-xs">{pairingError}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2 w-full"
+                    onClick={() => setActiveTab("qrcode")}
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    Usar QR Code
+                  </Button>
                 </div>
               )}
 
@@ -279,12 +298,9 @@ export function QRCodeDialog({ open, onOpenChange, instance, getQRCode, getPairi
               )}
 
               {!pairingCode && !pairingError && (
-                <div className="text-center text-sm text-muted-foreground space-y-2 pt-4">
-                  <p>
-                    O código de pareamento permite conectar sem escanear QR Code.
-                  </p>
+                <div className="text-center text-sm text-muted-foreground space-y-2 pt-2">
                   <p className="text-xs">
-                    Útil quando não é possível escanear o QR Code diretamente.
+                    Digite seu número e clique em gerar para obter o código.
                   </p>
                 </div>
               )}
