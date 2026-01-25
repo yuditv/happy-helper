@@ -331,32 +331,28 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       try {
-        // Clean phone number - remove non-digits
+        // Clean phone number - remove non-digits and ensure proper format
         const cleanPhone = phoneNumber.replace(/\D/g, '');
         console.log("Requesting pairing code for phone:", cleanPhone);
         
-        // First, try to initiate connection mode with paircode flag
-        console.log("Initiating connection mode with paircode...");
-        const connectResponse = await fetch(`${uazapiUrl}/instance/connect`, {
+        // Method 1: POST /session/pairphone (ZuckZapGo/WuzAPI compatible)
+        console.log("Trying POST /session/pairphone...");
+        const pairPhoneResponse = await fetch(`${uazapiUrl}/session/pairphone`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "token": instance.instance_key,
           },
-          body: JSON.stringify({ 
-            paircode: true,
-            number: cleanPhone
-          }),
+          body: JSON.stringify({ Phone: cleanPhone }),
         });
         
-        console.log("Connect with paircode response status:", connectResponse.status);
+        console.log("pairphone response status:", pairPhoneResponse.status);
         
-        if (connectResponse.ok) {
-          const connectData = await connectResponse.json();
-          console.log("Connect with paircode response:", JSON.stringify(connectData));
+        if (pairPhoneResponse.ok) {
+          const pairData = await pairPhoneResponse.json();
+          console.log("pairphone response:", JSON.stringify(pairData));
           
-          // Check if paircode is in the response
-          const code = connectData.paircode || connectData.instance?.paircode || connectData.code;
+          const code = pairData.paircode || pairData.data?.paircode || pairData.code || pairData.data?.code;
           if (code) {
             await supabase
               .from("whatsapp_instances")
@@ -370,7 +366,74 @@ serve(async (req: Request): Promise<Response> => {
           }
         }
 
-        // Fallback: Try GET /instance/paircode/{phone} path format
+        // Method 2: POST /instance/paircode with phone in body (UAZAPI format)
+        console.log("Trying POST /instance/paircode...");
+        const instancePaircodeResponse = await fetch(`${uazapiUrl}/instance/paircode`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({ phone: cleanPhone, number: cleanPhone }),
+        });
+        
+        console.log("instance/paircode POST response status:", instancePaircodeResponse.status);
+        
+        if (instancePaircodeResponse.ok) {
+          const pairData = await instancePaircodeResponse.json();
+          console.log("instance/paircode POST response:", JSON.stringify(pairData));
+          
+          const code = pairData.paircode || pairData.code || pairData.instance?.paircode || pairData.data?.code;
+          if (code) {
+            await supabase
+              .from("whatsapp_instances")
+              .update({ status: "connecting" })
+              .eq("id", entityId);
+
+            return new Response(
+              JSON.stringify({ success: true, paircode: code }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+
+        // Method 3: POST /instance/connect with paircode mode
+        console.log("Trying POST /instance/connect with paircode mode...");
+        const connectResponse = await fetch(`${uazapiUrl}/instance/connect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "token": instance.instance_key,
+          },
+          body: JSON.stringify({ 
+            paircode: true,
+            phone: cleanPhone,
+            number: cleanPhone,
+            mode: "paircode"
+          }),
+        });
+        
+        console.log("Connect with paircode response status:", connectResponse.status);
+        
+        if (connectResponse.ok) {
+          const connectData = await connectResponse.json();
+          console.log("Connect with paircode response:", JSON.stringify(connectData));
+          
+          const code = connectData.paircode || connectData.instance?.paircode || connectData.code || connectData.data?.paircode;
+          if (code) {
+            await supabase
+              .from("whatsapp_instances")
+              .update({ status: "connecting" })
+              .eq("id", entityId);
+
+            return new Response(
+              JSON.stringify({ success: true, paircode: code }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+
+        // Method 4: GET /instance/paircode/{phone} path format
         console.log("Trying GET /instance/paircode/{phone}...");
         const pairResponsePath = await fetch(`${uazapiUrl}/instance/paircode/${cleanPhone}`, {
           method: "GET",
@@ -385,7 +448,7 @@ serve(async (req: Request): Promise<Response> => {
           const pairData = await pairResponsePath.json();
           console.log("Paircode path GET response:", JSON.stringify(pairData));
           
-          const code = pairData.paircode || pairData.code || pairData.instance?.paircode || pairData.pair_code;
+          const code = pairData.paircode || pairData.code || pairData.instance?.paircode || pairData.data?.code;
           if (code) {
             await supabase
               .from("whatsapp_instances")
@@ -399,36 +462,7 @@ serve(async (req: Request): Promise<Response> => {
           }
         }
 
-        // Fallback 2: Try query parameter format
-        console.log("Trying GET /instance/paircode?number=...");
-        const pairResponseQuery = await fetch(`${uazapiUrl}/instance/paircode?number=${cleanPhone}`, {
-          method: "GET",
-          headers: {
-            "token": instance.instance_key,
-          },
-        });
-
-        console.log("Paircode query GET response status:", pairResponseQuery.status);
-        
-        if (pairResponseQuery.ok) {
-          const pairData = await pairResponseQuery.json();
-          console.log("Paircode query GET response:", JSON.stringify(pairData));
-          
-          const code = pairData.paircode || pairData.code || pairData.instance?.paircode || pairData.pair_code;
-          if (code) {
-            await supabase
-              .from("whatsapp_instances")
-              .update({ status: "connecting" })
-              .eq("id", entityId);
-
-            return new Response(
-              JSON.stringify({ success: true, paircode: code }),
-              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-        }
-
-        // If all methods fail, check current instance status for any available paircode
+        // Method 5: Check current instance status for any available paircode
         console.log("Checking instance status for paircode...");
         const statusResponse = await fetch(`${uazapiUrl}/instance/status`, {
           headers: { "token": instance.instance_key },
@@ -438,7 +472,7 @@ serve(async (req: Request): Promise<Response> => {
           const statusData = await statusResponse.json();
           console.log("Status check for paircode:", JSON.stringify(statusData));
           
-          const code = statusData.paircode || statusData.instance?.paircode;
+          const code = statusData.paircode || statusData.instance?.paircode || statusData.data?.paircode;
           if (code) {
             await supabase
               .from("whatsapp_instances")
@@ -452,12 +486,12 @@ serve(async (req: Request): Promise<Response> => {
           }
         }
 
-        // If all fail, return error suggesting QR Code
+        // If all fail, return helpful error
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Código de pareamento não disponível para esta API. A UAZAPI pode não suportar este método.",
-            hint: "Use o QR Code para conectar. O código de pareamento pode não estar disponível nesta versão da API."
+            error: "Código de pareamento não disponível. A API pode não suportar este método de conexão.",
+            hint: "Use o QR Code para conectar. O código de pareamento requer suporte específico da API."
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
