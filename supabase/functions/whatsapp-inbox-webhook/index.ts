@@ -1669,10 +1669,10 @@ serve(async (req: Request) => {
               .eq('id', activeSession.id);
           }
           
-          // Get the client conversation to find instance
+          // Get the client conversation first
           const { data: clientConv, error: convError } = await supabase
             .from('conversations')
-            .select('*, instance:whatsapp_instances(*)')
+            .select('*')
             .eq('id', activeSession.client_conversation_id)
             .single();
           
@@ -1680,10 +1680,26 @@ serve(async (req: Request) => {
             console.error(`[Bot Proxy] Error fetching client conversation:`, convError);
           }
           
-          console.log(`[Bot Proxy] Client conversation found:`, clientConv ? `ID: ${clientConv.id}` : 'NULL');
-          console.log(`[Bot Proxy] Instance found:`, clientConv?.instance ? `Key: ${clientConv.instance.instance_key?.substring(0, 8)}...` : 'NULL');
+          console.log(`[Bot Proxy] Client conversation found:`, clientConv ? `ID: ${clientConv.id}, instance_id: ${clientConv.instance_id}` : 'NULL');
           
-          if (clientConv && clientConv.instance && clientConv.instance.instance_key) {
+          // Then get the instance separately
+          let clientInstance = null;
+          if (clientConv && clientConv.instance_id) {
+            const { data: instData, error: instError } = await supabase
+              .from('whatsapp_instances')
+              .select('*')
+              .eq('id', clientConv.instance_id)
+              .single();
+            
+            if (instError) {
+              console.error(`[Bot Proxy] Error fetching instance:`, instError);
+            }
+            clientInstance = instData;
+          }
+          
+          console.log(`[Bot Proxy] Instance found:`, clientInstance ? `Key: ${clientInstance.instance_key?.substring(0, 8)}...` : 'NULL');
+          
+          if (clientConv && clientInstance && clientInstance.instance_key) {
             // Forward message to client
             const clientPhone = formatPhoneNumber(activeSession.client_phone);
             const messageContent = message || caption || '';
@@ -1693,7 +1709,7 @@ serve(async (req: Request) => {
             // Send to client via UAZAPI
             const sendResult = await sendTextViaUazapi(
               uazapiUrl,
-              clientConv.instance.instance_key,
+              clientInstance.instance_key,
               clientPhone,
               messageContent
             );
