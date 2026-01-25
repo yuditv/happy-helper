@@ -12,6 +12,7 @@ interface ChatRequest {
   sessionId?: string;
   source?: 'web' | 'whatsapp' | 'whatsapp-inbox';
   phone?: string; // Phone number for memory lookup
+  conversationId?: string; // Conversation ID for transfer updates
   metadata?: Record<string, unknown>;
 }
 
@@ -48,7 +49,7 @@ interface ExtractedClientInfo {
 }
 
 // Tool definition for extracting client info
-const extractionTools = [{
+const extractionToolDef = {
   type: "function",
   function: {
     name: "save_client_info",
@@ -77,7 +78,64 @@ const extractionTools = [{
       }
     }
   }
-}];
+};
+
+// Interface for transfer decision
+interface TransferDecision {
+  target_agent_id: string;
+  reason: string;
+  transfer_message?: string;
+}
+
+// Function to build transfer tool based on available target agents
+function buildTransferTool(targetAgents: Array<{ id: string; name: string; description: string; specialization: string }>) {
+  if (targetAgents.length === 0) return null;
+  
+  // Build enum of agent IDs and descriptions
+  const agentDescriptions = targetAgents.map(a => 
+    `"${a.id}" = ${a.name}${a.specialization ? ` (Especialista em: ${a.specialization})` : ''}${a.description ? ` - ${a.description}` : ''}`
+  ).join('\n');
+  
+  return {
+    type: "function",
+    function: {
+      name: "transfer_to_specialist",
+      description: `Transfere o atendimento para um agente especializado quando você perceber que o cliente tem interesse em um assunto específico fora do seu escopo. Use quando o cliente demonstrar interesse claro em um tópico coberto por outro agente.
+
+AGENTES ESPECIALIZADOS DISPONÍVEIS:
+${agentDescriptions}
+
+QUANDO TRANSFERIR:
+- O cliente demonstra interesse claro em um assunto específico
+- Você percebe que outro agente pode atender melhor a necessidade do cliente
+- O cliente pede explicitamente para falar sobre um assunto especializado
+
+QUANDO NÃO TRANSFERIR:
+- Cliente está apenas perguntando de forma genérica
+- Você ainda consegue responder adequadamente
+- Cliente não demonstrou interesse específico ainda`,
+      parameters: {
+        type: "object",
+        properties: {
+          target_agent_id: { 
+            type: "string", 
+            description: "ID do agente especializado para o qual transferir",
+            enum: targetAgents.map(a => a.id)
+          },
+          reason: { 
+            type: "string", 
+            description: "Motivo da transferência (ex: 'Cliente demonstrou interesse em pacotes de internet')" 
+          },
+          transfer_message: { 
+            type: "string", 
+            description: "Mensagem opcional para enviar ao cliente antes de transferir (ex: 'Vou te transferir para nosso especialista em pacotes de dados, ele vai te ajudar melhor!')" 
+          }
+        },
+        required: ["target_agent_id", "reason"]
+      }
+    }
+  };
+}
 
 // Function to build client context from memory and client data
 function buildClientContext(memory: any, clientData: any): string {
@@ -203,7 +261,7 @@ serve(async (req: Request) => {
 
     // Parse request body first to check source
     const body: ChatRequest = await req.json();
-    const { agentId, message, sessionId, source = 'web', phone, metadata = {} } = body;
+    const { agentId, message, sessionId, source = 'web', phone, conversationId, metadata = {} } = body;
 
     // Check if this is an internal call from whatsapp-inbox-webhook
     const isInternalCall = source === 'whatsapp-inbox' || source === 'whatsapp';
@@ -359,6 +417,39 @@ serve(async (req: Request) => {
     let assistantResponse = '';
     let aiError = null;
     let extractedInfo: ExtractedClientInfo | null = null;
+    let transferDecision: TransferDecision | null = null;
+
+    // ============ FETCH AVAILABLE TARGET AGENTS FOR TRANSFER ============
+    let availableTargetAgents: Array<{ id: string; name: string; description: string; specialization: string }> = [];
+    
+    // Only fetch transfer targets for WhatsApp sources and if conversationId is provided
+    if ((source === 'whatsapp-inbox' || source === 'whatsapp') && conversationId) {
+      // Get transfer rules from current agent to others
+      const { data: transferRules } = await supabaseAdmin
+        .from('ai_agent_transfer_rules')
+        .select(`
+          target_agent_id,
+          target_agent:ai_agents!ai_agent_transfer_rules_target_agent_id_fkey(
+            id, name, description, specialization, is_active
+          )
+        `)
+        .eq('source_agent_id', agentId)
+        .eq('user_id', userId)
+        .eq('is_active', true);
+      
+      if (transferRules && transferRules.length > 0) {
+        availableTargetAgents = transferRules
+          .filter((r: any) => r.target_agent && r.target_agent.is_active)
+          .map((r: any) => ({
+            id: r.target_agent.id,
+            name: r.target_agent.name,
+            description: r.target_agent.description || '',
+            specialization: r.target_agent.specialization || ''
+          }));
+        
+        console.log(`[ai-agent-chat] Found ${availableTargetAgents.length} available transfer targets`);
+      }
+    }
 
     // Check if using native AI (Lovable AI Gateway with Gemini) or external webhook
     if (agent.use_native_ai) {
@@ -483,9 +574,23 @@ INSTRUÇÕES IMPORTANTES:
             max_tokens: 1000
           };
 
-          // Add extraction tools if memory auto-extract is enabled
+          // Build tools array dynamically
+          const tools: any[] = [];
+          
+          // Add extraction tool if memory auto-extract is enabled
           if (agent.memory_enabled && agent.memory_auto_extract && phone) {
-            requestBody.tools = extractionTools;
+            tools.push(extractionToolDef);
+          }
+          
+          // Add transfer tool if there are available target agents
+          const transferTool = buildTransferTool(availableTargetAgents);
+          if (transferTool) {
+            tools.push(transferTool);
+            console.log(`[ai-agent-chat] Transfer tool added with ${availableTargetAgents.length} target agents`);
+          }
+          
+          if (tools.length > 0) {
+            requestBody.tools = tools;
             requestBody.tool_choice = "auto";
           }
 
@@ -525,7 +630,7 @@ INSTRUÇÕES IMPORTANTES:
               const choice = aiData.choices[0];
               assistantResponse = choice.message.content || '';
               
-              // Check for tool calls (memory extraction)
+              // Check for tool calls (memory extraction and transfer)
               if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
                 for (const toolCall of choice.message.tool_calls) {
                   if (toolCall.function.name === 'save_client_info') {
@@ -533,7 +638,14 @@ INSTRUÇÕES IMPORTANTES:
                       extractedInfo = JSON.parse(toolCall.function.arguments) as ExtractedClientInfo;
                       console.log('[ai-agent-chat] Extracted client info:', extractedInfo);
                     } catch (parseErr) {
-                      console.error('[ai-agent-chat] Error parsing tool call arguments:', parseErr);
+                      console.error('[ai-agent-chat] Error parsing save_client_info arguments:', parseErr);
+                    }
+                  } else if (toolCall.function.name === 'transfer_to_specialist') {
+                    try {
+                      transferDecision = JSON.parse(toolCall.function.arguments) as TransferDecision;
+                      console.log('[ai-agent-chat] AI decided to transfer:', transferDecision);
+                    } catch (parseErr) {
+                      console.error('[ai-agent-chat] Error parsing transfer_to_specialist arguments:', parseErr);
                     }
                   }
                 }
@@ -647,6 +759,34 @@ INSTRUÇÕES IMPORTANTES:
         .eq('id', existingMemory.id);
     }
 
+    // ============ EXECUTE TRANSFER IF AI DECIDED ============
+    let transferExecuted = false;
+    if (transferDecision && conversationId) {
+      console.log(`[ai-agent-chat] Executing transfer to agent ${transferDecision.target_agent_id}`);
+      
+      // Update conversation with new active agent
+      const { error: transferError } = await supabaseAdmin
+        .from('conversations')
+        .update({
+          active_agent_id: transferDecision.target_agent_id,
+          transferred_from_agent_id: agentId,
+          transfer_reason: transferDecision.reason
+        })
+        .eq('id', conversationId);
+      
+      if (transferError) {
+        console.error('[ai-agent-chat] Error executing transfer:', transferError);
+      } else {
+        transferExecuted = true;
+        console.log(`[ai-agent-chat] Transfer executed successfully to ${transferDecision.target_agent_id}`);
+        
+        // If AI decided to transfer but didn't provide a response, use the transfer message
+        if (!assistantResponse && transferDecision.transfer_message) {
+          assistantResponse = transferDecision.transfer_message;
+        }
+      }
+    }
+
     // Save assistant response to database
     const { data: savedMessage, error: saveAssistantMsgError } = await supabaseUser
       .from('ai_chat_messages')
@@ -662,6 +802,8 @@ INSTRUÇÕES IMPORTANTES:
           error: aiError,
           model: agent.use_native_ai ? agent.ai_model : 'webhook',
           extractedInfo: extractedInfo || undefined,
+          transferDecision: transferDecision || undefined,
+          transferExecuted,
           ...metadata
         }
       })
@@ -683,6 +825,8 @@ INSTRUÇÕES IMPORTANTES:
           created_at: savedMessage?.created_at || new Date().toISOString()
         },
         extractedInfo,
+        transferDecision,
+        transferExecuted,
         error: aiError
       }),
       { 

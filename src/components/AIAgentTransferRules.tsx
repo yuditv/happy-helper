@@ -99,9 +99,6 @@ export function AIAgentTransferRules() {
     if (!formData.source_agent_id || !formData.target_agent_id) {
       return;
     }
-    if (formData.trigger_keywords.length === 0) {
-      return;
-    }
 
     if (editingRule) {
       updateRule.mutate({
@@ -145,10 +142,10 @@ export function AIAgentTransferRules() {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Shuffle className="h-5 w-5 text-primary" />
-            Regras de Transferência
+            Regras de Transferência (Decisão por IA)
           </h3>
           <p className="text-sm text-muted-foreground">
-            Configure quando transferir automaticamente entre agentes de IA
+            Configure para quais agentes especializados a IA pode transferir automaticamente
           </p>
         </div>
         <Button onClick={openCreateDialog} className="gap-2">
@@ -213,10 +210,10 @@ export function AIAgentTransferRules() {
             <div className="stats-icon-container primary">
               <Shuffle className="h-5 w-5 text-primary" />
             </div>
-            Regras Configuradas
+            Rotas de Transferência
           </CardTitle>
           <CardDescription>
-            Quando o cliente mencionar as palavras-chave, a IA será trocada automaticamente
+            A IA analisa a conversa e decide automaticamente quando transferir para o agente especializado
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -235,14 +232,14 @@ export function AIAgentTransferRules() {
                 <Shuffle className="h-16 w-16 text-primary relative z-10" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mt-4 mb-2">
-                Nenhuma regra configurada
+                Nenhuma rota configurada
               </h3>
               <p className="text-muted-foreground mb-6 max-w-md">
-                Crie sua primeira regra para transferir automaticamente entre agentes de IA baseado em palavras-chave
+                Crie rotas para que a IA possa transferir conversas para agentes especializados quando detectar interesse específico do cliente
               </p>
               <Button onClick={openCreateDialog} className="gap-2">
                 <Plus className="h-4 w-4" />
-                Criar Primeira Regra
+                Criar Primeira Rota
               </Button>
             </motion.div>
           ) : (
@@ -295,19 +292,8 @@ export function AIAgentTransferRules() {
                               </div>
                             </div>
 
-                            {/* Keywords */}
-                            <div className="flex flex-wrap gap-1 flex-1">
-                              {rule.trigger_keywords.slice(0, 4).map((kw) => (
-                                <Badge key={kw} variant="outline" className="text-xs">
-                                  {kw}
-                                </Badge>
-                              ))}
-                              {rule.trigger_keywords.length > 4 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{rule.trigger_keywords.length - 4}
-                                </Badge>
-                              )}
-                            </div>
+                            {/* Spacer */}
+                            <div className="flex-1" />
 
                             {/* Actions */}
                             <div className="flex items-center gap-2">
@@ -360,10 +346,10 @@ export function AIAgentTransferRules() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingRule ? 'Editar Regra de Transferência' : 'Nova Regra de Transferência'}
+              {editingRule ? 'Editar Rota de Transferência' : 'Nova Rota de Transferência'}
             </DialogTitle>
             <DialogDescription>
-              Configure quando transferir automaticamente de um agente para outro
+              A IA analisará a conversa e decidirá automaticamente quando transferir para o agente especializado
             </DialogDescription>
           </DialogHeader>
 
@@ -420,45 +406,12 @@ export function AIAgentTransferRules() {
               </Select>
             </div>
 
-            {/* Keywords */}
-            <div className="space-y-2">
-              <Label>Palavras-Chave *</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Digite uma palavra-chave"
-                  value={keywordInput}
-                  onChange={(e) => setKeywordInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddKeyword();
-                    }
-                  }}
-                />
-                <Button type="button" variant="outline" onClick={handleAddKeyword}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Pressione Enter ou clique em + para adicionar
+            {/* AI Decision Info */}
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <p className="text-sm text-muted-foreground">
+                <Bot className="h-4 w-4 inline-block mr-1" />
+                <strong>Decisão Inteligente:</strong> A IA analisará cada mensagem do cliente e decidirá automaticamente quando transferir para este agente especializado, baseado no contexto da conversa e no interesse demonstrado.
               </p>
-              
-              {/* Keywords list */}
-              {formData.trigger_keywords.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.trigger_keywords.map((kw) => (
-                    <Badge 
-                      key={kw} 
-                      variant="secondary"
-                      className="gap-1 cursor-pointer hover:bg-destructive/20"
-                      onClick={() => handleRemoveKeyword(kw)}
-                    >
-                      {kw}
-                      <X className="h-3 w-3" />
-                    </Badge>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Transfer Message */}
