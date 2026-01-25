@@ -56,8 +56,16 @@ export type Database = {
           is_active: boolean | null
           is_chat_enabled: boolean | null
           is_whatsapp_enabled: boolean | null
+          max_chars_per_message: number | null
+          max_lines_per_message: number | null
           name: string
+          response_delay_max: number | null
+          response_delay_min: number | null
+          split_delay_max: number | null
+          split_delay_min: number | null
+          split_mode: string | null
           system_prompt: string | null
+          typing_simulation: boolean | null
           updated_at: string | null
           use_native_ai: boolean | null
           webhook_url: string | null
@@ -73,8 +81,16 @@ export type Database = {
           is_active?: boolean | null
           is_chat_enabled?: boolean | null
           is_whatsapp_enabled?: boolean | null
+          max_chars_per_message?: number | null
+          max_lines_per_message?: number | null
           name: string
+          response_delay_max?: number | null
+          response_delay_min?: number | null
+          split_delay_max?: number | null
+          split_delay_min?: number | null
+          split_mode?: string | null
           system_prompt?: string | null
+          typing_simulation?: boolean | null
           updated_at?: string | null
           use_native_ai?: boolean | null
           webhook_url?: string | null
@@ -90,8 +106,16 @@ export type Database = {
           is_active?: boolean | null
           is_chat_enabled?: boolean | null
           is_whatsapp_enabled?: boolean | null
+          max_chars_per_message?: number | null
+          max_lines_per_message?: number | null
           name?: string
+          response_delay_max?: number | null
+          response_delay_min?: number | null
+          split_delay_max?: number | null
+          split_delay_min?: number | null
+          split_mode?: string | null
           system_prompt?: string | null
+          typing_simulation?: boolean | null
           updated_at?: string | null
           use_native_ai?: boolean | null
           webhook_url?: string | null

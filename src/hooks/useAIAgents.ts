@@ -18,6 +18,15 @@ export interface AIAgent {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Message sending configuration
+  response_delay_min: number;
+  response_delay_max: number;
+  max_lines_per_message: number;
+  split_mode: 'none' | 'paragraph' | 'lines' | 'sentences' | 'chars';
+  split_delay_min: number;
+  split_delay_max: number;
+  max_chars_per_message: number;
+  typing_simulation: boolean;
 }
 
 export interface AIChatMessage {
@@ -53,6 +62,15 @@ export interface CreateAgentInput {
   use_native_ai?: boolean;
   system_prompt?: string;
   ai_model?: string;
+  // Message sending configuration
+  response_delay_min?: number;
+  response_delay_max?: number;
+  max_lines_per_message?: number;
+  split_mode?: 'none' | 'paragraph' | 'lines' | 'sentences' | 'chars';
+  split_delay_min?: number;
+  split_delay_max?: number;
+  max_chars_per_message?: number;
+  typing_simulation?: boolean;
 }
 
 export interface UpdateAgentInput extends Partial<CreateAgentInput> {
