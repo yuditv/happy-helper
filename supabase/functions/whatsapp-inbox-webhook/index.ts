@@ -1706,6 +1706,29 @@ serve(async (req: Request) => {
             
             console.log(`[Bot Proxy] Original bot message: "${messageContent.substring(0, 100)}..."`);
             
+            // ALWAYS apply text replacements FIRST (before any other logic)
+            const { data: replacements, error: replError } = await supabase
+              .from('bot_proxy_replacements')
+              .select('search_text, replace_text')
+              .eq('config_id', activeSession.config_id)
+              .eq('is_active', true)
+              .order('display_order', { ascending: true });
+            
+            if (replError) {
+              console.error(`[Bot Proxy] Error fetching replacements:`, replError);
+            }
+            
+            if (replacements && replacements.length > 0) {
+              console.log(`[Bot Proxy] Applying ${replacements.length} text replacement rules`);
+              for (const rule of replacements) {
+                if (messageContent.includes(rule.search_text)) {
+                  console.log(`[Bot Proxy] ✅ Replacing "${rule.search_text}" with "${rule.replace_text}"`);
+                  messageContent = messageContent.split(rule.search_text).join(rule.replace_text);
+                }
+              }
+              console.log(`[Bot Proxy] Message after replacements: "${messageContent.substring(0, 150)}..."`);
+            }
+            
             // Check if this is a payment message that should be blocked and replaced
             const config = activeSession.config || proxyConfigByBot;
             const paymentKeywords = config?.payment_keywords || ['pix', 'pagamento', 'pagar', 'chave pix', 'transferir', 'deposito', 'depositar', 'banco', 'conta', 'R$', 'reais', 'cpf', 'cnpj'];
@@ -1851,29 +1874,8 @@ serve(async (req: Request) => {
                   }
                 }
               }
-            } else {
-              // Apply regular text replacements (only if not a blocked payment)
-              const { data: replacements, error: replError } = await supabase
-                .from('bot_proxy_replacements')
-                .select('search_text, replace_text')
-                .eq('config_id', activeSession.config_id)
-                .eq('is_active', true)
-                .order('display_order', { ascending: true });
-              
-              if (replError) {
-                console.error(`[Bot Proxy] Error fetching replacements:`, replError);
-              }
-              
-              if (replacements && replacements.length > 0) {
-                console.log(`[Bot Proxy] Applying ${replacements.length} text replacement rules`);
-                for (const rule of replacements) {
-                  if (messageContent.includes(rule.search_text)) {
-                    console.log(`[Bot Proxy] Replacing "${rule.search_text}" with "${rule.replace_text}"`);
-                    messageContent = messageContent.split(rule.search_text).join(rule.replace_text);
-                  }
-                }
-              }
             }
+            // Note: Text replacements are already applied above (before payment check)
             
             // Skip sending if PIX was already generated and sent
             if (skipBotMessage) {
