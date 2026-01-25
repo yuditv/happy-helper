@@ -172,11 +172,12 @@ serve(async (req: Request) => {
       );
     }
 
-    // Update conversation
+    // Update conversation - pause AI when human responds
     const updateData: Record<string, unknown> = {
       last_message_at: new Date().toISOString(),
       last_message_preview: content.substring(0, 100),
       ai_enabled: false, // Disable AI when human responds
+      ai_paused_at: new Date().toISOString(), // Track when AI was paused for auto-resume
     };
 
     // Set first_reply_at if this is the first agent reply

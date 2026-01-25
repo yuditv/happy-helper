@@ -703,23 +703,42 @@ export function ChatPanel({
             <TooltipContent>Buscar mensagens</TooltipContent>
           </Tooltip>
 
-          {/* AI Toggle */}
+          {/* AI Toggle with pause indicator */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted">
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors",
+                conversation.ai_enabled 
+                  ? "bg-primary/10 border border-primary/30" 
+                  : conversation.ai_paused_at
+                    ? "bg-amber-500/10 border border-amber-500/30"
+                    : "bg-muted"
+              )}>
                 <Bot className={cn(
                   "h-4 w-4",
-                  conversation.ai_enabled ? "text-primary" : "text-muted-foreground"
+                  conversation.ai_enabled 
+                    ? "text-primary" 
+                    : conversation.ai_paused_at 
+                      ? "text-amber-500"
+                      : "text-muted-foreground"
                 )} />
                 <Switch
                   checked={conversation.ai_enabled}
                   onCheckedChange={onToggleAI}
                   className="scale-75"
                 />
+                {!conversation.ai_enabled && conversation.ai_paused_at && (
+                  <Clock className="h-3 w-3 text-amber-500 animate-pulse" />
+                )}
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              {conversation.ai_enabled ? 'IA ativada' : 'IA desativada'}
+              {conversation.ai_enabled 
+                ? 'IA ativada - clique para pausar' 
+                : conversation.ai_paused_at 
+                  ? `IA pausada - reativa automaticamente em ${formatDistanceToNow(new Date(new Date(conversation.ai_paused_at).getTime() + 60 * 60 * 1000), { locale: ptBR })}`
+                  : 'IA desativada - clique para ativar'
+              }
             </TooltipContent>
           </Tooltip>
 

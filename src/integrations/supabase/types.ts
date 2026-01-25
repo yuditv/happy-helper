@@ -863,6 +863,7 @@ export type Database = {
       conversations: {
         Row: {
           ai_enabled: boolean | null
+          ai_paused_at: string | null
           assigned_to: string | null
           contact_avatar: string | null
           contact_name: string | null
@@ -884,6 +885,7 @@ export type Database = {
         }
         Insert: {
           ai_enabled?: boolean | null
+          ai_paused_at?: string | null
           assigned_to?: string | null
           contact_avatar?: string | null
           contact_name?: string | null
@@ -905,6 +907,7 @@ export type Database = {
         }
         Update: {
           ai_enabled?: boolean | null
+          ai_paused_at?: string | null
           assigned_to?: string | null
           contact_avatar?: string | null
           contact_name?: string | null

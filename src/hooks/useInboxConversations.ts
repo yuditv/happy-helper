@@ -14,6 +14,7 @@ export interface Conversation {
   status: 'open' | 'pending' | 'resolved' | 'snoozed';
   assigned_to: string | null;
   ai_enabled: boolean;
+  ai_paused_at: string | null; // Timestamp when AI was paused, used for auto-resume after 1 hour
   priority: 'low' | 'medium' | 'high' | 'urgent';
   unread_count: number;
   last_message_at: string;
