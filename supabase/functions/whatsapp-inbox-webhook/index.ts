@@ -1218,7 +1218,8 @@ serve(async (req: Request) => {
 
               if (aiChatResponse.ok) {
                 const aiData = await aiChatResponse.json();
-                assistantResponse = aiData.response || '';
+                // ai-agent-chat returns response in message.content for native AI
+                assistantResponse = aiData.message?.content || aiData.response || '';
                 console.log(`[Inbox Webhook] Native AI response received: ${assistantResponse.substring(0, 100)}...`);
               } else {
                 const errorText = await aiChatResponse.text();
