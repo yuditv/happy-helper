@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Users, Bot, Flame, Crown, Headset, Search, ChevronRight, User, Settings, LogOut, BarChart3, CreditCard, Smartphone } from "lucide-react";
+import { Users, Bot, Flame, Crown, Headset, Search, User, Settings, LogOut, BarChart3, CreditCard, Smartphone, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import logoFuturistic from "@/assets/logo-red-futuristic.png";
 import { cn } from "@/lib/utils";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -72,7 +72,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: "atendimento",
-    title: "Central de Atendimento",
+    title: "Atendimento",
     icon: Headset,
     color: "text-teal-500",
     bgColor: "bg-teal-500",
@@ -80,7 +80,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: "filter-numbers",
-    title: "Filtrar Números",
+    title: "Filtrar",
     icon: Search,
     color: "text-purple-500",
     bgColor: "bg-purple-500",
@@ -96,7 +96,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: "warm-chips",
-    title: "Aquecer Chips",
+    title: "Aquecer",
     icon: Flame,
     color: "text-orange-500",
     bgColor: "bg-orange-500",
@@ -110,7 +110,6 @@ interface FloatingSidebarProps {
 }
 
 export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
   const { permissions, isAdmin } = useUserPermissions();
   const { user, signOut } = useAuth();
@@ -137,66 +136,37 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="fixed left-4 inset-y-0 z-[60] flex items-center pointer-events-none">
-        <motion.div
-          className="pointer-events-auto"
-          initial={{ x: -100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          onMouseEnter={() => setIsExpanded(true)}
-          onMouseLeave={() => setIsExpanded(false)}
+      <motion.header
+        className={cn(
+          "w-full border-b border-border/50 bg-card/80 backdrop-blur-xl shrink-0 z-50",
+        )}
+        style={{
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08), 0 0 30px hsl(0 85% 55% / 0.05)"
+        }}
+        initial={{ y: -60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        <motion.div
-          className={cn(
-            "relative rounded-2xl p-3 flex flex-col gap-2",
-            "bg-card/80 dark:bg-card/90",
-            "backdrop-blur-xl border border-border/50",
-            "shadow-xl"
-          )}
-          style={{
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12), 0 0 40px hsl(0 85% 55% / 0.08)"
-          }}
-          animate={{
-            width: isExpanded ? 220 : 64,
-          }}
-          transition={{ type: "spring", stiffness: 400, damping: 35 }}
-        >
+        <div className="flex items-center h-14 px-4 gap-2">
           {/* Logo */}
-          <motion.div 
-            className="flex items-center gap-3 px-2 py-2 mb-2"
-            layout
-          >
-            <div className="relative flex-shrink-0">
+          <div className="flex items-center gap-2 pr-4 border-r border-border/50 shrink-0">
+            <div className="relative">
               <img
                 src={logoFuturistic}
                 alt="Logo"
-                className="h-10 w-10 rounded-xl object-contain logo-premium"
+                className="h-8 w-8 rounded-lg object-contain"
               />
               <motion.div 
-                className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary"
+                className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary"
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
             </div>
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.span
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="font-bold text-lg text-gradient whitespace-nowrap"
-                >
-                  Painel
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.div>
-
-          {/* Divider */}
-          <div className="divider-premium mx-2 mb-1" />
+            <span className="font-bold text-lg text-gradient hidden sm:inline">Painel</span>
+          </div>
 
           {/* Menu Items */}
-          <nav className="flex flex-col gap-1 flex-1">
+          <nav className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
             {visibleMenuItems.map((item) => {
               const isActive = activeSection === item.id;
               const Icon = item.icon;
@@ -207,169 +177,124 @@ export function FloatingSidebar({ activeSection, onSectionChange }: FloatingSide
                     <motion.button
                       onClick={() => handleClick(item)}
                       className={cn(
-                        "relative flex items-center gap-3 p-3 rounded-xl",
+                        "relative flex items-center gap-2 px-3 py-2 rounded-lg shrink-0",
                         "transition-all duration-200 ease-out",
                         "hover:bg-muted/50",
                         isActive && "bg-primary text-primary-foreground shadow-lg"
                       )}
                       style={isActive ? {
-                        boxShadow: `0 4px 20px hsl(var(--primary) / 0.4)`
+                        boxShadow: `0 4px 16px hsl(var(--primary) / 0.35)`
                       } : undefined}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      layout
                     >
                       {/* Active indicator */}
                       {isActive && (
                         <motion.div
                           layoutId="activeIndicator"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 w-1 h-6 rounded-r-full bg-primary"
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 w-8 h-1 rounded-t-full bg-primary"
                           style={{
-                            boxShadow: "0 0 12px hsl(var(--primary))"
+                            boxShadow: "0 0 10px hsl(var(--primary))"
                           }}
                         />
                       )}
 
                       <Icon className={cn(
-                        "h-5 w-5 flex-shrink-0 transition-colors",
+                        "h-4 w-4 shrink-0 transition-colors",
                         isActive ? "text-current" : item.color
                       )} />
 
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.span
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -10 }}
-                            className={cn(
-                              "text-sm font-medium whitespace-nowrap",
-                              isActive ? "text-current" : "text-foreground"
-                            )}
-                          >
-                            {item.title}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-
-                      {isExpanded && isActive && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="ml-auto"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </motion.div>
-                      )}
+                      <span className={cn(
+                        "text-sm font-medium whitespace-nowrap hidden md:inline",
+                        isActive ? "text-current" : "text-foreground"
+                      )}>
+                        {item.title}
+                      </span>
                     </motion.button>
                   </TooltipTrigger>
-                  {!isExpanded && (
-                    <TooltipContent side="right" sideOffset={12}>
-                      {item.title}
-                    </TooltipContent>
-                  )}
+                  <TooltipContent side="bottom" sideOffset={8}>
+                    {item.title}
+                  </TooltipContent>
                 </Tooltip>
               );
             })}
           </nav>
 
-          {/* Divider before user section */}
-          <div className="divider-premium mx-2 my-1" />
-
           {/* User Menu */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <motion.button
-                    className={cn(
-                      "flex items-center gap-3 p-2 rounded-xl",
-                      "transition-all duration-200 ease-out",
-                      "hover:bg-muted/50"
-                    )}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    layout
-                  >
-                    <Avatar className="h-9 w-9 flex-shrink-0">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          className="flex flex-col items-start overflow-hidden"
-                        >
-                          <span className="text-sm font-medium text-foreground truncate max-w-[140px]">
-                            {profile?.display_name || 'Usuário'}
-                          </span>
-                          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
-                            {user?.email}
-                          </span>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              {!isExpanded && (
-                <TooltipContent side="right" sideOffset={12}>
-                  Minha Conta
-                </TooltipContent>
-              )}
-            </Tooltip>
-            <DropdownMenuContent align="end" side="right" sideOffset={8} className="glass-card border-border/50 w-56">
-              <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border/50 flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="overflow-hidden">
-                  <p className="font-medium text-foreground truncate">{profile?.display_name || 'Usuário'}</p>
-                  <span className="text-xs text-muted-foreground truncate block">{user?.email}</span>
+          <div className="pl-4 border-l border-border/50 shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <motion.button
+                  className={cn(
+                    "flex items-center gap-2 p-1.5 rounded-lg",
+                    "transition-all duration-200 ease-out",
+                    "hover:bg-muted/50"
+                  )}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden lg:flex flex-col items-start overflow-hidden">
+                    <span className="text-sm font-medium text-foreground truncate max-w-[100px]">
+                      {profile?.display_name || 'Usuário'}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden lg:block" />
+                </motion.button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={8} className="glass-card border-border/50 w-56">
+                <div className="px-3 py-2 text-sm text-muted-foreground border-b border-border/50 flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {profile?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="overflow-hidden">
+                    <p className="font-medium text-foreground truncate">{profile?.display_name || 'Usuário'}</p>
+                    <span className="text-xs text-muted-foreground truncate block">{user?.email}</span>
+                  </div>
                 </div>
-              </div>
-              <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
-                <User className="h-4 w-4 mr-2 text-primary" />
-                Meu Perfil
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/payment-history')} className="hover:bg-primary/10">
-                <CreditCard className="h-4 w-4 mr-2 text-primary" />
-                Histórico de Pagamentos
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/my-dashboard')} className="hover:bg-primary/10">
-                <BarChart3 className="h-4 w-4 mr-2 text-primary" />
-                Meu Dashboard
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/dashboard')} className="hover:bg-primary/10">
-                <BarChart3 className="h-4 w-4 mr-2 text-accent" />
-                Dashboard Geral
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-border/50" />
-              <DropdownMenuItem onClick={() => navigate('/install')} className="hover:bg-primary/10">
-                <Smartphone className="h-4 w-4 mr-2 text-primary" />
-                Instalar App
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
-                <Settings className="h-4 w-4 mr-2 text-primary" />
-                Configurações
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-border/50" />
-              <DropdownMenuItem onClick={handleSignOut} className="hover:bg-destructive/10 text-destructive">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </motion.div>
-        </motion.div>
-      </div>
+                <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-primary/10 mt-1">
+                  <User className="h-4 w-4 mr-2 text-primary" />
+                  Meu Perfil
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/payment-history')} className="hover:bg-primary/10">
+                  <CreditCard className="h-4 w-4 mr-2 text-primary" />
+                  Histórico de Pagamentos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/my-dashboard')} className="hover:bg-primary/10">
+                  <BarChart3 className="h-4 w-4 mr-2 text-primary" />
+                  Meu Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/dashboard')} className="hover:bg-primary/10">
+                  <BarChart3 className="h-4 w-4 mr-2 text-accent" />
+                  Dashboard Geral
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem onClick={() => navigate('/install')} className="hover:bg-primary/10">
+                  <Smartphone className="h-4 w-4 mr-2 text-primary" />
+                  Instalar App
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-primary/10">
+                  <Settings className="h-4 w-4 mr-2 text-primary" />
+                  Configurações
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem onClick={handleSignOut} className="hover:bg-destructive/10 text-destructive">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </motion.header>
     </TooltipProvider>
   );
 }
