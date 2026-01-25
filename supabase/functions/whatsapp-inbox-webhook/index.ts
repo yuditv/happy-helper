@@ -1616,6 +1616,215 @@ serve(async (req: Request) => {
       }
     }
 
+    // ===== BOT PROXY SYSTEM =====
+    // Check if this conversation has bot proxy enabled (via label)
+    let botProxyHandled = false;
+    
+    try {
+      // First, check if message is FROM the bot (to forward to client)
+      const { data: proxyConfigByBot } = await supabase
+        .from('bot_proxy_config')
+        .select('*, trigger_label:inbox_labels(*)')
+        .eq('is_active', true)
+        .eq('bot_phone', normalizedPhone)
+        .maybeSingle();
+      
+      if (proxyConfigByBot && !fromMe) {
+        // Message is FROM the bot - find the active session to forward to client
+        console.log(`[Bot Proxy] Message from bot ${normalizedPhone}, looking for active session...`);
+        
+        const { data: activeSession } = await supabase
+          .from('bot_proxy_sessions')
+          .select('*, config:bot_proxy_config(*)')
+          .eq('config_id', proxyConfigByBot.id)
+          .eq('is_active', true)
+          .order('last_activity_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (activeSession && activeSession.client_conversation_id) {
+          console.log(`[Bot Proxy] Found active session for client ${activeSession.client_phone}`);
+          
+          // Update bot_conversation_id if not set
+          if (!activeSession.bot_conversation_id) {
+            await supabase
+              .from('bot_proxy_sessions')
+              .update({ 
+                bot_conversation_id: conversation.id,
+                last_activity_at: new Date().toISOString()
+              })
+              .eq('id', activeSession.id);
+          }
+          
+          // Get the client conversation to find instance
+          const { data: clientConv } = await supabase
+            .from('conversations')
+            .select('*, instance:whatsapp_instances(*)')
+            .eq('id', activeSession.client_conversation_id)
+            .single();
+          
+          if (clientConv && clientConv.instance) {
+            // Forward message to client
+            const clientPhone = formatPhoneNumber(activeSession.client_phone);
+            const messageContent = message || caption || '';
+            
+            console.log(`[Bot Proxy] Forwarding bot message to client ${clientPhone}: "${messageContent.substring(0, 50)}..."`);
+            
+            // Send to client via UAZAPI
+            const sendResult = await sendTextViaUazapi(
+              uazapiUrl,
+              clientConv.instance.instance_key,
+              clientPhone,
+              messageContent
+            );
+            
+            if (sendResult) {
+              // Save forwarded message in client conversation
+              await supabase
+                .from('chat_inbox_messages')
+                .insert({
+                  conversation_id: activeSession.client_conversation_id,
+                  sender_type: 'agent',
+                  content: messageContent,
+                  metadata: { 
+                    proxied_from_bot: true,
+                    original_message_id: savedMessage?.id,
+                    bot_phone: normalizedPhone
+                  }
+                });
+              
+              // Update session activity
+              await supabase
+                .from('bot_proxy_sessions')
+                .update({ last_activity_at: new Date().toISOString() })
+                .eq('id', activeSession.id);
+              
+              console.log(`[Bot Proxy] Successfully forwarded bot message to client`);
+              botProxyHandled = true;
+            }
+          }
+        }
+      }
+      
+      // If not from bot, check if client conversation has proxy label
+      if (!botProxyHandled && !fromMe) {
+        // Check if this conversation has the trigger label
+        const { data: convLabels } = await supabase
+          .from('conversation_labels')
+          .select('label_id')
+          .eq('conversation_id', conversation.id);
+        
+        if (convLabels && convLabels.length > 0) {
+          const labelIds = convLabels.map(cl => cl.label_id);
+          
+          // Check if any of these labels is a bot proxy trigger
+          const { data: proxyConfig } = await supabase
+            .from('bot_proxy_config')
+            .select('*')
+            .eq('user_id', instance.user_id)
+            .eq('is_active', true)
+            .in('trigger_label_id', labelIds)
+            .maybeSingle();
+          
+          if (proxyConfig && proxyConfig.instance_id) {
+            console.log(`[Bot Proxy] Conversation has proxy label, forwarding to bot ${proxyConfig.bot_phone}`);
+            
+            // Get or create session
+            let { data: session } = await supabase
+              .from('bot_proxy_sessions')
+              .select('*')
+              .eq('config_id', proxyConfig.id)
+              .eq('client_conversation_id', conversation.id)
+              .eq('is_active', true)
+              .maybeSingle();
+            
+            if (!session) {
+              // Create new session
+              const { data: newSession } = await supabase
+                .from('bot_proxy_sessions')
+                .insert({
+                  config_id: proxyConfig.id,
+                  client_conversation_id: conversation.id,
+                  client_phone: normalizedPhone
+                })
+                .select()
+                .single();
+              session = newSession;
+              console.log(`[Bot Proxy] Created new session: ${session?.id}`);
+            }
+            
+            if (session) {
+              // Get the instance to use for sending to bot
+              const { data: proxyInstance } = await supabase
+                .from('whatsapp_instances')
+                .select('*')
+                .eq('id', proxyConfig.instance_id)
+                .single();
+              
+              if (proxyInstance && proxyInstance.instance_key) {
+                const botPhone = formatPhoneNumber(proxyConfig.bot_phone);
+                const messageContent = message || caption || '';
+                
+                console.log(`[Bot Proxy] Forwarding client message to bot ${botPhone}: "${messageContent.substring(0, 50)}..."`);
+                
+                // Send to bot via UAZAPI
+                const sendResult = await sendTextViaUazapi(
+                  uazapiUrl,
+                  proxyInstance.instance_key,
+                  botPhone,
+                  messageContent
+                );
+                
+                if (sendResult) {
+                  // Update session activity
+                  await supabase
+                    .from('bot_proxy_sessions')
+                    .update({ last_activity_at: new Date().toISOString() })
+                    .eq('id', session.id);
+                  
+                  // Mark message as proxied in metadata
+                  if (savedMessage) {
+                    await supabase
+                      .from('chat_inbox_messages')
+                      .update({
+                        metadata: {
+                          ...((savedMessage.metadata as Record<string, unknown>) || {}),
+                          proxied_to_bot: true,
+                          bot_phone: proxyConfig.bot_phone
+                        }
+                      })
+                      .eq('id', savedMessage.id);
+                  }
+                  
+                  console.log(`[Bot Proxy] Successfully forwarded client message to bot`);
+                  botProxyHandled = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (proxyError) {
+      console.error('[Bot Proxy] Error processing proxy:', proxyError);
+    }
+    
+    // Skip AI processing if bot proxy handled the message
+    if (botProxyHandled) {
+      console.log('[Bot Proxy] Message handled by bot proxy, skipping AI');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          conversationId: conversation.id,
+          messageId: savedMessage?.id,
+          proxied: true
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     // ===== AUTO-RESUME AI AFTER 1 HOUR =====
     // Check if AI was paused and should be auto-resumed (1 hour timeout)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();

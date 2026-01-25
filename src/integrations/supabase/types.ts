@@ -363,6 +363,109 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_proxy_config: {
+        Row: {
+          bot_phone: string
+          created_at: string
+          id: string
+          instance_id: string | null
+          is_active: boolean | null
+          trigger_label_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_phone: string
+          created_at?: string
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean | null
+          trigger_label_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_phone?: string
+          created_at?: string
+          id?: string
+          instance_id?: string | null
+          is_active?: boolean | null
+          trigger_label_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_proxy_config_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_proxy_config_trigger_label_id_fkey"
+            columns: ["trigger_label_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_labels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_proxy_sessions: {
+        Row: {
+          bot_conversation_id: string | null
+          client_conversation_id: string | null
+          client_phone: string
+          config_id: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_activity_at: string
+        }
+        Insert: {
+          bot_conversation_id?: string | null
+          client_conversation_id?: string | null
+          client_phone: string
+          config_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_activity_at?: string
+        }
+        Update: {
+          bot_conversation_id?: string | null
+          client_conversation_id?: string | null
+          client_phone?: string
+          config_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_activity_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_proxy_sessions_bot_conversation_id_fkey"
+            columns: ["bot_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_proxy_sessions_client_conversation_id_fkey"
+            columns: ["client_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_proxy_sessions_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "bot_proxy_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bulk_dispatch_history: {
         Row: {
           completed_at: string | null
