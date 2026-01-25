@@ -452,7 +452,6 @@ export function AIAgentTransferRules() {
               disabled={
                 !formData.source_agent_id || 
                 !formData.target_agent_id || 
-                formData.trigger_keywords.length === 0 ||
                 createRule.isPending ||
                 updateRule.isPending
               }
