@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, Link, Globe, Smartphone, Palette, Cpu, Brain, Clock, MessageSquare, Settings2, Zap } from "lucide-react";
+import { Bot, Link, Globe, Smartphone, Palette, Cpu, Brain, Clock, MessageSquare, Settings2, Zap, Database } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +72,12 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
     split_delay_max: 3,
     max_chars_per_message: 0,
     typing_simulation: true,
+    // Memory defaults
+    memory_enabled: true,
+    memory_auto_extract: true,
+    memory_sync_clients: true,
+    memory_generate_summary: true,
+    memory_max_items: 20,
   });
 
   useEffect(() => {
@@ -97,6 +103,12 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         split_delay_max: editingAgent.split_delay_max ?? 3,
         max_chars_per_message: editingAgent.max_chars_per_message ?? 0,
         typing_simulation: editingAgent.typing_simulation ?? true,
+        // Memory config
+        memory_enabled: editingAgent.memory_enabled ?? true,
+        memory_auto_extract: editingAgent.memory_auto_extract ?? true,
+        memory_sync_clients: editingAgent.memory_sync_clients ?? true,
+        memory_generate_summary: editingAgent.memory_generate_summary ?? true,
+        memory_max_items: editingAgent.memory_max_items ?? 20,
       });
     } else {
       setFormData({
@@ -119,6 +131,12 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         split_delay_max: 3,
         max_chars_per_message: 0,
         typing_simulation: true,
+        // Memory defaults
+        memory_enabled: true,
+        memory_auto_extract: true,
+        memory_sync_clients: true,
+        memory_generate_summary: true,
+        memory_max_items: 20,
       });
     }
   }, [editingAgent, open]);
@@ -202,7 +220,7 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
 
         <form onSubmit={handleSubmit} className="relative z-10">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Brain className="h-4 w-4" />
                 Geral
@@ -210,6 +228,10 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
               <TabsTrigger value="sending" className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
                 Envio
+              </TabsTrigger>
+              <TabsTrigger value="memory" className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Memória
               </TabsTrigger>
             </TabsList>
 
@@ -646,6 +668,117 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
                   }
                 />
               </motion.div>
+            </TabsContent>
+
+            {/* Memory Configuration Tab */}
+            <TabsContent value="memory" className="space-y-5">
+              {/* Memory Enable */}
+              <motion.div 
+                custom={0}
+                variants={formItemVariants}
+                initial="hidden"
+                animate="visible"
+                className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/20">
+                      <Database className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Memória de Clientes</p>
+                      <p className="text-xs text-muted-foreground">
+                        Salva e lembra informações importantes dos clientes
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={formData.memory_enabled}
+                    onCheckedChange={(checked) => 
+                      setFormData({ ...formData, memory_enabled: checked })
+                    }
+                  />
+                </div>
+              </motion.div>
+
+              {formData.memory_enabled && (
+                <>
+                  {/* Auto Extract */}
+                  <motion.div 
+                    custom={1}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/20 border border-border/30"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Brain className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Extração Automática</p>
+                        <p className="text-xs text-muted-foreground">
+                          Extrai nome, aparelho, plano e outras informações automaticamente
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={formData.memory_auto_extract}
+                      onCheckedChange={(checked) => 
+                        setFormData({ ...formData, memory_auto_extract: checked })
+                      }
+                    />
+                  </motion.div>
+
+                  {/* Sync with Clients */}
+                  <motion.div 
+                    custom={2}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/20 border border-border/30"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Sincronizar com Clientes</p>
+                        <p className="text-xs text-muted-foreground">
+                          Usa dados de clientes cadastrados para enriquecer o contexto
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={formData.memory_sync_clients}
+                      onCheckedChange={(checked) => 
+                        setFormData({ ...formData, memory_sync_clients: checked })
+                      }
+                    />
+                  </motion.div>
+
+                  {/* Max Items */}
+                  <motion.div 
+                    custom={3}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-2 p-4 rounded-lg bg-muted/20 border border-border/30"
+                  >
+                    <Label className="flex items-center gap-2">
+                      <Settings2 className="h-4 w-4 text-muted-foreground" />
+                      Limite de Memórias por Cliente
+                    </Label>
+                    <Input
+                      type="number"
+                      min={5}
+                      max={100}
+                      value={formData.memory_max_items}
+                      onChange={(e) => setFormData({ ...formData, memory_max_items: parseInt(e.target.value) || 20 })}
+                      className="bg-background/50 border-border/50 w-32"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Quantidade máxima de informações customizadas salvas por cliente
+                    </p>
+                  </motion.div>
+                </>
+              )}
             </TabsContent>
           </Tabs>
 

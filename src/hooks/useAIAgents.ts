@@ -7,26 +7,33 @@ export interface AIAgent {
   name: string;
   description: string | null;
   webhook_url: string | null;
-  icon: string;
-  color: string;
-  is_active: boolean;
-  is_whatsapp_enabled: boolean;
-  is_chat_enabled: boolean;
-  use_native_ai: boolean;
+  icon: string | null;
+  color: string | null;
+  is_active: boolean | null;
+  is_whatsapp_enabled: boolean | null;
+  is_chat_enabled: boolean | null;
+  created_by: string;
+  created_at: string | null;
+  updated_at: string | null;
+  // Native AI fields
+  use_native_ai: boolean | null;
   system_prompt: string | null;
   ai_model: string | null;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-  // Message sending configuration
-  response_delay_min: number;
-  response_delay_max: number;
-  max_lines_per_message: number;
-  split_mode: 'none' | 'paragraph' | 'lines' | 'sentences' | 'chars';
-  split_delay_min: number;
-  split_delay_max: number;
-  max_chars_per_message: number;
-  typing_simulation: boolean;
+  // Message sending config
+  response_delay_min: number | null;
+  response_delay_max: number | null;
+  split_mode: string | null;
+  split_delay_min: number | null;
+  split_delay_max: number | null;
+  max_lines_per_message: number | null;
+  max_chars_per_message: number | null;
+  typing_simulation: boolean | null;
+  // Memory config
+  memory_enabled: boolean | null;
+  memory_auto_extract: boolean | null;
+  memory_sync_clients: boolean | null;
+  memory_generate_summary: boolean | null;
+  memory_max_items: number | null;
 }
 
 export interface AIChatMessage {
@@ -62,15 +69,21 @@ export interface CreateAgentInput {
   use_native_ai?: boolean;
   system_prompt?: string;
   ai_model?: string;
-  // Message sending configuration
+  // Message sending config
   response_delay_min?: number;
   response_delay_max?: number;
-  max_lines_per_message?: number;
-  split_mode?: 'none' | 'paragraph' | 'lines' | 'sentences' | 'chars';
+  split_mode?: string;
   split_delay_min?: number;
   split_delay_max?: number;
+  max_lines_per_message?: number;
   max_chars_per_message?: number;
   typing_simulation?: boolean;
+  // Memory config
+  memory_enabled?: boolean;
+  memory_auto_extract?: boolean;
+  memory_sync_clients?: boolean;
+  memory_generate_summary?: boolean;
+  memory_max_items?: number;
 }
 
 export interface UpdateAgentInput extends Partial<CreateAgentInput> {
