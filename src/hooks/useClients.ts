@@ -266,6 +266,42 @@ export function useClients() {
             console.error('Error sending renewal notification:', sendError);
           } else {
             console.log('Renewal notification sent to:', phone);
+            
+            // Register message in inbox if conversation exists
+            const { data: conversation } = await supabase
+              .from('conversations')
+              .select('id')
+              .eq('phone', phone)
+              .limit(1)
+              .maybeSingle();
+            
+            if (conversation) {
+              // Insert message into inbox
+              await supabase
+                .from('chat_inbox_messages')
+                .insert({
+                  conversation_id: conversation.id,
+                  content: message,
+                  sender_type: 'agent',
+                  sender_id: user.id,
+                  metadata: {
+                    sent_by: user.email,
+                    renewal_notification: true,
+                    client_id: id
+                  }
+                });
+                
+              // Update conversation last_message_at
+              await supabase
+                .from('conversations')
+                .update({ 
+                  last_message_at: new Date().toISOString(),
+                  last_message_preview: '✅ Renovação Confirmada!'
+                })
+                .eq('id', conversation.id);
+                
+              console.log('Renewal message registered in inbox for conversation:', conversation.id);
+            }
           }
         } else {
           console.log('No connected WhatsApp instance found, skipping notification');
