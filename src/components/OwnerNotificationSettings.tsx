@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, MessageSquare, Phone, Clock, AlertTriangle, Sparkles, UserPlus, Star, Timer, History, Loader2 } from 'lucide-react';
+import { Bell, MessageSquare, Phone, Clock, Timer, History, Loader2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -27,12 +27,52 @@ export function OwnerNotificationSettings() {
   const { settings, isLoading, isSaving, saveSettings, logs, isLoadingLogs, fetchLogs } = useOwnerNotifications();
   const { instances } = useWhatsAppInstances();
   const [showHistory, setShowHistory] = useState(false);
+  
+  // Local state for text inputs to avoid saving on every keystroke
+  const [localPhone, setLocalPhone] = useState('');
+  const [localLongWait, setLocalLongWait] = useState('10');
+  const [localInterval, setLocalInterval] = useState('5');
+  const [localQuietStart, setLocalQuietStart] = useState('22:00');
+  const [localQuietEnd, setLocalQuietEnd] = useState('08:00');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Sync local state with settings when loaded
+  useEffect(() => {
+    if (!isLoading) {
+      setLocalPhone(settings.notification_phone || '');
+      setLocalLongWait(String(settings.long_wait_minutes || 10));
+      setLocalInterval(String(settings.min_interval_minutes || 5));
+      setLocalQuietStart(settings.quiet_hours_start || '22:00');
+      setLocalQuietEnd(settings.quiet_hours_end || '08:00');
+      setHasUnsavedChanges(false);
+    }
+  }, [isLoading, settings]);
 
   useEffect(() => {
     if (showHistory) {
       fetchLogs();
     }
-  }, [showHistory]);
+  }, [showHistory, fetchLogs]);
+
+  const handleSaveTextFields = async () => {
+    await saveSettings({
+      notification_phone: localPhone || null,
+      long_wait_minutes: parseInt(localLongWait) || 10,
+      min_interval_minutes: parseInt(localInterval) || 5,
+      quiet_hours_start: localQuietStart,
+      quiet_hours_end: localQuietEnd,
+    }, true); // Show toast on manual save
+    setHasUnsavedChanges(false);
+  };
+
+  const handlePhoneChange = (value: string) => {
+    setLocalPhone(value);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleToggleChange = async (key: string, value: boolean) => {
+    await saveSettings({ [key]: value });
+  };
 
   if (isLoading) {
     return (
@@ -68,7 +108,7 @@ export function OwnerNotificationSettings() {
             </div>
             <Switch
               checked={settings.notify_via_whatsapp}
-              onCheckedChange={(checked) => saveSettings({ notify_via_whatsapp: checked })}
+              onCheckedChange={(checked) => handleToggleChange('notify_via_whatsapp', checked)}
               disabled={isSaving}
             />
           </div>
@@ -82,14 +122,16 @@ export function OwnerNotificationSettings() {
                     <Phone className="h-4 w-4" />
                     Número para receber alertas
                   </Label>
-                  <Input
-                    id="notification-phone"
-                    type="tel"
-                    placeholder="Ex: 91987654321"
-                    value={settings.notification_phone || ''}
-                    onChange={(e) => saveSettings({ notification_phone: e.target.value })}
-                    disabled={isSaving}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="notification-phone"
+                      type="tel"
+                      placeholder="Ex: 91987654321"
+                      value={localPhone}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">Seu número do WhatsApp (com DDD)</p>
                 </div>
 
@@ -100,9 +142,7 @@ export function OwnerNotificationSettings() {
                   </Label>
                   <Select
                     value={settings.notification_instance_id || 'auto'}
-                    onValueChange={(value) => saveSettings({ 
-                      notification_instance_id: value === 'auto' ? null : value 
-                    })}
+                    onValueChange={(value) => handleToggleChange('notification_instance_id', value === 'auto' ? null : value as any)}
                     disabled={isSaving}
                   >
                     <SelectTrigger>
@@ -119,6 +159,25 @@ export function OwnerNotificationSettings() {
                   </Select>
                 </div>
               </div>
+
+              {/* Save button for text inputs */}
+              {hasUnsavedChanges && (
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleSaveTextFields}
+                    disabled={isSaving}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    Salvar número
+                  </Button>
+                </div>
+              )}
 
               <Separator />
 
@@ -137,7 +196,7 @@ export function OwnerNotificationSettings() {
                     </div>
                     <Switch
                       checked={settings.notify_on_ai_uncertainty}
-                      onCheckedChange={(checked) => saveSettings({ notify_on_ai_uncertainty: checked })}
+                      onCheckedChange={(checked) => handleToggleChange('notify_on_ai_uncertainty', checked)}
                       disabled={isSaving}
                     />
                   </div>
@@ -152,7 +211,7 @@ export function OwnerNotificationSettings() {
                     </div>
                     <Switch
                       checked={settings.notify_on_payment_proof}
-                      onCheckedChange={(checked) => saveSettings({ notify_on_payment_proof: checked })}
+                      onCheckedChange={(checked) => handleToggleChange('notify_on_payment_proof', checked)}
                       disabled={isSaving}
                     />
                   </div>
@@ -167,7 +226,7 @@ export function OwnerNotificationSettings() {
                     </div>
                     <Switch
                       checked={settings.notify_on_new_contact}
-                      onCheckedChange={(checked) => saveSettings({ notify_on_new_contact: checked })}
+                      onCheckedChange={(checked) => handleToggleChange('notify_on_new_contact', checked)}
                       disabled={isSaving}
                     />
                   </div>
@@ -182,7 +241,7 @@ export function OwnerNotificationSettings() {
                     </div>
                     <Switch
                       checked={settings.notify_on_complaint}
-                      onCheckedChange={(checked) => saveSettings({ notify_on_complaint: checked })}
+                      onCheckedChange={(checked) => handleToggleChange('notify_on_complaint', checked)}
                       disabled={isSaving}
                     />
                   </div>
@@ -197,7 +256,7 @@ export function OwnerNotificationSettings() {
                     </div>
                     <Switch
                       checked={settings.notify_on_vip_message}
-                      onCheckedChange={(checked) => saveSettings({ notify_on_vip_message: checked })}
+                      onCheckedChange={(checked) => handleToggleChange('notify_on_vip_message', checked)}
                       disabled={isSaving}
                     />
                   </div>
@@ -207,7 +266,7 @@ export function OwnerNotificationSettings() {
                       <span className="text-xl">⏰</span>
                       <div>
                         <Label>Cliente esperando muito tempo</Label>
-                        <p className="text-xs text-muted-foreground">Após {settings.long_wait_minutes} minutos sem resposta</p>
+                        <p className="text-xs text-muted-foreground">Após {localLongWait} minutos sem resposta</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -216,14 +275,17 @@ export function OwnerNotificationSettings() {
                         min={1}
                         max={60}
                         className="w-16"
-                        value={settings.long_wait_minutes}
-                        onChange={(e) => saveSettings({ long_wait_minutes: parseInt(e.target.value) || 10 })}
-                        disabled={isSaving || !settings.notify_on_long_wait}
+                        value={localLongWait}
+                        onChange={(e) => {
+                          setLocalLongWait(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
+                        disabled={!settings.notify_on_long_wait}
                       />
                       <span className="text-xs text-muted-foreground">min</span>
                       <Switch
                         checked={settings.notify_on_long_wait}
-                        onCheckedChange={(checked) => saveSettings({ notify_on_long_wait: checked })}
+                        onCheckedChange={(checked) => handleToggleChange('notify_on_long_wait', checked)}
                         disabled={isSaving}
                       />
                     </div>
@@ -245,7 +307,7 @@ export function OwnerNotificationSettings() {
                   </div>
                   <Switch
                     checked={settings.quiet_hours_enabled}
-                    onCheckedChange={(checked) => saveSettings({ quiet_hours_enabled: checked })}
+                    onCheckedChange={(checked) => handleToggleChange('quiet_hours_enabled', checked)}
                     disabled={isSaving}
                   />
                 </div>
@@ -257,9 +319,11 @@ export function OwnerNotificationSettings() {
                       <Input
                         type="time"
                         className="w-28"
-                        value={settings.quiet_hours_start}
-                        onChange={(e) => saveSettings({ quiet_hours_start: e.target.value })}
-                        disabled={isSaving}
+                        value={localQuietStart}
+                        onChange={(e) => {
+                          setLocalQuietStart(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -267,9 +331,11 @@ export function OwnerNotificationSettings() {
                       <Input
                         type="time"
                         className="w-28"
-                        value={settings.quiet_hours_end}
-                        onChange={(e) => saveSettings({ quiet_hours_end: e.target.value })}
-                        disabled={isSaving}
+                        value={localQuietEnd}
+                        onChange={(e) => {
+                          setLocalQuietEnd(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
                       />
                     </div>
                   </div>
@@ -287,14 +353,34 @@ export function OwnerNotificationSettings() {
                       min={1}
                       max={60}
                       className="w-16"
-                      value={settings.min_interval_minutes}
-                      onChange={(e) => saveSettings({ min_interval_minutes: parseInt(e.target.value) || 5 })}
-                      disabled={isSaving}
+                      value={localInterval}
+                      onChange={(e) => {
+                        setLocalInterval(e.target.value);
+                        setHasUnsavedChanges(true);
+                      }}
                     />
                     <span className="text-xs text-muted-foreground">min</span>
                   </div>
                 </div>
               </div>
+
+              {/* Save button at bottom */}
+              {hasUnsavedChanges && (
+                <div className="flex justify-end pt-4">
+                  <Button 
+                    onClick={handleSaveTextFields}
+                    disabled={isSaving}
+                    className="gap-2"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    Salvar alterações
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </CardContent>

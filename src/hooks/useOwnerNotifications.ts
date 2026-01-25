@@ -88,7 +88,7 @@ export function useOwnerNotifications() {
     }
   };
 
-  const saveSettings = async (newSettings: Partial<OwnerNotificationSettings>) => {
+  const saveSettings = async (newSettings: Partial<OwnerNotificationSettings>, showToast = false) => {
     if (!user) return;
 
     try {
@@ -112,7 +112,10 @@ export function useOwnerNotifications() {
       if (error) throw error;
 
       setSettings(prev => ({ ...prev, ...newSettings }));
-      toast.success('Configurações salvas com sucesso!');
+      
+      if (showToast) {
+        toast.success('Configurações salvas com sucesso!');
+      }
     } catch (error) {
       console.error('Error saving owner notification settings:', error);
       toast.error('Erro ao salvar configurações');
