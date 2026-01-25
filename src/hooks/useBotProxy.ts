@@ -25,10 +25,22 @@ export interface BotProxySession {
   last_activity_at: string;
 }
 
+export interface BotProxyReplacement {
+  id: string;
+  config_id: string;
+  search_text: string;
+  replace_text: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export function useBotProxy() {
   const { user } = useAuth();
   const [config, setConfig] = useState<BotProxyConfig | null>(null);
   const [sessions, setSessions] = useState<BotProxySession[]>([]);
+  const [replacements, setReplacements] = useState<BotProxyReplacement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -67,6 +79,23 @@ export function useBotProxy() {
     }
   }, [user?.id, config?.id]);
 
+  const fetchReplacements = useCallback(async () => {
+    if (!config?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('bot_proxy_replacements')
+        .select('*')
+        .eq('config_id', config.id)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setReplacements(data || []);
+    } catch (error) {
+      console.error('Error fetching bot proxy replacements:', error);
+    }
+  }, [config?.id]);
+
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -79,8 +108,9 @@ export function useBotProxy() {
   useEffect(() => {
     if (config?.id) {
       fetchSessions();
+      fetchReplacements();
     }
-  }, [config?.id, fetchSessions]);
+  }, [config?.id, fetchSessions, fetchReplacements]);
 
   const saveConfig = async (data: {
     bot_phone: string;
@@ -175,18 +205,109 @@ export function useBotProxy() {
     }
   };
 
+  // Replacement CRUD functions
+  const addReplacement = async (searchText: string, replaceText: string) => {
+    if (!config?.id) {
+      toast.error('Configure a ponte de bot primeiro');
+      return null;
+    }
+
+    try {
+      const maxOrder = replacements.length > 0 
+        ? Math.max(...replacements.map(r => r.display_order)) + 1 
+        : 0;
+
+      const { data, error } = await supabase
+        .from('bot_proxy_replacements')
+        .insert({
+          config_id: config.id,
+          search_text: searchText,
+          replace_text: replaceText,
+          display_order: maxOrder,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setReplacements(prev => [...prev, data]);
+      toast.success('Regra adicionada!');
+      return data;
+    } catch (error) {
+      console.error('Error adding replacement:', error);
+      toast.error('Erro ao adicionar regra');
+      return null;
+    }
+  };
+
+  const updateReplacement = async (id: string, searchText: string, replaceText: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('bot_proxy_replacements')
+        .update({ search_text: searchText, replace_text: replaceText })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setReplacements(prev => prev.map(r => r.id === id ? data : r));
+      toast.success('Regra atualizada!');
+      return data;
+    } catch (error) {
+      console.error('Error updating replacement:', error);
+      toast.error('Erro ao atualizar regra');
+      return null;
+    }
+  };
+
+  const deleteReplacement = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('bot_proxy_replacements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setReplacements(prev => prev.filter(r => r.id !== id));
+      toast.success('Regra removida!');
+    } catch (error) {
+      console.error('Error deleting replacement:', error);
+      toast.error('Erro ao remover regra');
+    }
+  };
+
+  const toggleReplacement = async (id: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('bot_proxy_replacements')
+        .update({ is_active: isActive })
+        .eq('id', id);
+
+      if (error) throw error;
+      setReplacements(prev => prev.map(r => r.id === id ? { ...r, is_active: isActive } : r));
+    } catch (error) {
+      console.error('Error toggling replacement:', error);
+      toast.error('Erro ao alterar status');
+    }
+  };
+
   const getActiveSessionsCount = () => sessions.length;
 
   return {
     config,
     sessions,
+    replacements,
     isLoading,
     isSaving,
     saveConfig,
     toggleActive,
     endSession,
+    addReplacement,
+    updateReplacement,
+    deleteReplacement,
+    toggleReplacement,
     getActiveSessionsCount,
     refetch: fetchConfig,
     refetchSessions: fetchSessions,
+    refetchReplacements: fetchReplacements,
   };
 }

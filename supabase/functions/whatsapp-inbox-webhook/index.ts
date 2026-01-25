@@ -1702,9 +1702,33 @@ serve(async (req: Request) => {
           if (clientConv && clientInstance && clientInstance.instance_key) {
             // Forward message to client
             const clientPhone = formatPhoneNumber(activeSession.client_phone);
-            const messageContent = message || caption || '';
+            let messageContent = message || caption || '';
             
-            console.log(`[Bot Proxy] Forwarding bot message to client ${clientPhone}: "${messageContent.substring(0, 50)}..."`);
+            console.log(`[Bot Proxy] Original bot message: "${messageContent.substring(0, 100)}..."`);
+            
+            // Fetch and apply text replacements
+            const { data: replacements, error: replError } = await supabase
+              .from('bot_proxy_replacements')
+              .select('search_text, replace_text')
+              .eq('config_id', activeSession.config_id)
+              .eq('is_active', true)
+              .order('display_order', { ascending: true });
+            
+            if (replError) {
+              console.error(`[Bot Proxy] Error fetching replacements:`, replError);
+            }
+            
+            if (replacements && replacements.length > 0) {
+              console.log(`[Bot Proxy] Applying ${replacements.length} text replacement rules`);
+              for (const rule of replacements) {
+                if (messageContent.includes(rule.search_text)) {
+                  console.log(`[Bot Proxy] Replacing "${rule.search_text}" with "${rule.replace_text}"`);
+                  messageContent = messageContent.split(rule.search_text).join(rule.replace_text);
+                }
+              }
+            }
+            
+            console.log(`[Bot Proxy] Final message to client ${clientPhone}: "${messageContent.substring(0, 100)}..."`);
             
             // Send to client via UAZAPI
             const sendResult = await sendTextViaUazapi(

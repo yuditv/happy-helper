@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle } from 'lucide-react';
+import { Bot, Phone, Tag, Smartphone, Power, Users, XCircle, Plus, Trash2, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,12 +8,100 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useBotProxy } from '@/hooks/useBotProxy';
+import { useBotProxy, BotProxyReplacement } from '@/hooks/useBotProxy';
 import { useInboxLabels } from '@/hooks/useInboxLabels';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
 
+function ReplacementItem({ 
+  replacement, 
+  onUpdate, 
+  onDelete,
+  onToggle 
+}: { 
+  replacement: BotProxyReplacement;
+  onUpdate: (id: string, search: string, replace: string) => void;
+  onDelete: (id: string) => void;
+  onToggle: (id: string, active: boolean) => void;
+}) {
+  const [searchText, setSearchText] = useState(replacement.search_text);
+  const [replaceText, setReplaceText] = useState(replacement.replace_text);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    setSearchText(replacement.search_text);
+    setReplaceText(replacement.replace_text);
+    setIsDirty(false);
+  }, [replacement]);
+
+  const handleUpdate = () => {
+    if (searchText.trim() && replaceText.trim()) {
+      onUpdate(replacement.id, searchText, replaceText);
+      setIsDirty(false);
+    }
+  };
+
+  return (
+    <div className={`p-3 rounded-lg border ${replacement.is_active ? 'bg-muted/30' : 'bg-muted/10 opacity-60'}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <Switch
+          checked={replacement.is_active}
+          onCheckedChange={(checked) => onToggle(replacement.id, checked)}
+          className="scale-75"
+        />
+        <span className="text-xs text-muted-foreground">
+          {replacement.is_active ? 'Ativa' : 'Inativa'}
+        </span>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDelete(replacement.id)}
+          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center">
+        <Input
+          value={searchText}
+          onChange={(e) => { setSearchText(e.target.value); setIsDirty(true); }}
+          placeholder="Texto original"
+          className="text-sm"
+        />
+        <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+        <Input
+          value={replaceText}
+          onChange={(e) => { setReplaceText(e.target.value); setIsDirty(true); }}
+          placeholder="Substituir por"
+          className="text-sm"
+        />
+      </div>
+      {isDirty && (
+        <div className="flex justify-end mt-2">
+          <Button size="sm" onClick={handleUpdate} className="h-7 text-xs">
+            Salvar alteração
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BotProxySettings() {
-  const { config, sessions, isLoading, isSaving, saveConfig, toggleActive, endSession } = useBotProxy();
+  const { 
+    config, 
+    sessions, 
+    replacements,
+    isLoading, 
+    isSaving, 
+    saveConfig, 
+    toggleActive, 
+    endSession,
+    addReplacement,
+    updateReplacement,
+    deleteReplacement,
+    toggleReplacement
+  } = useBotProxy();
   const { labels, isLoading: labelsLoading } = useInboxLabels();
   const { instances, isLoading: instancesLoading } = useWhatsAppInstances();
 
@@ -21,6 +109,10 @@ export function BotProxySettings() {
   const [triggerLabelId, setTriggerLabelId] = useState<string>('');
   const [instanceId, setInstanceId] = useState<string>('');
   const [isActive, setIsActive] = useState(true);
+
+  // New replacement form
+  const [newSearchText, setNewSearchText] = useState('');
+  const [newReplaceText, setNewReplaceText] = useState('');
 
   // Load config into form
   useEffect(() => {
@@ -45,8 +137,17 @@ export function BotProxySettings() {
     });
   };
 
+  const handleAddReplacement = async () => {
+    if (!newSearchText.trim() || !newReplaceText.trim()) return;
+    
+    const result = await addReplacement(newSearchText.trim(), newReplaceText.trim());
+    if (result) {
+      setNewSearchText('');
+      setNewReplaceText('');
+    }
+  };
+
   const connectedInstances = instances.filter(i => i.status === 'connected');
-  const selectedLabel = labels.find(l => l.id === triggerLabelId);
 
   if (isLoading) {
     return (
@@ -210,6 +311,71 @@ export function BotProxySettings() {
         </CardContent>
       </Card>
 
+      {/* Text Replacements */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4" />
+            Substituição de Texto
+          </CardTitle>
+          <CardDescription>
+            Modifique automaticamente textos nas mensagens do bot antes de enviar ao cliente
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add new replacement */}
+          <div className="p-3 rounded-lg border border-dashed bg-muted/20">
+            <p className="text-sm font-medium mb-2">Adicionar nova regra</p>
+            <div className="grid grid-cols-[1fr,auto,1fr,auto] gap-2 items-center">
+              <Input
+                value={newSearchText}
+                onChange={(e) => setNewSearchText(e.target.value)}
+                placeholder="Texto original (ex: R$ 5.00)"
+                className="text-sm"
+              />
+              <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+              <Input
+                value={newReplaceText}
+                onChange={(e) => setNewReplaceText(e.target.value)}
+                placeholder="Substituir por (ex: R$ 10.00)"
+                className="text-sm"
+              />
+              <Button 
+                size="sm" 
+                onClick={handleAddReplacement}
+                disabled={!newSearchText.trim() || !newReplaceText.trim() || !config}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {!config && (
+              <p className="text-xs text-amber-500 mt-2">
+                Salve a configuração primeiro para adicionar regras
+              </p>
+            )}
+          </div>
+
+          {/* Existing replacements */}
+          {replacements.length > 0 ? (
+            <div className="space-y-2">
+              {replacements.map((replacement) => (
+                <ReplacementItem
+                  key={replacement.id}
+                  replacement={replacement}
+                  onUpdate={updateReplacement}
+                  onDelete={deleteReplacement}
+                  onToggle={toggleReplacement}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhuma regra de substituição configurada
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Active Sessions */}
       {sessions.length > 0 && (
         <Card>
@@ -260,7 +426,8 @@ export function BotProxySettings() {
           <p>2. Selecione uma etiqueta que ativará a ponte (ex: "🤖 Bot")</p>
           <p>3. Quando você adicionar essa etiqueta em uma conversa, as mensagens serão encaminhadas automaticamente</p>
           <p>4. O bot responde → você recebe → sistema encaminha para o cliente</p>
-          <p>5. Para desativar, remova a etiqueta da conversa</p>
+          <p>5. <strong>Novo!</strong> Configure regras de substituição para ajustar preços ou textos</p>
+          <p>6. Para desativar, remova a etiqueta da conversa</p>
         </CardContent>
       </Card>
     </div>

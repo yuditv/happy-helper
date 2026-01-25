@@ -411,6 +411,47 @@ export type Database = {
           },
         ]
       }
+      bot_proxy_replacements: {
+        Row: {
+          config_id: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          replace_text: string
+          search_text: string
+          updated_at: string
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          replace_text: string
+          search_text: string
+          updated_at?: string
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          replace_text?: string
+          search_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_proxy_replacements_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "bot_proxy_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_proxy_sessions: {
         Row: {
           bot_conversation_id: string | null
