@@ -127,42 +127,29 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Determine endpoint based on media type
     if (mediaType && mediaType !== 'none' && mediaUrl) {
-      // Media message
-      let endpoint = '/send/image';
+      // Media message - use UAZAPI v2 unified /send/media endpoint
       // deno-lint-ignore no-explicit-any
       const body: Record<string, any> = { 
-        number: formattedPhone 
+        number: formattedPhone,
+        type: mediaType, // image, video, audio, document
+        file: mediaUrl   // URL to the media file
       };
       
-      switch (mediaType) {
-        case 'image':
-          endpoint = '/send/image';
-          body.url = mediaUrl;
-          body.caption = caption || message || '';
-          break;
-        case 'video':
-          endpoint = '/send/video';
-          body.url = mediaUrl;
-          body.caption = caption || message || '';
-          break;
-        case 'audio':
-          endpoint = '/send/audio';
-          body.url = mediaUrl;
-          break;
-        case 'document':
-          endpoint = '/send/document';
-          body.url = mediaUrl;
-          body.fileName = fileName || 'document';
-          break;
-        default:
-          endpoint = '/send/text';
-          body.text = message || '';
+      // Add caption/text if provided
+      if (caption || message) {
+        body.text = caption || message;
       }
       
-      console.log(`Sending media via ${endpoint}`);
-      console.log(`URL: ${UAZAPI_URL}${endpoint}`);
+      // Add document name for document type
+      if (mediaType === 'document' && fileName) {
+        body.docName = fileName;
+      }
       
-      const response = await fetch(`${UAZAPI_URL}${endpoint}`, {
+      console.log(`Sending ${mediaType} via /send/media`);
+      console.log(`URL: ${UAZAPI_URL}/send/media`);
+      console.log(`Request body:`, JSON.stringify(body));
+      
+      const response = await fetch(`${UAZAPI_URL}/send/media`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
