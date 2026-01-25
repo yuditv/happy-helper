@@ -1436,6 +1436,108 @@ export type Database = {
         }
         Relationships: []
       }
+      owner_notification_log: {
+        Row: {
+          contact_name: string | null
+          contact_phone: string | null
+          conversation_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          sent_at: string | null
+          summary: string | null
+          urgency: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_name?: string | null
+          contact_phone?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          sent_at?: string | null
+          summary?: string | null
+          urgency?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_name?: string | null
+          contact_phone?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          sent_at?: string | null
+          summary?: string | null
+          urgency?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      owner_notification_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          long_wait_minutes: number | null
+          min_interval_minutes: number | null
+          notification_instance_id: string | null
+          notification_phone: string | null
+          notify_on_ai_uncertainty: boolean | null
+          notify_on_complaint: boolean | null
+          notify_on_long_wait: boolean | null
+          notify_on_new_contact: boolean | null
+          notify_on_payment_proof: boolean | null
+          notify_on_vip_message: boolean | null
+          notify_via_whatsapp: boolean | null
+          quiet_hours_enabled: boolean | null
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          long_wait_minutes?: number | null
+          min_interval_minutes?: number | null
+          notification_instance_id?: string | null
+          notification_phone?: string | null
+          notify_on_ai_uncertainty?: boolean | null
+          notify_on_complaint?: boolean | null
+          notify_on_long_wait?: boolean | null
+          notify_on_new_contact?: boolean | null
+          notify_on_payment_proof?: boolean | null
+          notify_on_vip_message?: boolean | null
+          notify_via_whatsapp?: boolean | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          long_wait_minutes?: number | null
+          min_interval_minutes?: number | null
+          notification_instance_id?: string | null
+          notification_phone?: string | null
+          notify_on_ai_uncertainty?: boolean | null
+          notify_on_complaint?: boolean | null
+          notify_on_long_wait?: boolean | null
+          notify_on_new_contact?: boolean | null
+          notify_on_payment_proof?: boolean | null
+          notify_on_vip_message?: boolean | null
+          notify_via_whatsapp?: boolean | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_settings: {
         Row: {
           created_at: string | null
