@@ -40,6 +40,7 @@ export default function Atendimento() {
   const [showPlans, setShowPlans] = useState(false);
   const [showClientForm, setShowClientForm] = useState(false);
   const [newClientData, setNewClientData] = useState<{ phone: string; name?: string } | null>(null);
+  const [defaultAgentId, setDefaultAgentId] = useState<string | null>(null);
 
   const { instances } = useWhatsAppInstances();
   const { isActive, isOnTrial, getRemainingDays } = useSubscription();
@@ -138,6 +139,27 @@ export default function Atendimento() {
       supabase.removeChannel(channel);
     };
   }, [conversations, permission, showLocalNotification, playNewMessage]);
+
+  // Fetch default agent from routing when instance filter changes
+  useEffect(() => {
+    const fetchDefaultAgent = async () => {
+      if (!filter.instanceId) {
+        setDefaultAgentId(null);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('whatsapp_agent_routing')
+        .select('agent_id')
+        .eq('instance_id', filter.instanceId)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      setDefaultAgentId(data?.agent_id || null);
+    };
+    
+    fetchDefaultAgent();
+  }, [filter.instanceId]);
 
   // Automation triggers callbacks
   const automationCallbacks = {
@@ -510,6 +532,7 @@ export default function Atendimento() {
                 isLoading={isLoading}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                defaultAgentId={defaultAgentId}
               />
 
               {/* Chat Panel */}

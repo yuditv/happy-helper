@@ -15,6 +15,7 @@ export interface Conversation {
   assigned_to: string | null;
   ai_enabled: boolean;
   ai_paused_at: string | null; // Timestamp when AI was paused, used for auto-resume after 1 hour
+  active_agent_id: string | null;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   unread_count: number;
   last_message_at: string;
@@ -39,6 +40,12 @@ export interface Conversation {
       color: string;
     };
   }[];
+  active_agent?: {
+    id: string;
+    name: string;
+    color: string | null;
+    icon: string | null;
+  } | null;
 }
 
 export interface InboxLabel {
@@ -86,6 +93,12 @@ export function useInboxConversations() {
               name,
               color
             )
+          ),
+          active_agent:ai_agents!conversations_active_agent_id_fkey(
+            id,
+            name,
+            color,
+            icon
           )
         `)
         .order('last_message_at', { ascending: false });
