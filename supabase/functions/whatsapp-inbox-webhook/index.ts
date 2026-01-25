@@ -1919,22 +1919,53 @@ serve(async (req: Request) => {
         console.log('[Inbox Webhook] AI was auto-resumed after 1 hour timeout');
       }
       
-      // Check for AI agent routing
-      const { data: routing, error: routingError } = await supabase
-        .from('whatsapp_agent_routing')
-        .select(`
-          *,
-          agent:ai_agents(*)
-        `)
-        .eq('instance_id', instance.id)
-        .eq('is_active', true)
-        .single();
-
-      if (!routingError && routing && routing.agent) {
-        const agent = routing.agent;
+      // ========== DYNAMIC AGENT ROUTING ==========
+      // Priority 1: Check if conversation has an active agent assigned
+      // Priority 2: Fall back to instance default routing
+      
+      let agent = null;
+      let usedActiveAgent = false;
+      
+      // Check for active_agent_id in conversation (dynamic transfer)
+      if (conversation.active_agent_id) {
+        console.log(`[Inbox Webhook] Conversation has active_agent_id: ${conversation.active_agent_id}`);
         
-        if (agent.is_whatsapp_enabled && agent.is_active) {
-          console.log(`[Inbox Webhook] Routing to AI agent: ${agent.name} (buffer: ${agent.message_buffer_enabled})`);
+        const { data: activeAgent, error: activeAgentError } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('id', conversation.active_agent_id)
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        if (!activeAgentError && activeAgent && activeAgent.is_whatsapp_enabled) {
+          agent = activeAgent;
+          usedActiveAgent = true;
+          console.log(`[Inbox Webhook] Using conversation's active agent: ${agent.name}`);
+        } else {
+          console.log(`[Inbox Webhook] Active agent not found or disabled, falling back to routing`);
+        }
+      }
+      
+      // Fall back to instance routing if no active agent
+      if (!agent) {
+        const { data: routing, error: routingError } = await supabase
+          .from('whatsapp_agent_routing')
+          .select(`
+            *,
+            agent:ai_agents(*)
+          `)
+          .eq('instance_id', instance.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (!routingError && routing && routing.agent) {
+          agent = routing.agent;
+          console.log(`[Inbox Webhook] Using instance routing agent: ${agent.name}`);
+        }
+      }
+      
+      if (agent && agent.is_whatsapp_enabled && agent.is_active) {
+        console.log(`[Inbox Webhook] Routing to AI agent: ${agent.name} (buffer: ${agent.message_buffer_enabled})`);
           
           // Check if message buffer is enabled
           if (agent.message_buffer_enabled) {
@@ -2127,9 +2158,72 @@ serve(async (req: Request) => {
               console.error('[Inbox Webhook] Error calling AI agent:', aiError);
             }
           }
-        }
-      } else {
-        console.log('[Inbox Webhook] No AI routing configured');
+          
+          // ========== CHECK FOR AGENT TRANSFER AFTER RESPONSE ==========
+          // Check if customer's message contains transfer keywords
+          try {
+            const messageContent = (message || caption || '').toLowerCase();
+            
+            const { data: transferRules } = await supabase
+              .from('ai_agent_transfer_rules')
+              .select('*')
+              .eq('user_id', instance.user_id)
+              .eq('source_agent_id', agent.id)
+              .eq('is_active', true);
+            
+            if (transferRules && transferRules.length > 0) {
+              for (const rule of transferRules) {
+                const keywords = rule.trigger_keywords as string[] || [];
+                const matchedKeyword = keywords.find(kw => 
+                  messageContent.includes(kw.toLowerCase())
+                );
+                
+                if (matchedKeyword) {
+                  console.log(`[Inbox Webhook] Transfer triggered! Keyword "${matchedKeyword}" matched, transferring from ${agent.id} to ${rule.target_agent_id}`);
+                  
+                  // Update conversation with new active agent
+                  await supabase
+                    .from('conversations')
+                    .update({
+                      active_agent_id: rule.target_agent_id,
+                      transferred_from_agent_id: agent.id,
+                      transfer_reason: `Keyword: ${matchedKeyword}`
+                    })
+                    .eq('id', conversation.id);
+                  
+                  // Send transfer message if configured
+                  if (rule.transfer_message) {
+                    const formattedPhone = formatPhoneNumber(normalizedPhone);
+                    await sendTextViaUazapi(
+                      uazapiUrl,
+                      instance.instance_key || uazapiToken,
+                      formattedPhone,
+                      rule.transfer_message
+                    );
+                    
+                    // Save transfer message
+                    await supabase
+                      .from('chat_inbox_messages')
+                      .insert({
+                        conversation_id: conversation.id,
+                        sender_type: 'ai',
+                        content: rule.transfer_message,
+                        metadata: { 
+                          transfer: true, 
+                          from_agent_id: agent.id, 
+                          to_agent_id: rule.target_agent_id 
+                        }
+                      });
+                  }
+                  
+                  console.log(`[Inbox Webhook] Conversation ${conversation.id} transferred to agent ${rule.target_agent_id}`);
+                  break; // Only apply first matching rule
+                }
+              }
+            }
+          } catch (transferError) {
+            console.error('[Inbox Webhook] Error checking transfer rules:', transferError);
+          }
       }
     } else {
       console.log('[Inbox Webhook] AI disabled or conversation assigned, waiting for human response');

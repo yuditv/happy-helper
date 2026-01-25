@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bot, Plus, Settings, Trash2, Power, ExternalLink, 
-  MessageSquare, Smartphone, Globe, Pencil, Link2
+  MessageSquare, Smartphone, Globe, Pencil, Link2, Shuffle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useAIAgents, type AIAgent } from "@/hooks/useAIAgents";
 import { CreateAgentDialog } from "./CreateAgentDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { WhatsAppAgentRouting } from "./WhatsAppAgentRouting";
+import { AIAgentTransferRules } from "./AIAgentTransferRules";
 
 export function AIAgentAdmin() {
   const { agents, isLoadingAgents, deleteAgent, toggleAgentActive } = useAIAgents();
@@ -54,7 +55,11 @@ export function AIAgentAdmin() {
           </TabsTrigger>
           <TabsTrigger value="routing" className="gap-2">
             <Link2 className="h-4 w-4" />
-            Roteamento WhatsApp
+            Roteamento
+          </TabsTrigger>
+          <TabsTrigger value="transfer" className="gap-2">
+            <Shuffle className="h-4 w-4" />
+            Transferências
           </TabsTrigger>
         </TabsList>
         <Button 
@@ -287,6 +292,10 @@ export function AIAgentAdmin() {
 
       <TabsContent value="routing">
         <WhatsAppAgentRouting />
+      </TabsContent>
+
+      <TabsContent value="transfer">
+        <AIAgentTransferRules />
       </TabsContent>
     </Tabs>
   );

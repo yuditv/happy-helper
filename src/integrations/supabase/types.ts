@@ -44,8 +44,60 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agent_transfer_rules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          source_agent_id: string
+          target_agent_id: string
+          transfer_message: string | null
+          trigger_keywords: string[]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_agent_id: string
+          target_agent_id: string
+          transfer_message?: string | null
+          trigger_keywords?: string[]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_agent_id?: string
+          target_agent_id?: string
+          transfer_message?: string | null
+          trigger_keywords?: string[]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_transfer_rules_source_agent_id_fkey"
+            columns: ["source_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_agent_transfer_rules_target_agent_id_fkey"
+            columns: ["target_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agents: {
         Row: {
+          agent_type: string | null
           ai_model: string | null
           anti_hallucination_enabled: boolean | null
           buffer_max_messages: number | null
@@ -70,6 +122,7 @@ export type Database = {
           name: string
           response_delay_max: number | null
           response_delay_min: number | null
+          specialization: string | null
           split_delay_max: number | null
           split_delay_min: number | null
           split_mode: string | null
@@ -81,6 +134,7 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          agent_type?: string | null
           ai_model?: string | null
           anti_hallucination_enabled?: boolean | null
           buffer_max_messages?: number | null
@@ -105,6 +159,7 @@ export type Database = {
           name: string
           response_delay_max?: number | null
           response_delay_min?: number | null
+          specialization?: string | null
           split_delay_max?: number | null
           split_delay_min?: number | null
           split_mode?: string | null
@@ -116,6 +171,7 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          agent_type?: string | null
           ai_model?: string | null
           anti_hallucination_enabled?: boolean | null
           buffer_max_messages?: number | null
@@ -140,6 +196,7 @@ export type Database = {
           name?: string
           response_delay_max?: number | null
           response_delay_min?: number | null
+          specialization?: string | null
           split_delay_max?: number | null
           split_delay_min?: number | null
           split_mode?: string | null
@@ -1072,6 +1129,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          active_agent_id: string | null
           ai_enabled: boolean | null
           ai_paused_at: string | null
           assigned_to: string | null
@@ -1089,11 +1147,14 @@ export type Database = {
           resolved_at: string | null
           snoozed_until: string | null
           status: string
+          transfer_reason: string | null
+          transferred_from_agent_id: string | null
           unread_count: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          active_agent_id?: string | null
           ai_enabled?: boolean | null
           ai_paused_at?: string | null
           assigned_to?: string | null
@@ -1111,11 +1172,14 @@ export type Database = {
           resolved_at?: string | null
           snoozed_until?: string | null
           status?: string
+          transfer_reason?: string | null
+          transferred_from_agent_id?: string | null
           unread_count?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          active_agent_id?: string | null
           ai_enabled?: boolean | null
           ai_paused_at?: string | null
           assigned_to?: string | null
@@ -1133,11 +1197,28 @@ export type Database = {
           resolved_at?: string | null
           snoozed_until?: string | null
           status?: string
+          transfer_reason?: string | null
+          transferred_from_agent_id?: string | null
           unread_count?: number | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_active_agent_id_fkey"
+            columns: ["active_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_transferred_from_agent_id_fkey"
+            columns: ["transferred_from_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_fields_config: {
         Row: {
