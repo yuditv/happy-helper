@@ -142,7 +142,7 @@ export function useSubscription() {
     if (!user) return null;
 
     const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 1);
 
     const { data, error } = await supabase
       .from('user_subscriptions')

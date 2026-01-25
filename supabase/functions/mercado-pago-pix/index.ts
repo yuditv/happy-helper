@@ -57,7 +57,7 @@ serve(async (req) => {
           .insert({
             user_id: user.id,
             status: "trial",
-            trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            trial_ends_at: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString()
           })
           .select()
           .single();

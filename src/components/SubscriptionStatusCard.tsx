@@ -53,8 +53,8 @@ export function SubscriptionStatusCard() {
     ? subscription.trial_ends_at
     : subscription.current_period_end;
 
-  // Calcular progresso (para trial de 7 dias ou assinatura)
-  const totalDays = onTrial ? 7 : (subscription.plan?.duration_months || 1) * 30;
+  // Calcular progresso (para trial de 1 dia ou assinatura)
+  const totalDays = onTrial ? 1 : (subscription.plan?.duration_months || 1) * 30;
   const usedDays = totalDays - daysRemaining;
   const progressPercentage = Math.min(100, (usedDays / totalDays) * 100);
 
