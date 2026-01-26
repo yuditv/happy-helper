@@ -103,6 +103,7 @@ export type Database = {
           buffer_max_messages: number | null
           buffer_wait_seconds: number | null
           color: string | null
+          consultation_context: string | null
           created_at: string | null
           created_by: string
           description: string | null
@@ -140,6 +141,7 @@ export type Database = {
           buffer_max_messages?: number | null
           buffer_wait_seconds?: number | null
           color?: string | null
+          consultation_context?: string | null
           created_at?: string | null
           created_by: string
           description?: string | null
@@ -177,6 +179,7 @@ export type Database = {
           buffer_max_messages?: number | null
           buffer_wait_seconds?: number | null
           color?: string | null
+          consultation_context?: string | null
           created_at?: string | null
           created_by?: string
           description?: string | null
@@ -386,6 +389,51 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_sub_agent_links: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean
+          principal_agent_id: string
+          priority: number
+          sub_agent_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          principal_agent_id: string
+          priority?: number
+          sub_agent_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          principal_agent_id?: string
+          priority?: number
+          sub_agent_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_sub_agent_links_principal_agent_id_fkey"
+            columns: ["principal_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_sub_agent_links_sub_agent_id_fkey"
+            columns: ["sub_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
             referencedColumns: ["id"]
           },
         ]
