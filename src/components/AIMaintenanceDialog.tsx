@@ -72,8 +72,8 @@ export function AIMaintenanceDialog({ open, onOpenChange }: AIMaintenanceDialogP
   }>({ type: null, title: '', description: '' });
 
   const [options, setOptions] = useState({
-    clearOldOnly: false,
-    daysOld: 30,
+    clearOldOnly: true, // Default to true for safety
+    daysOld: 7,
   });
 
   const handleConfirmAction = () => {
@@ -225,12 +225,13 @@ export function AIMaintenanceDialog({ open, onOpenChange }: AIMaintenanceDialogP
                   color="purple"
                   isLoading={isClearingMemories}
                   disabled={isAnyOperationRunning}
+                  buttonLabel={options.clearOldOnly ? `Limpar >${options.daysOld}d` : "Limpar Tudo"}
                   onAction={() => setConfirmAction({
                     type: 'memories',
                     title: 'Limpar Memórias?',
                     description: options.clearOldOnly 
-                      ? `Isso irá remover todas as memórias de clientes com mais de ${options.daysOld} dias.`
-                      : 'Isso irá remover TODAS as memórias de clientes. A IA não lembrará mais de nenhuma informação previamente coletada.',
+                      ? `Isso irá remover memórias de clientes com mais de ${options.daysOld} dias. Dados recentes serão mantidos.`
+                      : '⚠️ Isso irá remover TODAS as memórias de clientes. A IA não lembrará mais de nenhuma informação previamente coletada.',
                   })}
                 />
 
@@ -242,12 +243,13 @@ export function AIMaintenanceDialog({ open, onOpenChange }: AIMaintenanceDialogP
                   color="blue"
                   isLoading={isClearingChat}
                   disabled={isAnyOperationRunning}
+                  buttonLabel={options.clearOldOnly ? `Limpar >${options.daysOld}d` : "Limpar Tudo"}
                   onAction={() => setConfirmAction({
                     type: 'chat',
                     title: 'Limpar Histórico de Chat?',
                     description: options.clearOldOnly
-                      ? `Isso irá remover mensagens de chat com mais de ${options.daysOld} dias.`
-                      : 'Isso irá remover TODO o histórico de conversas do chat web com a IA.',
+                      ? `Isso irá remover mensagens de chat com mais de ${options.daysOld} dias. Dados recentes serão mantidos.`
+                      : '⚠️ Isso irá remover TODO o histórico de conversas do chat web com a IA.',
                   })}
                 />
 
