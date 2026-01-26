@@ -312,6 +312,93 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
                 />
               </motion.div>
 
+              {/* Agent Type Selection */}
+              <motion.div 
+                custom={2}
+                variants={formItemVariants}
+                initial="hidden"
+                animate="visible"
+                className="space-y-2"
+              >
+                <Label className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  Tipo de Agente
+                </Label>
+                <Select
+                  value={formData.agent_type || 'principal'}
+                  onValueChange={(value) => setFormData({ ...formData, agent_type: value })}
+                >
+                  <SelectTrigger className="bg-background/50 border-border/50">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="principal">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Principal</span>
+                        <span className="text-xs text-muted-foreground">Agente principal que orquestra sub-agentes</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="sub_agent">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Sub-Agente</span>
+                        <span className="text-xs text-muted-foreground">Especialista consultado por agente principal</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </motion.div>
+
+              {/* Sub-Agent Specific Fields */}
+              {formData.agent_type === 'sub_agent' && (
+                <>
+                  <motion.div 
+                    custom={2.5}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-2"
+                  >
+                    <Label htmlFor="specialization" className="flex items-center gap-2">
+                      <Cpu className="h-4 w-4 text-muted-foreground" />
+                      Especialização *
+                    </Label>
+                    <Input
+                      id="specialization"
+                      placeholder="Ex: vpn, iptv, internet"
+                      value={formData.specialization || ''}
+                      onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                      className="bg-background/50 border-border/50 focus:border-primary"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Identificador único usado pelo agente principal para consultar este especialista
+                    </p>
+                  </motion.div>
+
+                  <motion.div 
+                    custom={2.6}
+                    variants={formItemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-2"
+                  >
+                    <Label htmlFor="consultation_context" className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-muted-foreground" />
+                      Contexto de Consulta
+                    </Label>
+                    <Textarea
+                      id="consultation_context"
+                      placeholder="Instruções específicas quando este sub-agente for consultado..."
+                      value={formData.consultation_context || ''}
+                      onChange={(e) => setFormData({ ...formData, consultation_context: e.target.value })}
+                      className="bg-background/50 border-border/50 focus:border-primary min-h-[80px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Contexto adicional passado quando o agente principal consulta este especialista
+                    </p>
+                  </motion.div>
+                </>
+              )}
+
               {/* Native AI Toggle */}
               <motion.div 
                 custom={2}
