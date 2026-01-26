@@ -345,13 +345,28 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
+    // SECURITY: Validate the request comes from Mercado Pago
+    // Mercado Pago sends webhooks with specific headers and structure
+    // We validate by checking:
+    // 1. Request has expected structure (type, action, data.id)
+    // 2. Payment exists in Mercado Pago API (confirms authenticity)
+    
     const body = await req.json();
     
     console.log("[mercado-pago-webhook] Received:", JSON.stringify(body));
 
-    // Verify notification type
+    // Basic structure validation
+    if (!body || typeof body !== 'object') {
+      console.log("[mercado-pago-webhook] Invalid request structure");
+      return new Response(
+        JSON.stringify({ received: true, error: 'Invalid request structure' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify notification type - only process payment.updated events
     if (body.type !== "payment" || body.action !== "payment.updated") {
-      console.log("[mercado-pago-webhook] Ignoring notification type:", body.type);
+      console.log("[mercado-pago-webhook] Ignoring notification type:", body.type, body.action);
       return new Response(
         JSON.stringify({ received: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -367,8 +382,17 @@ serve(async (req) => {
       );
     }
 
-    // Get payment status from Mercado Pago
+    // SECURITY: Validate payment exists in Mercado Pago API
+    // This confirms the webhook is authentic since only real payments will exist
     const MERCADO_PAGO_ACCESS_TOKEN = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN")!;
+    
+    if (!MERCADO_PAGO_ACCESS_TOKEN) {
+      console.error("[mercado-pago-webhook] MERCADO_PAGO_ACCESS_TOKEN not configured");
+      return new Response(
+        JSON.stringify({ received: true, error: 'Mercado Pago not configured' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     
     const mpResponse = await fetch(
       `https://api.mercadopago.com/v1/payments/${externalPaymentId}`,
@@ -378,6 +402,27 @@ serve(async (req) => {
         },
       }
     );
+
+    // If payment doesn't exist in Mercado Pago, reject the webhook
+    if (!mpResponse.ok) {
+      const errorStatus = mpResponse.status;
+      console.error(`[mercado-pago-webhook] Payment validation failed: status ${errorStatus}`);
+      
+      if (errorStatus === 404) {
+        // Payment doesn't exist - possible forged webhook
+        console.error("[mercado-pago-webhook] SECURITY: Payment not found in Mercado Pago - possible forged webhook");
+        return new Response(
+          JSON.stringify({ received: true, error: 'Payment not found' }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Other errors - still return 200 so MP doesn't retry
+      return new Response(
+        JSON.stringify({ received: true, error: 'Payment validation failed' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const mpData = await mpResponse.json();
     console.log("[mercado-pago-webhook] MP Status:", mpData.status);

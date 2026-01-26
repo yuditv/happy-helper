@@ -91,9 +91,40 @@ function formatPhoneNumber(phone: string): string {
   return cleaned;
 }
 
+/**
+ * Validate authentication - requires service role key (internal function only)
+ */
+function validateServiceAuth(req: Request): { valid: boolean; error?: string } {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { valid: false, error: 'Missing or invalid authorization header' };
+  }
+  
+  const token = authHeader.replace('Bearer ', '');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  
+  // Only allow service role key (internal edge function calls only)
+  if (token === supabaseServiceKey) {
+    return { valid: true };
+  }
+  
+  return { valid: false, error: 'Invalid service key - this is an internal function' };
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate authentication - internal function only
+  const auth = validateServiceAuth(req);
+  if (!auth.valid) {
+    console.error('[send-owner-notification] Authentication failed:', auth.error);
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized', details: auth.error }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
