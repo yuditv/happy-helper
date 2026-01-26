@@ -87,6 +87,13 @@ interface TransferDecision {
   transfer_message?: string;
 }
 
+// Interface for PIX generation decision
+interface PIXGenerationDecision {
+  plan_option: number;  // 1, 2, 3, etc.
+  custom_amount?: number;
+  custom_description?: string;
+}
+
 // Function to build transfer tool based on available target agents
 function buildTransferTool(targetAgents: Array<{ id: string; name: string; description: string; specialization: string }>) {
   if (targetAgents.length === 0) return null;
@@ -132,6 +139,56 @@ QUANDO NÃO TRANSFERIR:
           }
         },
         required: ["target_agent_id", "reason"]
+      }
+    }
+  };
+}
+
+// Function to build PIX generation tool based on available plans
+function buildPIXTool(plans: Array<{ option_number: number; name: string; price: number; duration_days: number }>) {
+  if (plans.length === 0) return null;
+  
+  const planDescriptions = plans.map(p => 
+    `${p.option_number} = ${p.name} - R$ ${p.price.toFixed(2)} (${p.duration_days} dias)`
+  ).join('\n');
+  
+  return {
+    type: "function",
+    function: {
+      name: "generate_pix_payment",
+      description: `Gera um pagamento PIX para o cliente quando ele escolher um plano ou pedir para pagar. Use quando o cliente demonstrar interesse em pagar ou escolher uma opção de plano.
+
+PLANOS DISPONÍVEIS:
+${planDescriptions}
+
+QUANDO USAR:
+- Cliente disse "quero o plano X" ou "vou pagar o X"
+- Cliente escolheu uma opção numérica (ex: "opção 1", "quero a 2")
+- Cliente pediu para gerar PIX ou código de pagamento
+- Cliente confirmou que quer comprar/renovar
+
+QUANDO NÃO USAR:
+- Cliente está apenas perguntando sobre preços
+- Cliente ainda não decidiu qual plano quer
+- Cliente está tirando dúvidas antes de comprar`,
+      parameters: {
+        type: "object",
+        properties: {
+          plan_option: { 
+            type: "number", 
+            description: "Número da opção do plano escolhido pelo cliente (ex: 1, 2, 3)",
+            enum: plans.map(p => p.option_number)
+          },
+          custom_amount: { 
+            type: "number", 
+            description: "Valor personalizado em reais (apenas se o cliente pediu um valor específico fora dos planos)" 
+          },
+          custom_description: { 
+            type: "string", 
+            description: "Descrição personalizada do pagamento (apenas para valores personalizados)" 
+          }
+        },
+        required: ["plan_option"]
       }
     }
   };
@@ -418,6 +475,7 @@ serve(async (req: Request) => {
     let aiError = null;
     let extractedInfo: ExtractedClientInfo | null = null;
     let transferDecision: TransferDecision | null = null;
+    let pixDecision: PIXGenerationDecision | null = null;
 
     // ============ FETCH AVAILABLE TARGET AGENTS FOR TRANSFER ============
     let availableTargetAgents: Array<{ id: string; name: string; description: string; specialization: string }> = [];
@@ -448,6 +506,40 @@ serve(async (req: Request) => {
           }));
         
         console.log(`[ai-agent-chat] Found ${availableTargetAgents.length} available transfer targets`);
+      }
+    }
+
+    // ============ FETCH AVAILABLE PAYMENT PLANS FOR PIX ============
+    let availablePlans: Array<{ option_number: number; name: string; price: number; duration_days: number; id: string }> = [];
+    
+    // Only fetch plans for WhatsApp sources
+    if ((source === 'whatsapp-inbox' || source === 'whatsapp') && phone) {
+      // Get bot_proxy_config for this user to fetch plans
+      const { data: proxyConfig } = await supabaseAdmin
+        .from('bot_proxy_config')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (proxyConfig) {
+        const { data: plans } = await supabaseAdmin
+          .from('bot_proxy_plans')
+          .select('id, option_number, name, price, duration_days')
+          .eq('config_id', proxyConfig.id)
+          .eq('is_active', true)
+          .order('option_number');
+        
+        if (plans && plans.length > 0) {
+          availablePlans = plans.map(p => ({
+            id: p.id,
+            option_number: p.option_number,
+            name: p.name,
+            price: Number(p.price),
+            duration_days: p.duration_days
+          }));
+          console.log(`[ai-agent-chat] Found ${availablePlans.length} available payment plans`);
+        }
       }
     }
 
@@ -589,6 +681,13 @@ INSTRUÇÕES IMPORTANTES:
             console.log(`[ai-agent-chat] Transfer tool added with ${availableTargetAgents.length} target agents`);
           }
           
+          // Add PIX generation tool if there are available plans
+          const pixTool = buildPIXTool(availablePlans);
+          if (pixTool) {
+            tools.push(pixTool);
+            console.log(`[ai-agent-chat] PIX tool added with ${availablePlans.length} plans`);
+          }
+          
           if (tools.length > 0) {
             requestBody.tools = tools;
             requestBody.tool_choice = "auto";
@@ -646,6 +745,13 @@ INSTRUÇÕES IMPORTANTES:
                       console.log('[ai-agent-chat] AI decided to transfer:', transferDecision);
                     } catch (parseErr) {
                       console.error('[ai-agent-chat] Error parsing transfer_to_specialist arguments:', parseErr);
+                    }
+                  } else if (toolCall.function.name === 'generate_pix_payment') {
+                    try {
+                      pixDecision = JSON.parse(toolCall.function.arguments) as PIXGenerationDecision;
+                      console.log('[ai-agent-chat] AI decided to generate PIX:', pixDecision);
+                    } catch (parseErr) {
+                      console.error('[ai-agent-chat] Error parsing generate_pix_payment arguments:', parseErr);
                     }
                   }
                 }
@@ -787,6 +893,102 @@ INSTRUÇÕES IMPORTANTES:
       }
     }
 
+    // ============ EXECUTE PIX GENERATION IF AI DECIDED ============
+    let pixGenerated: {
+      plan_name: string;
+      amount: number;
+      duration_days: number;
+      pix_code: string;
+      pix_qr_code: string;
+      external_id: string;
+    } | null = null;
+    
+    if (pixDecision && phone && conversationId) {
+      console.log(`[ai-agent-chat] Generating PIX for plan option ${pixDecision.plan_option}`);
+      
+      // Find the plan by option number
+      const selectedPlan = availablePlans.find(p => p.option_number === pixDecision.plan_option);
+      
+      if (selectedPlan) {
+        try {
+          const MERCADO_PAGO_ACCESS_TOKEN = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
+          
+          if (!MERCADO_PAGO_ACCESS_TOKEN) {
+            console.error('[ai-agent-chat] MERCADO_PAGO_ACCESS_TOKEN not configured');
+          } else {
+            // Generate PIX via Mercado Pago
+            const now = new Date();
+            const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
+            
+            const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${MERCADO_PAGO_ACCESS_TOKEN}`,
+                'Content-Type': 'application/json',
+                'X-Idempotency-Key': `ai-pix-${conversationId}-${Date.now()}`
+              },
+              body: JSON.stringify({
+                transaction_amount: selectedPlan.price,
+                description: `${selectedPlan.name} - ${selectedPlan.duration_days} dias`,
+                payment_method_id: 'pix',
+                payer: {
+                  email: `${phone.replace(/\D/g, '')}@pix.generated.com`
+                },
+                date_of_expiration: expiresAt.toISOString()
+              })
+            });
+            
+            if (mpResponse.ok) {
+              const mpData = await mpResponse.json();
+              
+              // Extract PIX data
+              const pixCode = mpData.point_of_interaction?.transaction_data?.qr_code || '';
+              const pixQrCode = mpData.point_of_interaction?.transaction_data?.qr_code_base64 || '';
+              
+              // Save to database
+              const { error: savePixError } = await supabaseAdmin
+                .from('client_pix_payments')
+                .insert({
+                  user_id: userId,
+                  conversation_id: conversationId,
+                  client_phone: phone,
+                  plan_id: selectedPlan.id,
+                  plan_name: selectedPlan.name,
+                  amount: selectedPlan.price,
+                  duration_days: selectedPlan.duration_days,
+                  external_id: String(mpData.id),
+                  pix_code: pixCode,
+                  pix_qr_code: pixQrCode,
+                  status: 'pending',
+                  expires_at: expiresAt.toISOString()
+                });
+              
+              if (savePixError) {
+                console.error('[ai-agent-chat] Error saving PIX payment:', savePixError);
+              } else {
+                pixGenerated = {
+                  plan_name: selectedPlan.name,
+                  amount: selectedPlan.price,
+                  duration_days: selectedPlan.duration_days,
+                  pix_code: pixCode,
+                  pix_qr_code: pixQrCode,
+                  external_id: String(mpData.id)
+                };
+                console.log(`[ai-agent-chat] PIX generated successfully: ${mpData.id}`);
+              }
+            } else {
+              const errorText = await mpResponse.text();
+              console.error('[ai-agent-chat] Mercado Pago error:', mpResponse.status, errorText);
+            }
+          }
+        } catch (pixError) {
+          console.error('[ai-agent-chat] Error generating PIX:', pixError);
+        }
+      } else {
+        console.warn(`[ai-agent-chat] Plan option ${pixDecision.plan_option} not found`);
+      }
+    }
+
     // Save assistant response to database
     const { data: savedMessage, error: saveAssistantMsgError } = await supabaseUser
       .from('ai_chat_messages')
@@ -804,6 +1006,8 @@ INSTRUÇÕES IMPORTANTES:
           extractedInfo: extractedInfo || undefined,
           transferDecision: transferDecision || undefined,
           transferExecuted,
+          pixDecision: pixDecision || undefined,
+          pixGenerated: pixGenerated ? true : undefined,
           ...metadata
         }
       })
@@ -827,6 +1031,8 @@ INSTRUÇÕES IMPORTANTES:
         extractedInfo,
         transferDecision,
         transferExecuted,
+        pixDecision,
+        pixGenerated,
         error: aiError
       }),
       { 
