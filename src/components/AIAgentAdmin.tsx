@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bot, Plus, Settings, Trash2, Power, ExternalLink, 
-  MessageSquare, Smartphone, Globe, Pencil, Link2, Shuffle
+  MessageSquare, Smartphone, Globe, Pencil, Link2, Shuffle, Users
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,18 @@ import { CreateAgentDialog } from "./CreateAgentDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { WhatsAppAgentRouting } from "./WhatsAppAgentRouting";
 import { AIAgentTransferRules } from "./AIAgentTransferRules";
+import { SubAgentsPanel } from "./SubAgentsPanel";
 
 export function AIAgentAdmin() {
   const { agents, isLoadingAgents, deleteAgent, toggleAgentActive } = useAIAgents();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AIAgent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<AIAgent | null>(null);
+  const [selectedPrincipalAgent, setSelectedPrincipalAgent] = useState<string | null>(null);
+  
+  // Filter agents by type - use any to bypass type check since agent_type exists in DB
+  const principalAgents = agents.filter(a => (a as any).agent_type !== 'sub_agent');
+  const subAgents = agents.filter(a => (a as any).agent_type === 'sub_agent');
 
   const handleToggleActive = (agent: AIAgent) => {
     toggleAgentActive.mutate({ id: agent.id, is_active: !agent.is_active });
@@ -52,6 +58,10 @@ export function AIAgentAdmin() {
           <TabsTrigger value="agents" className="gap-2">
             <Bot className="h-4 w-4" />
             Agentes
+          </TabsTrigger>
+          <TabsTrigger value="sub-agents" className="gap-2">
+            <Users className="h-4 w-4" />
+            Sub-Agentes
           </TabsTrigger>
           <TabsTrigger value="routing" className="gap-2">
             <Link2 className="h-4 w-4" />
@@ -288,6 +298,53 @@ export function AIAgentAdmin() {
         title="Excluir Agente"
         description={`Tem certeza que deseja excluir o agente "${deletingAgent?.name}"? Esta ação não pode ser desfeita e todo o histórico de conversas será perdido.`}
       />
+      </TabsContent>
+
+      <TabsContent value="sub-agents">
+        {principalAgents.length === 0 ? (
+          <Card className="glass-card">
+            <CardContent className="pt-6 text-center">
+              <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-muted-foreground">
+                Crie primeiro um Agente Principal para gerenciar Sub-Agentes.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            <Card className="glass-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Selecione o Agente Principal</CardTitle>
+                <CardDescription>
+                  Escolha qual Agente Principal você deseja configurar os Sub-Agentes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {principalAgents.map((agent) => (
+                    <Button
+                      key={agent.id}
+                      variant={selectedPrincipalAgent === agent.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedPrincipalAgent(agent.id)}
+                      className="gap-2"
+                    >
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: agent.color || '#3b82f6' }}
+                      />
+                      {agent.name}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {selectedPrincipalAgent && (
+              <SubAgentsPanel principalAgentId={selectedPrincipalAgent} />
+            )}
+          </div>
+        )}
       </TabsContent>
 
       <TabsContent value="routing">

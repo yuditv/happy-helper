@@ -42,6 +42,10 @@ export interface AIAgent {
   anti_hallucination_enabled: boolean | null;
   // Canned responses
   use_canned_responses: boolean | null;
+  // Agent type and specialization
+  agent_type: string | null;
+  specialization: string | null;
+  consultation_context: string | null;
 }
 
 export interface AIChatMessage {
@@ -100,6 +104,10 @@ export interface CreateAgentInput {
   anti_hallucination_enabled?: boolean;
   // Canned responses
   use_canned_responses?: boolean;
+  // Agent type and specialization
+  agent_type?: string;
+  specialization?: string;
+  consultation_context?: string;
 }
 
 export interface UpdateAgentInput extends Partial<CreateAgentInput> {

@@ -86,6 +86,10 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
     anti_hallucination_enabled: true,
     // Canned responses
     use_canned_responses: true,
+    // Agent type
+    agent_type: 'principal',
+    specialization: '',
+    consultation_context: '',
   });
 
   useEffect(() => {
@@ -125,6 +129,10 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         anti_hallucination_enabled: editingAgent.anti_hallucination_enabled ?? true,
         // Canned responses
         use_canned_responses: editingAgent.use_canned_responses ?? true,
+        // Agent type
+        agent_type: editingAgent.agent_type ?? 'principal',
+        specialization: editingAgent.specialization ?? '',
+        consultation_context: editingAgent.consultation_context ?? '',
       });
     } else {
       setFormData({
@@ -147,20 +155,19 @@ export function CreateAgentDialog({ open, onOpenChange, editingAgent }: CreateAg
         split_delay_max: 3,
         max_chars_per_message: 0,
         typing_simulation: true,
-        // Memory defaults
         memory_enabled: true,
         memory_auto_extract: true,
         memory_sync_clients: true,
         memory_generate_summary: true,
         memory_max_items: 20,
-        // Buffer defaults
         message_buffer_enabled: true,
         buffer_wait_seconds: 5,
         buffer_max_messages: 10,
-        // Anti-hallucination
         anti_hallucination_enabled: true,
-        // Canned responses
         use_canned_responses: true,
+        agent_type: 'principal',
+        specialization: '',
+        consultation_context: '',
       });
     }
   }, [editingAgent, open]);
