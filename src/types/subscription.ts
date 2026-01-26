@@ -7,6 +7,7 @@ export interface SubscriptionPlan {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  plan_type?: 'starter' | 'pro' | 'enterprise';
 }
 
 export interface UserSubscription {

@@ -2340,6 +2340,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          plan_type: string | null
           price: number
           updated_at: string
         }
@@ -2350,6 +2351,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          plan_type?: string | null
           price: number
           updated_at?: string
         }
@@ -2360,8 +2362,36 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          plan_type?: string | null
           price?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_daily_dispatches: {
+        Row: {
+          created_at: string
+          dispatch_count: number
+          dispatch_date: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dispatch_count?: number
+          dispatch_date?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dispatch_count?: number
+          dispatch_date?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

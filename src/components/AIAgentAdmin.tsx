@@ -2,13 +2,14 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bot, Plus, Settings, Trash2, Power, ExternalLink, 
-  MessageSquare, Smartphone, Globe, Pencil, Link2, Shuffle, Users, Settings2
+  MessageSquare, Smartphone, Globe, Pencil, Link2, Shuffle, Users, Settings2, AlertTriangle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAIAgents, type AIAgent } from "@/hooks/useAIAgents";
 import { CreateAgentDialog } from "./CreateAgentDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
@@ -16,14 +17,29 @@ import { WhatsAppAgentRouting } from "./WhatsAppAgentRouting";
 import { AIAgentTransferRules } from "./AIAgentTransferRules";
 import { SubAgentsPanel } from "./SubAgentsPanel";
 import { AIMaintenanceDialog } from "./AIMaintenanceDialog";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { PlanLimitAlert } from "./PlanLimitAlert";
 
 export function AIAgentAdmin() {
   const { agents, isLoadingAgents, deleteAgent, toggleAgentActive } = useAIAgents();
+  const { 
+    planType, 
+    canCreateAIAgent, 
+    canCreateSubAgents, 
+    getRemainingAIAgents, 
+    aiAgentCount,
+    limits 
+  } = usePlanLimits();
+  
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AIAgent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<AIAgent | null>(null);
   const [selectedPrincipalAgent, setSelectedPrincipalAgent] = useState<string | null>(null);
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
+  
+  const canCreate = canCreateAIAgent();
+  const remainingAgents = getRemainingAIAgents();
+  const maxAgents = limits.aiAgents;
   
   // Filter agents by type - use any to bypass type check since agent_type exists in DB
   const principalAgents = agents.filter(a => (a as any).agent_type !== 'sub_agent');
@@ -86,12 +102,39 @@ export function AIAgentAdmin() {
           <Button 
             onClick={() => setIsCreateDialogOpen(true)} 
             className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            disabled={!canCreate}
+            title={!canCreate ? `Limite de ${maxAgents === -1 ? '∞' : maxAgents} agentes atingido` : undefined}
           >
             <Plus className="h-4 w-4" />
             Novo Agente
+            {maxAgents !== -1 && (
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {aiAgentCount}/{maxAgents}
+              </Badge>
+            )}
           </Button>
         </div>
       </div>
+
+      {/* Plan Limit Warning */}
+      {maxAgents !== -1 && remainingAgents <= 1 && remainingAgents > 0 && (
+        <Alert className="border-yellow-500/50 bg-yellow-500/10">
+          <AlertTriangle className="h-4 w-4 text-yellow-500" />
+          <AlertDescription className="text-yellow-600 dark:text-yellow-400">
+            Você pode criar apenas mais {remainingAgents} agente(s) no seu plano atual.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!canCreate && maxAgents !== -1 && (
+        <PlanLimitAlert
+          type="limit_reached"
+          feature="agentes IA"
+          planType={planType}
+          currentCount={aiAgentCount}
+          maxCount={maxAgents}
+        />
+      )}
 
       <TabsContent value="agents" className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -313,7 +356,13 @@ export function AIAgentAdmin() {
       </TabsContent>
 
       <TabsContent value="sub-agents">
-        {principalAgents.length === 0 ? (
+        {!canCreateSubAgents() ? (
+          <PlanLimitAlert
+            type="blocked"
+            feature="Sub-Agentes"
+            planType={planType}
+          />
+        ) : principalAgents.length === 0 ? (
           <Card className="glass-card">
             <CardContent className="pt-6 text-center">
               <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
