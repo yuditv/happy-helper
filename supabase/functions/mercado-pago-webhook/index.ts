@@ -9,7 +9,17 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Send WhatsApp notification to user
+// Map duration days to plan type
+function mapDurationToPlanType(days: number): string {
+  if (days <= 7) return 'monthly'; // Semanal mapped to monthly
+  if (days <= 15) return 'monthly'; // Quinzenal mapped to monthly  
+  if (days <= 31) return 'monthly';
+  if (days <= 93) return 'quarterly';
+  if (days <= 186) return 'semiannual';
+  return 'annual';
+}
+
+// Send WhatsApp notification to user (for subscription payments)
 async function sendPaymentConfirmationWhatsApp(
   supabase: any,
   userId: string,
@@ -18,7 +28,6 @@ async function sendPaymentConfirmationWhatsApp(
   periodEnd: Date
 ) {
   try {
-    // Get user's WhatsApp from profile
     const { data: profile } = await supabase
       .from("profiles")
       .select("whatsapp, display_name")
@@ -39,7 +48,6 @@ async function sendPaymentConfirmationWhatsApp(
 
     const message = `✅ *Pagamento Confirmado!*\n\nOlá ${userName}!\n\nSeu pagamento de ${formattedAmount} para o plano *${planName}* foi confirmado com sucesso!\n\n📅 Válido até: ${formattedDate}\n\nObrigado por renovar conosco! 🚀`;
 
-    // Get user's default WhatsApp instance
     const { data: instance } = await supabase
       .from("whatsapp_instances")
       .select("instance_key")
@@ -56,21 +64,20 @@ async function sendPaymentConfirmationWhatsApp(
       return;
     }
 
-    // Format phone number
     let phone = profile.whatsapp.replace(/\D/g, '');
     if (!phone.startsWith('55')) {
       phone = '55' + phone;
     }
 
-    const response = await fetch(`${UAZAPI_URL}/sendText`, {
+    const response = await fetch(`${UAZAPI_URL}/send/text`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "token": UAZAPI_TOKEN,
       },
       body: JSON.stringify({
-        phone,
-        message,
+        number: phone,
+        text: message,
       }),
     });
 
@@ -84,6 +91,251 @@ async function sendPaymentConfirmationWhatsApp(
   }
 }
 
+// Process client PIX payment - register client and add label
+async function processClientPixPayment(
+  supabase: any,
+  payment: any,
+  mpData: any
+) {
+  try {
+    console.log("[mercado-pago-webhook] Processing client PIX payment:", payment.id);
+    
+    // Update payment status
+    await supabase
+      .from("client_pix_payments")
+      .update({ 
+        status: "paid",
+        paid_at: new Date().toISOString()
+      })
+      .eq("id", payment.id);
+
+    // Get AI memory for client details
+    const { data: memory } = await supabase
+      .from("ai_client_memories")
+      .select("client_name, app_name, device, plan_name")
+      .eq("phone", payment.client_phone)
+      .eq("user_id", payment.user_id)
+      .maybeSingle();
+
+    // Get conversation for contact name
+    let contactName = null;
+    if (payment.conversation_id) {
+      const { data: conversation } = await supabase
+        .from("conversations")
+        .select("contact_name")
+        .eq("id", payment.conversation_id)
+        .maybeSingle();
+      contactName = conversation?.contact_name;
+    }
+
+    // Determine client name
+    const clientName = memory?.client_name || 
+                       contactName || 
+                       `Cliente ${payment.client_phone.slice(-4)}`;
+
+    // Determine service type
+    const service = memory?.app_name ? 'IPTV' : 'VPN';
+
+    // Map duration to plan type
+    const planType = mapDurationToPlanType(payment.duration_days || 30);
+
+    // Calculate expiration date
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + (payment.duration_days || 30));
+
+    // Check if client already exists
+    const { data: existingClient } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("user_id", payment.user_id)
+      .eq("whatsapp", payment.client_phone)
+      .maybeSingle();
+
+    if (existingClient) {
+      // Update existing client
+      console.log("[mercado-pago-webhook] Updating existing client:", existingClient.id);
+      await supabase
+        .from("clients")
+        .update({
+          name: clientName,
+          service: service,
+          plan: planType,
+          price: payment.amount,
+          app_name: memory?.app_name || null,
+          device: memory?.device || null,
+          expires_at: expiresAt.toISOString(),
+          notes: `Renovado via PIX em ${new Date().toLocaleDateString('pt-BR')} - ${payment.plan_name}`,
+        })
+        .eq("id", existingClient.id);
+    } else {
+      // Create new client
+      console.log("[mercado-pago-webhook] Creating new client for:", clientName);
+      await supabase
+        .from("clients")
+        .insert({
+          user_id: payment.user_id,
+          name: clientName,
+          whatsapp: payment.client_phone,
+          email: `${payment.client_phone}@cliente.local`, // Placeholder email
+          service: service,
+          plan: planType,
+          price: payment.amount,
+          app_name: memory?.app_name || null,
+          device: memory?.device || null,
+          expires_at: expiresAt.toISOString(),
+          notes: `Cadastrado via PIX em ${new Date().toLocaleDateString('pt-BR')} - ${payment.plan_name}`,
+        });
+    }
+
+    // Add "COMPRA FINALIZADA" label
+    if (payment.conversation_id) {
+      // Find or create the label
+      let { data: label } = await supabase
+        .from("inbox_labels")
+        .select("id")
+        .eq("user_id", payment.user_id)
+        .ilike("name", "COMPRA FINALIZADA")
+        .maybeSingle();
+
+      if (!label) {
+        console.log("[mercado-pago-webhook] Creating 'COMPRA FINALIZADA' label");
+        const { data: newLabel } = await supabase
+          .from("inbox_labels")
+          .insert({
+            user_id: payment.user_id,
+            name: "COMPRA FINALIZADA",
+            color: "#10b981", // Green
+            description: "Clientes que finalizaram a compra via PIX"
+          })
+          .select("id")
+          .single();
+        label = newLabel;
+      }
+
+      if (label) {
+        // Check if label already exists on conversation
+        const { data: existingLabel } = await supabase
+          .from("conversation_labels")
+          .select("id")
+          .eq("conversation_id", payment.conversation_id)
+          .eq("label_id", label.id)
+          .maybeSingle();
+
+        if (!existingLabel) {
+          console.log("[mercado-pago-webhook] Adding label to conversation");
+          await supabase
+            .from("conversation_labels")
+            .insert({
+              conversation_id: payment.conversation_id,
+              label_id: label.id
+            });
+        }
+      }
+    }
+
+    // Send confirmation WhatsApp to client
+    await sendClientPaymentConfirmation(
+      supabase,
+      payment,
+      clientName,
+      expiresAt
+    );
+
+    console.log("[mercado-pago-webhook] Client PIX payment processed successfully");
+
+  } catch (error) {
+    console.error("[mercado-pago-webhook] Error processing client PIX payment:", error);
+  }
+}
+
+// Send WhatsApp confirmation to client
+async function sendClientPaymentConfirmation(
+  supabase: any,
+  payment: any,
+  clientName: string,
+  expiresAt: Date
+) {
+  try {
+    // Get user's WhatsApp instance
+    const { data: instance } = await supabase
+      .from("whatsapp_instances")
+      .select("instance_key")
+      .eq("user_id", payment.user_id)
+      .eq("status", "connected")
+      .limit(1)
+      .maybeSingle();
+
+    if (!instance?.instance_key) {
+      console.log("[mercado-pago-webhook] No connected instance for user");
+      return;
+    }
+
+    const UAZAPI_URL = Deno.env.get("UAZAPI_URL");
+    if (!UAZAPI_URL) {
+      console.log("[mercado-pago-webhook] UAZAPI_URL not configured");
+      return;
+    }
+
+    const formattedAmount = new Intl.NumberFormat('pt-BR', { 
+      style: 'currency', 
+      currency: 'BRL' 
+    }).format(payment.amount);
+    const formattedDate = expiresAt.toLocaleDateString('pt-BR');
+
+    const message = `✅ *Pagamento Confirmado!*
+
+📋 *Plano:* ${payment.plan_name}
+💰 *Valor:* ${formattedAmount}
+📅 *Válido até:* ${formattedDate}
+
+Você foi cadastrado no nosso sistema!
+
+Obrigado pela compra! 🎉`;
+
+    // Format phone
+    let phone = payment.client_phone.replace(/\D/g, '');
+    if (!phone.startsWith('55')) {
+      phone = '55' + phone;
+    }
+
+    const response = await fetch(`${UAZAPI_URL}/send/text`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "token": instance.instance_key,
+      },
+      body: JSON.stringify({
+        number: phone,
+        text: message,
+      }),
+    });
+
+    if (response.ok) {
+      console.log("[mercado-pago-webhook] Client confirmation sent successfully");
+      
+      // Save message to inbox
+      if (payment.conversation_id) {
+        await supabase
+          .from("chat_inbox_messages")
+          .insert({
+            conversation_id: payment.conversation_id,
+            content: message,
+            sender_type: 'agent',
+            sender_id: payment.user_id,
+            metadata: {
+              payment_confirmation: true,
+              payment_id: payment.id
+            }
+          });
+      }
+    } else {
+      console.error("[mercado-pago-webhook] Failed to send client confirmation:", await response.text());
+    }
+  } catch (error) {
+    console.error("[mercado-pago-webhook] Error sending client confirmation:", error);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -93,12 +345,11 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Webhook do Mercado Pago - não requer autenticação do usuário
     const body = await req.json();
     
     console.log("[mercado-pago-webhook] Received:", JSON.stringify(body));
 
-    // Verificar tipo de notificação
+    // Verify notification type
     if (body.type !== "payment" || body.action !== "payment.updated") {
       console.log("[mercado-pago-webhook] Ignoring notification type:", body.type);
       return new Response(
@@ -116,22 +367,7 @@ serve(async (req) => {
       );
     }
 
-    // Buscar pagamento no banco pelo external_id
-    const { data: payment, error: paymentError } = await supabase
-      .from("subscription_payments")
-      .select("*, subscription:user_subscriptions(*)")
-      .eq("external_id", externalPaymentId.toString())
-      .single();
-
-    if (paymentError || !payment) {
-      console.log("[mercado-pago-webhook] Payment not found:", externalPaymentId);
-      return new Response(
-        JSON.stringify({ received: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verificar status no Mercado Pago
+    // Get payment status from Mercado Pago
     const MERCADO_PAGO_ACCESS_TOKEN = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN")!;
     
     const mpResponse = await fetch(
@@ -146,14 +382,29 @@ serve(async (req) => {
     const mpData = await mpResponse.json();
     console.log("[mercado-pago-webhook] MP Status:", mpData.status);
 
-    if (mpData.status === "approved" && payment.status !== "paid") {
-      console.log("[mercado-pago-webhook] Payment approved, activating subscription");
+    if (mpData.status !== "approved") {
+      console.log("[mercado-pago-webhook] Payment not approved, ignoring");
+      return new Response(
+        JSON.stringify({ received: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-      // Buscar plano para saber a duração e nome
+    // First, try to find in subscription_payments (user subscription)
+    const { data: subscriptionPayment } = await supabase
+      .from("subscription_payments")
+      .select("*, subscription:user_subscriptions(*)")
+      .eq("external_id", externalPaymentId.toString())
+      .maybeSingle();
+
+    if (subscriptionPayment && subscriptionPayment.status !== "paid") {
+      console.log("[mercado-pago-webhook] Processing subscription payment");
+      
+      // Get plan duration
       const { data: plan } = await supabase
         .from("subscription_plans")
         .select("duration_months, name")
-        .eq("id", payment.plan_id)
+        .eq("id", subscriptionPayment.plan_id)
         .single();
 
       const durationMonths = plan?.duration_months || 1;
@@ -161,39 +412,63 @@ serve(async (req) => {
       const periodEnd = new Date();
       periodEnd.setMonth(periodEnd.getMonth() + durationMonths);
 
-      // Atualizar pagamento
+      // Update payment
       await supabase
         .from("subscription_payments")
         .update({ 
           status: "paid",
           paid_at: new Date().toISOString()
         })
-        .eq("id", payment.id);
+        .eq("id", subscriptionPayment.id);
 
-      // Atualizar subscription
+      // Update subscription
       await supabase
         .from("user_subscriptions")
         .update({
           status: "active",
-          plan_id: payment.plan_id,
+          plan_id: subscriptionPayment.plan_id,
           current_period_start: periodStart.toISOString(),
           current_period_end: periodEnd.toISOString(),
           trial_ends_at: null,
         })
-        .eq("id", payment.subscription_id);
+        .eq("id", subscriptionPayment.subscription_id);
 
       console.log("[mercado-pago-webhook] Subscription activated successfully");
 
-      // Send WhatsApp notification
+      // Send WhatsApp notification to user
       await sendPaymentConfirmationWhatsApp(
         supabase,
-        payment.subscription.user_id,
+        subscriptionPayment.subscription.user_id,
         plan?.name || "Premium",
-        mpData.transaction_amount || payment.amount,
+        mpData.transaction_amount || subscriptionPayment.amount,
         periodEnd
+      );
+
+      return new Response(
+        JSON.stringify({ received: true, type: "subscription" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Second, try to find in client_pix_payments (client payment)
+    const { data: clientPayment } = await supabase
+      .from("client_pix_payments")
+      .select("*")
+      .eq("external_id", externalPaymentId.toString())
+      .maybeSingle();
+
+    if (clientPayment && clientPayment.status !== "paid") {
+      console.log("[mercado-pago-webhook] Processing client PIX payment");
+      
+      await processClientPixPayment(supabase, clientPayment, mpData);
+
+      return new Response(
+        JSON.stringify({ received: true, type: "client_pix" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[mercado-pago-webhook] Payment not found or already processed:", externalPaymentId);
     return new Response(
       JSON.stringify({ received: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -202,7 +477,7 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     console.error("[mercado-pago-webhook] Error:", error);
-    // Sempre retorna 200 para o Mercado Pago não retentar
+    // Always return 200 so Mercado Pago doesn't retry
     return new Response(
       JSON.stringify({ received: true, error: errorMessage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
