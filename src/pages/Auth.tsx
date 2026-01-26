@@ -6,9 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Users, Mail, Lock, Loader2, Phone, ArrowLeft } from 'lucide-react';
+import { Users, Mail, Lock, Loader2, Phone, ArrowLeft, Shield, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+
+// Gmail-only validation
+const gmailSchema = z.string()
+  .trim()
+  .email('Email inválido')
+  .max(255, 'Email muito longo')
+  .refine(
+    (email) => /^[a-zA-Z0-9._%+-]+@gmail\.com(\.br)?$/i.test(email),
+    'Apenas emails do Gmail são aceitos (@gmail.com ou @gmail.com.br)'
+  );
 
 const emailSchema = z.string().trim().email('Email inválido').max(255, 'Email muito longo');
 const passwordSchema = z.string()
@@ -51,7 +62,7 @@ const isAccountLocked = (): boolean => {
     return true;
   }
   if (attempts.lockedUntil > 0 && attempts.lockedUntil <= Date.now()) {
-    resetLoginAttempts(); // Reset after lockout expires
+    resetLoginAttempts();
   }
   return false;
 };
@@ -74,6 +85,8 @@ const unformatWhatsApp = (value: string): string => {
 };
 const whatsappSchema = z.string().min(10, 'WhatsApp deve ter pelo menos 10 dígitos').regex(/^[0-9]+$/, 'WhatsApp deve conter apenas números');
 
+type SignUpStep = 'form' | 'verification' | 'success';
+
 export default function Auth() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -82,9 +95,12 @@ export default function Auth() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  
+  // Verification state
+  const [signUpStep, setSignUpStep] = useState<SignUpStep>('form');
+  const [verificationCode, setVerificationCode] = useState('');
 
-
-  const validateForm = (isSignUp = false) => {
+  const validateLoginForm = () => {
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
       toast.error(emailResult.error.errors[0].message);
@@ -95,33 +111,43 @@ export default function Auth() {
       toast.error(passwordResult.error.errors[0].message);
       return false;
     }
-    
-    if (isSignUp) {
-      if (password !== confirmPassword) {
-        toast.error('As senhas não coincidem');
-        return false;
-      }
-      const whatsappResult = whatsappSchema.safeParse(whatsapp);
-      if (!whatsappResult.success) {
-        toast.error(whatsappResult.error.errors[0].message);
-        return false;
-      }
+    return true;
+  };
+
+  const validateSignUpForm = () => {
+    // Gmail-only for signup
+    const emailResult = gmailSchema.safeParse(email);
+    if (!emailResult.success) {
+      toast.error(emailResult.error.errors[0].message);
+      return false;
     }
-    
+    const passwordResult = passwordSchema.safeParse(password);
+    if (!passwordResult.success) {
+      toast.error(passwordResult.error.errors[0].message);
+      return false;
+    }
+    if (password !== confirmPassword) {
+      toast.error('As senhas não coincidem');
+      return false;
+    }
+    const whatsappResult = whatsappSchema.safeParse(whatsapp);
+    if (!whatsappResult.success) {
+      toast.error(whatsappResult.error.errors[0].message);
+      return false;
+    }
     return true;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Security: Check if account is locked due to too many attempts
     if (isAccountLocked()) {
       const remaining = getRemainingLockoutTime();
       toast.error(`Muitas tentativas de login. Aguarde ${remaining} segundos.`);
       return;
     }
     
-    if (!validateForm()) return;
+    if (!validateLoginForm()) return;
 
     setIsLoading(true);
     try {
@@ -154,35 +180,74 @@ export default function Auth() {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  // Step 1: Send verification code
+  const handleSendVerificationCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm(true)) return;
+    if (!validateSignUpForm()) return;
 
     setIsLoading(true);
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          whatsapp: whatsapp
-        }
-      }
-    });
+    try {
+      const response = await supabase.functions.invoke('verify-registration', {
+        body: { action: 'send_code', email: email.trim() }
+      });
 
-    if (error) {
-      if (error.message.includes('User already registered')) {
-        toast.error('Este email já está cadastrado. Faça login.');
-      } else {
-        toast.error(error.message);
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao enviar código');
       }
-    } else {
-      toast.success('Conta criada com sucesso! Você já pode fazer login.');
-      navigate('/');
+
+      if (response.data?.error) {
+        toast.error(response.data.error);
+      } else {
+        toast.success('Código de verificação enviado para seu email!');
+        setSignUpStep('verification');
+      }
+    } catch (err: any) {
+      console.error('Send code error:', err);
+      toast.error(err.message || 'Erro ao enviar código de verificação');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
+  };
+
+  // Step 2: Verify code and create account
+  const handleVerifyAndRegister = async () => {
+    if (verificationCode.length !== 6) {
+      toast.error('Digite o código de 6 dígitos');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await supabase.functions.invoke('verify-registration', {
+        body: { 
+          action: 'verify_and_register', 
+          email: email.trim(),
+          code: verificationCode,
+          password,
+          whatsapp
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao verificar código');
+      }
+
+      if (response.data?.error) {
+        toast.error(response.data.error);
+        if (response.data.error.includes('expirado')) {
+          setSignUpStep('form');
+          setVerificationCode('');
+        }
+      } else {
+        toast.success('Conta criada com sucesso!');
+        setSignUpStep('success');
+      }
+    } catch (err: any) {
+      console.error('Verify error:', err);
+      toast.error(err.message || 'Erro ao verificar código');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -210,6 +275,15 @@ export default function Auth() {
     setIsLoading(false);
   };
 
+  const resetSignUpForm = () => {
+    setSignUpStep('form');
+    setVerificationCode('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setWhatsapp('');
+  };
+
   if (showForgotPassword) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -232,7 +306,7 @@ export default function Auth() {
                   <Input
                     id="forgot-email"
                     type="email"
-                    placeholder="seu@email.com"
+                    placeholder="seu@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
@@ -276,7 +350,7 @@ export default function Auth() {
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Entrar</TabsTrigger>
-              <TabsTrigger value="signup">Criar Conta</TabsTrigger>
+              <TabsTrigger value="signup" onClick={resetSignUpForm}>Criar Conta</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
@@ -327,72 +401,155 @@ export default function Auth() {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
+              {signUpStep === 'form' && (
+                <form onSubmit={handleSendVerificationCode} className="space-y-4">
+                  <div className="bg-muted/50 border rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span>Apenas emails do Gmail são aceitos</span>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-whatsapp">WhatsApp</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-whatsapp"
-                      type="tel"
-                      placeholder="(91) 98091-0280"
-                      value={formatWhatsApp(whatsapp)}
-                      onChange={(e) => setWhatsapp(unformatWhatsApp(e.target.value))}
-                      className="pl-10"
-                      required
-                    />
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email (Gmail)</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="seu@gmail.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Mínimo 6 caracteres"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-whatsapp">WhatsApp</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-whatsapp"
+                        type="tel"
+                        placeholder="(91) 98091-0280"
+                        value={formatWhatsApp(whatsapp)}
+                        onChange={(e) => setWhatsapp(unformatWhatsApp(e.target.value))}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">Confirmar Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-confirm-password"
-                      type="password"
-                      placeholder="Repita a senha"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="Mínimo 6 caracteres"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm-password">Confirmar Senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-confirm-password"
+                        type="password"
+                        placeholder="Repita a senha"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Enviar Código de Verificação
+                  </Button>
+                </form>
+              )}
+
+              {signUpStep === 'verification' && (
+                <div className="space-y-6">
+                  <div className="text-center space-y-2">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                      <Mail className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">Verifique seu email</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Enviamos um código de 6 dígitos para <strong>{email}</strong>
+                    </p>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(value) => setVerificationCode(value)}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+
+                  <Button 
+                    onClick={handleVerifyAndRegister} 
+                    className="w-full" 
+                    disabled={isLoading || verificationCode.length !== 6}
+                  >
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Verificar e Criar Conta
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => setSignUpStep('form')}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar
+                  </Button>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Criar Conta
-                </Button>
-              </form>
+              )}
+
+              {signUpStep === 'success' && (
+                <div className="space-y-6 text-center">
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                    <CheckCircle className="h-8 w-8 text-primary" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg">Conta criada com sucesso!</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Sua conta foi verificada e ativada. Você já pode fazer login.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      resetSignUpForm();
+                      const loginTab = document.querySelector('[value="login"]') as HTMLElement;
+                      loginTab?.click();
+                    }} 
+                    className="w-full"
+                  >
+                    Fazer Login
+                  </Button>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -1542,6 +1542,36 @@ export type Database = {
         }
         Relationships: []
       }
+      email_verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          ip_address: string
+          verified_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          ip_address: string
+          verified_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       inbox_audit_logs: {
         Row: {
           action: string
@@ -2022,6 +2052,27 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      registration_ips: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string
+          user_id?: string | null
         }
         Relationships: []
       }

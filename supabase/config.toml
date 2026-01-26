@@ -83,3 +83,9 @@ verify_jwt = false
 
 [functions.sync-chats]
 verify_jwt = false
+
+[functions.verify-registration]
+verify_jwt = false
+
+[functions.generate-client-pix]
+verify_jwt = false
