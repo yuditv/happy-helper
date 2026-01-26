@@ -46,19 +46,35 @@ export function useAIMaintenance() {
   // Clear memories
   const clearMemories = useMutation({
     mutationFn: async ({ oldOnly, daysOld }: { oldOnly: boolean; daysOld: number }) => {
-      let query = supabase.from('ai_client_memories').delete();
-
+      console.log('[Maintenance] Clearing memories:', { oldOnly, daysOld });
+      
       if (oldOnly) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-        query = query.lt('updated_at', cutoffDate.toISOString());
+        const { error, count } = await supabase
+          .from('ai_client_memories')
+          .delete({ count: 'exact' })
+          .lt('updated_at', cutoffDate.toISOString());
+        
+        console.log('[Maintenance] Deleted old memories:', count);
+        if (error) throw error;
       } else {
-        // Need a condition for delete, use user_id is not null (always true)
-        query = query.not('id', 'is', null);
+        // Delete all - need to select first to get IDs, then delete
+        const { data: memories } = await supabase
+          .from('ai_client_memories')
+          .select('id');
+        
+        if (memories && memories.length > 0) {
+          const ids = memories.map(m => m.id);
+          const { error, count } = await supabase
+            .from('ai_client_memories')
+            .delete({ count: 'exact' })
+            .in('id', ids);
+          
+          console.log('[Maintenance] Deleted all memories:', count);
+          if (error) throw error;
+        }
       }
-
-      const { error } = await query;
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-maintenance-stats'] });
@@ -81,18 +97,35 @@ export function useAIMaintenance() {
   // Clear chat history
   const clearChatHistory = useMutation({
     mutationFn: async ({ oldOnly, daysOld }: { oldOnly: boolean; daysOld: number }) => {
-      let query = supabase.from('ai_chat_messages').delete();
-
+      console.log('[Maintenance] Clearing chat history:', { oldOnly, daysOld });
+      
       if (oldOnly) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-        query = query.lt('created_at', cutoffDate.toISOString());
+        const { error, count } = await supabase
+          .from('ai_chat_messages')
+          .delete({ count: 'exact' })
+          .lt('created_at', cutoffDate.toISOString());
+        
+        console.log('[Maintenance] Deleted old chat messages:', count);
+        if (error) throw error;
       } else {
-        query = query.not('id', 'is', null);
+        // Delete all
+        const { data: messages } = await supabase
+          .from('ai_chat_messages')
+          .select('id');
+        
+        if (messages && messages.length > 0) {
+          const ids = messages.map(m => m.id);
+          const { error, count } = await supabase
+            .from('ai_chat_messages')
+            .delete({ count: 'exact' })
+            .in('id', ids);
+          
+          console.log('[Maintenance] Deleted all chat messages:', count);
+          if (error) throw error;
+        }
       }
-
-      const { error } = await query;
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-maintenance-stats'] });
@@ -115,12 +148,23 @@ export function useAIMaintenance() {
   // Clear message buffers
   const clearMessageBuffers = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
+      console.log('[Maintenance] Clearing message buffers');
+      
+      // Get all buffer IDs first, then delete by IDs
+      const { data: buffers } = await supabase
         .from('ai_message_buffer')
-        .delete()
-        .not('id', 'is', null);
-
-      if (error) throw error;
+        .select('id');
+      
+      if (buffers && buffers.length > 0) {
+        const ids = buffers.map(b => b.id);
+        const { error, count } = await supabase
+          .from('ai_message_buffer')
+          .delete({ count: 'exact' })
+          .in('id', ids);
+        
+        console.log('[Maintenance] Deleted buffers:', count);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-maintenance-stats'] });
@@ -142,32 +186,67 @@ export function useAIMaintenance() {
   // Clear all data
   const clearAllData = useMutation({
     mutationFn: async ({ oldOnly, daysOld }: { oldOnly: boolean; daysOld: number }) => {
+      console.log('[Maintenance] Clearing all data:', { oldOnly, daysOld });
+      
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
       const cutoffISO = cutoffDate.toISOString();
 
-      // Delete in parallel
-      const promises = [];
-
       if (oldOnly) {
-        promises.push(
-          supabase.from('ai_client_memories').delete().lt('updated_at', cutoffISO),
-          supabase.from('ai_chat_messages').delete().lt('created_at', cutoffISO),
-          supabase.from('ai_message_buffer').delete().lt('created_at', cutoffISO)
-        );
-      } else {
-        promises.push(
-          supabase.from('ai_client_memories').delete().not('id', 'is', null),
-          supabase.from('ai_chat_messages').delete().not('id', 'is', null),
-          supabase.from('ai_message_buffer').delete().not('id', 'is', null)
-        );
-      }
+        // Delete old data with proper conditions
+        const [memoriesRes, chatRes, buffersRes] = await Promise.all([
+          supabase.from('ai_client_memories').delete({ count: 'exact' }).lt('updated_at', cutoffISO),
+          supabase.from('ai_chat_messages').delete({ count: 'exact' }).lt('created_at', cutoffISO),
+          supabase.from('ai_message_buffer').delete({ count: 'exact' }).lt('created_at', cutoffISO),
+        ]);
 
-      const results = await Promise.all(promises);
-      const errors = results.filter(r => r.error);
-      
-      if (errors.length > 0) {
-        throw new Error('Alguns dados não puderam ser removidos');
+        console.log('[Maintenance] Deleted old data:', {
+          memories: memoriesRes.count,
+          chat: chatRes.count,
+          buffers: buffersRes.count,
+        });
+
+        const errors = [memoriesRes, chatRes, buffersRes].filter(r => r.error);
+        if (errors.length > 0) {
+          throw new Error('Alguns dados não puderam ser removidos');
+        }
+      } else {
+        // Delete all - get IDs first for each table
+        const [memories, messages, buffers] = await Promise.all([
+          supabase.from('ai_client_memories').select('id'),
+          supabase.from('ai_chat_messages').select('id'),
+          supabase.from('ai_message_buffer').select('id'),
+        ]);
+
+        const deletePromises = [];
+        
+        if (memories.data && memories.data.length > 0) {
+          deletePromises.push(
+            supabase.from('ai_client_memories').delete({ count: 'exact' }).in('id', memories.data.map(m => m.id))
+          );
+        }
+        
+        if (messages.data && messages.data.length > 0) {
+          deletePromises.push(
+            supabase.from('ai_chat_messages').delete({ count: 'exact' }).in('id', messages.data.map(m => m.id))
+          );
+        }
+        
+        if (buffers.data && buffers.data.length > 0) {
+          deletePromises.push(
+            supabase.from('ai_message_buffer').delete({ count: 'exact' }).in('id', buffers.data.map(b => b.id))
+          );
+        }
+
+        if (deletePromises.length > 0) {
+          const results = await Promise.all(deletePromises);
+          console.log('[Maintenance] Deleted all data:', results.map(r => r.count));
+          
+          const errors = results.filter(r => r.error);
+          if (errors.length > 0) {
+            throw new Error('Alguns dados não puderam ser removidos');
+          }
+        }
       }
     },
     onSuccess: () => {
