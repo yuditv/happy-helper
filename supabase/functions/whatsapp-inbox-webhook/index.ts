@@ -1885,7 +1885,12 @@ serve(async (req: Request) => {
     }
 
     // Check if AI should respond - only for INCOMING messages (not fromMe)
-    if (!fromMe && conversation.ai_enabled && !conversation.assigned_to) {
+    // AI responds if ai_enabled is true, regardless of assigned_to
+    // This allows explicit AI activation even when a human is assigned
+    if (!fromMe && conversation.ai_enabled) {
+      if (conversation.assigned_to) {
+        console.log('[Inbox Webhook] AI enabled explicitly, processing despite human assignment');
+      }
       console.log('[Inbox Webhook] AI is enabled for incoming message, checking for routing...');
       
       // ========== DYNAMIC AGENT ROUTING ==========

@@ -324,7 +324,19 @@ export function useInboxConversations() {
   };
 
   const toggleAI = async (conversationId: string, enabled: boolean) => {
-    await updateConversation(conversationId, { ai_enabled: enabled });
+    // When enabling AI, clear assigned_to and ai_paused_at to allow automation
+    // When disabling AI, record the pause timestamp
+    const updates: Partial<Conversation> = {
+      ai_enabled: enabled,
+      ai_paused_at: enabled ? null : new Date().toISOString(),
+    };
+    
+    // Clear human assignment when AI is explicitly enabled
+    if (enabled) {
+      updates.assigned_to = null;
+    }
+    
+    await updateConversation(conversationId, updates);
     toast({ title: enabled ? 'IA ativada' : 'IA desativada' });
   };
 
