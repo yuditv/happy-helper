@@ -72,7 +72,7 @@ import { usePresence } from "@/hooks/usePresence";
 import { useWhatsAppInstances } from "@/hooks/useWhatsAppInstances";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-// ClientInfoPanel removed - client registration now in dropdown menu
+import { ClientInfoPanel } from "./ClientInfoPanel";
 import { MessageStatus } from "./MessageStatus";
 import { TypingIndicator } from "./TypingIndicator";
 import { FileUploadButton } from "./FileUploadButton";
@@ -166,6 +166,7 @@ export function ChatPanel({
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   // showQuickPanel removed - management moved to Inbox Settings
   const [showCRMPanel, setShowCRMPanel] = useState(false);
+  const [showClientPanel, setShowClientPanel] = useState(true);
   const [isBlocking, setIsBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showSearchDialog, setShowSearchDialog] = useState(false);
@@ -661,6 +662,20 @@ export function ChatPanel({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Toggle Client Info Panel */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={showClientPanel ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setShowClientPanel(!showClientPanel)}
+              >
+                {showClientPanel ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{showClientPanel ? 'Ocultar painel' : 'Ver dados do cliente'}</TooltipContent>
+          </Tooltip>
+
           {/* Toggle CRM Panel */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1239,6 +1254,33 @@ export function ChatPanel({
       </div>
       </div>
 
+      {/* Client Info Panel - Right side */}
+      <AnimatePresence mode="wait">
+        {showClientPanel && (
+          <motion.div
+            initial={{ opacity: 0, x: 20, width: 0 }}
+            animate={{ opacity: 1, x: 0, width: 320 }}
+            exit={{ opacity: 0, x: 20, width: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="border-l shrink-0 overflow-hidden bg-muted/20"
+          >
+            <ScrollArea className="w-80 h-full">
+              <div className="p-3">
+                <ClientInfoPanel
+                  client={client}
+                  isLoading={isLoadingClient}
+                  phone={conversation.phone}
+                  contactName={conversation.contact_name || undefined}
+                  contactAvatar={contactAvatarUrl || conversation.contact_avatar}
+                  agentId={conversation.active_agent_id}
+                  onRegisterClient={onRegisterClient}
+                />
+              </div>
+            </ScrollArea>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* CRM Panel - Right side */}
       <AnimatePresence mode="wait">
         {showCRMPanel && (
@@ -1259,8 +1301,6 @@ export function ChatPanel({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Client Info Panel removed - client registration now in dropdown menu */}
 
       {/* Media Gallery Modal */}
       {showGallery && (
