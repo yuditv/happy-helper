@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bot, Plus, Settings, Trash2, Power, ExternalLink, 
-  MessageSquare, Smartphone, Globe, Pencil, Link2, Shuffle, Users
+  MessageSquare, Smartphone, Globe, Pencil, Link2, Shuffle, Users, Settings2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { WhatsAppAgentRouting } from "./WhatsAppAgentRouting";
 import { AIAgentTransferRules } from "./AIAgentTransferRules";
 import { SubAgentsPanel } from "./SubAgentsPanel";
+import { AIMaintenanceDialog } from "./AIMaintenanceDialog";
 
 export function AIAgentAdmin() {
   const { agents, isLoadingAgents, deleteAgent, toggleAgentActive } = useAIAgents();
@@ -22,6 +23,7 @@ export function AIAgentAdmin() {
   const [editingAgent, setEditingAgent] = useState<AIAgent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<AIAgent | null>(null);
   const [selectedPrincipalAgent, setSelectedPrincipalAgent] = useState<string | null>(null);
+  const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
   
   // Filter agents by type - use any to bypass type check since agent_type exists in DB
   const principalAgents = agents.filter(a => (a as any).agent_type !== 'sub_agent');
@@ -72,13 +74,23 @@ export function AIAgentAdmin() {
             Transferências
           </TabsTrigger>
         </TabsList>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)} 
-          className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          Novo Agente
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => setIsMaintenanceOpen(true)} 
+            className="gap-2"
+          >
+            <Settings2 className="h-4 w-4" />
+            Manutenção
+          </Button>
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)} 
+            className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Agente
+          </Button>
+        </div>
       </div>
 
       <TabsContent value="agents" className="space-y-6">
@@ -354,6 +366,12 @@ export function AIAgentAdmin() {
       <TabsContent value="transfer">
         <AIAgentTransferRules />
       </TabsContent>
+
+      {/* Maintenance Dialog */}
+      <AIMaintenanceDialog
+        open={isMaintenanceOpen}
+        onOpenChange={setIsMaintenanceOpen}
+      />
     </Tabs>
   );
 }
