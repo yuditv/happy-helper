@@ -20,7 +20,7 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     whatsappInstances: 1,
     aiAgents: 1,
     canAccessChipWarming: false,
-    canAccessAIAgent: false,
+    canAccessAIAgent: true, // Trial can access AI Agent tab
     canCreateSubAgents: false,
   },
   starter: {
@@ -170,10 +170,10 @@ export function usePlanLimits() {
 
   const canCreateAIAgent = useCallback((): boolean => {
     if (isAdmin) return true;
-    if (!limits.canAccessAIAgent) return false;
+    if (limits.aiAgents === 0) return false;
     if (limits.aiAgents === -1) return true;
     return aiAgentCount < limits.aiAgents;
-  }, [isAdmin, limits.canAccessAIAgent, limits.aiAgents, aiAgentCount]);
+  }, [isAdmin, limits.aiAgents, aiAgentCount]);
 
   const canAccessChipWarming = useCallback((): boolean => {
     if (isAdmin) return true;
