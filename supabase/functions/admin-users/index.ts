@@ -132,24 +132,27 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Upsert role
-      const { error: upsertError } = await supabaseAdmin
+      // Delete existing roles first, then insert new role
+      const { error: deleteError } = await supabaseAdmin
         .from('user_roles')
-        .upsert({ user_id: userId, role }, { onConflict: 'user_id,role' });
+        .delete()
+        .eq('user_id', userId);
 
-      if (upsertError) {
-        // If upsert fails due to unique constraint, update instead
-        const { error: deleteError } = await supabaseAdmin
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId);
-
-        if (!deleteError) {
-          await supabaseAdmin
-            .from('user_roles')
-            .insert({ user_id: userId, role });
-        }
+      if (deleteError) {
+        console.error('Error deleting existing role:', deleteError);
+        throw deleteError;
       }
+
+      const { error: insertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({ user_id: userId, role });
+
+      if (insertError) {
+        console.error('Error inserting new role:', insertError);
+        throw insertError;
+      }
+
+      console.log('Role updated successfully:', { userId, role });
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
