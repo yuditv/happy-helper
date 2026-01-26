@@ -2047,6 +2047,85 @@ serve(async (req: Request) => {
                   const aiData = await aiChatResponse.json();
                   assistantResponse = aiData.message?.content || aiData.response || '';
                   console.log(`[Inbox Webhook] Native AI response received: ${assistantResponse.substring(0, 100)}...`);
+                  
+                  // ============ HANDLE PIX GENERATION IF AI DECIDED ============
+                  if (aiData.pixGenerated) {
+                    console.log('[Inbox Webhook] AI generated PIX, sending QR code and message...');
+                    
+                    const pixData = aiData.pixGenerated;
+                    const formattedPhonePix = formatPhoneNumber(normalizedPhone);
+                    
+                    try {
+                      // Send QR Code image first
+                      if (pixData.pix_qr_code) {
+                        const qrCodeBase64 = pixData.pix_qr_code.startsWith('data:') 
+                          ? pixData.pix_qr_code.split(',')[1] 
+                          : pixData.pix_qr_code;
+                        
+                        await fetch(`${uazapiUrl}/send/media`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'token': instance.instance_key || uazapiToken
+                          },
+                          body: JSON.stringify({
+                            number: formattedPhonePix,
+                            media: qrCodeBase64,
+                            type: 'image',
+                            caption: `💳 ${pixData.plan_name} - R$ ${Number(pixData.amount).toFixed(2)}`
+                          })
+                        });
+                        
+                        console.log('[Inbox Webhook] PIX QR Code sent');
+                      }
+                      
+                      // Wait a bit before sending text
+                      await sleep(1500);
+                      
+                      // Send formatted PIX message
+                      const pixMessage = `📱 *Pagamento PIX Gerado*
+
+💳 *${pixData.plan_name}*
+💰 Valor: *R$ ${Number(pixData.amount).toFixed(2)}*
+📅 Duração: ${pixData.duration_days} dias
+⏰ Expira em 10 minutos
+
+📋 *Código PIX (copie abaixo):*
+
+\`\`\`
+${pixData.pix_code}
+\`\`\`
+
+✅ Após o pagamento, envie o comprovante para confirmarmos!`;
+
+                      await sendTextViaUazapi(
+                        uazapiUrl,
+                        instance.instance_key || uazapiToken,
+                        formattedPhonePix,
+                        pixMessage
+                      );
+                      
+                      console.log('[Inbox Webhook] PIX text message sent');
+                      
+                      // Save PIX message to conversation
+                      await supabase
+                        .from('chat_inbox_messages')
+                        .insert({
+                          conversation_id: conversation.id,
+                          sender_type: 'ai',
+                          content: pixMessage,
+                          metadata: { 
+                            agent_id: agent.id, 
+                            pix_generated: true,
+                            pix_amount: pixData.amount,
+                            pix_plan: pixData.plan_name
+                          }
+                        });
+                      
+                    } catch (pixSendError) {
+                      console.error('[Inbox Webhook] Error sending PIX:', pixSendError);
+                    }
+                  }
                 } else {
                   const errorText = await aiChatResponse.text();
                   console.error('[Inbox Webhook] Native AI error:', errorText);
