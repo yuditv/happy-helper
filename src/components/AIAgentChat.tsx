@@ -142,10 +142,10 @@ export function AIAgentChat() {
             <Bot className="h-16 w-16 text-primary relative z-10" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">
-            Nenhum agente disponível
+            Nenhum agente para chat
           </h3>
           <p className="text-muted-foreground max-w-md">
-            Aguarde o administrador configurar agentes de IA para você utilizar
+            Crie um agente na aba "Meus Agentes" e ative a opção "Chat Web" para testar aqui
           </p>
         </CardContent>
       </Card>
