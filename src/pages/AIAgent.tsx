@@ -1,24 +1,17 @@
-import { useState } from "react";
-import { Bot, Lock, AlertTriangle, Zap } from "lucide-react";
+import { Bot } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { AIAgentAdmin } from "@/components/AIAgentAdmin";
 import { AIAgentChat } from "@/components/AIAgentChat";
-import { useAuth } from "@/hooks/useAuth";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { useSubscription } from "@/hooks/useSubscription";
-import { SubscriptionPlansDialog } from "@/components/SubscriptionPlansDialog";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { PlanLimitAlert } from "@/components/PlanLimitAlert";
 import { motion } from "framer-motion";
 
 export default function AIAgent() {
-  const { user } = useAuth();
-  const { isAdmin, isLoading } = useUserPermissions();
-  const { isActive, isOnTrial, getRemainingDays } = useSubscription();
-  const [showPlans, setShowPlans] = useState(false);
+  const { planType, canAccessAIAgent, isLoading } = usePlanLimits();
   
-  // Admins bypass subscription check
-  const subscriptionExpired = !isActive() && !isAdmin;
+  const isBlocked = !canAccessAIAgent();
+  const isTrial = planType === 'trial';
 
   if (isLoading) {
     return (
@@ -30,29 +23,17 @@ export default function AIAgent() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      {/* Subscription Expired Banner */}
-      {subscriptionExpired && (
+      {/* Blocked Alert */}
+      {isBlocked && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 flex items-center justify-between"
         >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            <div>
-              <p className="font-medium text-destructive">Assinatura Expirada</p>
-              <p className="text-sm text-muted-foreground">
-                Renove sua assinatura para acessar os Agentes de IA
-              </p>
-            </div>
-          </div>
-          <Button 
-            onClick={() => setShowPlans(true)}
-            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            Renovar Agora
-          </Button>
+          <PlanLimitAlert 
+            type={isTrial ? 'trial_blocked' : 'blocked'}
+            feature="Agente IA"
+            planType={planType}
+          />
         </motion.div>
       )}
 
@@ -79,36 +60,11 @@ export default function AIAgent() {
 
       {/* Main Content with Overlay */}
       <div className="relative">
-        {/* Subscription Expired Overlay */}
-        {subscriptionExpired && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-xl"
-          >
-            <div className="text-center p-8 max-w-md">
-              <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                <Lock className="h-10 w-10 text-primary" />
-              </div>
-              <h3 className="text-2xl font-bold mb-3 text-foreground">
-                Agente IA Bloqueado
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                Sua assinatura expirou. Renove para continuar utilizando os agentes de IA.
-              </p>
-              <Button 
-                size="lg"
-                onClick={() => setShowPlans(true)}
-                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-              >
-                <Zap className="h-5 w-5 mr-2" />
-                Ver Planos de Assinatura
-              </Button>
-            </div>
-          </motion.div>
+        {/* Blocked Overlay */}
+        {isBlocked && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 rounded-xl" />
         )}
 
-        {/* Show management interface for all users (admins and regular users) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -118,7 +74,7 @@ export default function AIAgent() {
             <TabsList>
               <TabsTrigger value="manage" className="gap-2">
                 <Bot className="h-4 w-4" />
-                {isAdmin ? "Gerenciar Agentes" : "Meus Agentes"}
+                Meus Agentes
               </TabsTrigger>
               <TabsTrigger value="chat" className="gap-2">
                 <Bot className="h-4 w-4" />
@@ -146,9 +102,6 @@ export default function AIAgent() {
           </Tabs>
         </motion.div>
       </div>
-
-      {/* Subscription Plans Dialog */}
-      <SubscriptionPlansDialog open={showPlans} onOpenChange={setShowPlans} />
     </div>
   );
 }

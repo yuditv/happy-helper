@@ -1,8 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useWhatsAppInstances, WhatsAppInstance } from '@/hooks/useWhatsAppInstances';
 import { useCampaigns, Campaign } from '@/hooks/useCampaigns';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -58,6 +57,7 @@ import { WhatsAppStatus } from '@/components/WhatsAppStatus';
 import { BulkDispatcher } from '@/components/BulkDispatcher';
 import { SubscriptionPlansDialog } from '@/components/SubscriptionPlansDialog';
 import { InstanceSettingsDialog } from '@/components/InstanceSettingsDialog';
+import { PlanLimitAlert } from '@/components/PlanLimitAlert';
 import { motion } from 'framer-motion';
 
 // Lazy load pages
@@ -84,15 +84,22 @@ export default function WhatsApp() {
     pauseCampaign, 
     refetch: refetchCampaigns 
   } = useCampaigns();
-  const { isActive, isOnTrial, getRemainingDays } = useSubscription();
-  const { isAdmin } = useUserPermissions();
+  const { 
+    planType,
+    canCreateWhatsAppInstance, 
+    canDispatch,
+    getRemainingDispatches,
+    getRemainingWhatsAppInstances,
+    whatsappInstanceCount,
+    limits 
+  } = usePlanLimits();
   
   // Tab state
   const [activeTab, setActiveTab] = useState('dispatch');
   const [showPlans, setShowPlans] = useState(false);
 
-  // Subscription status (admins bypass this check)
-  const subscriptionExpired = !isActive() && !isAdmin;
+  // Subscription status
+  const subscriptionExpired = planType === 'expired';
 
   // Instance/Campaign dialogs
   const [selectedInstance, setSelectedInstance] = useState<WhatsAppInstance | null>(null);
@@ -386,14 +393,32 @@ export default function WhatsApp() {
 
         {/* Instances Tab */}
         <TabsContent value="instances" className="space-y-6">
+          {!canCreateWhatsAppInstance() && limits.whatsappInstances !== -1 && (
+            <PlanLimitAlert
+              type="limit_reached"
+              feature="instâncias WhatsApp"
+              planType={planType}
+              currentCount={whatsappInstanceCount}
+              maxCount={limits.whatsappInstances}
+            />
+          )}
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-semibold">Suas Instâncias WhatsApp</h2>
               <p className="text-sm text-muted-foreground">Gerencie suas conexões</p>
             </div>
-            <Button onClick={() => setCreateInstanceDialogOpen(true)} className="gap-2">
+            <Button 
+              onClick={() => setCreateInstanceDialogOpen(true)} 
+              className="gap-2"
+              disabled={!canCreateWhatsAppInstance()}
+            >
               <Plus className="w-4 h-4" />
               Nova Instância
+              {limits.whatsappInstances !== -1 && (
+                <Badge variant="secondary" className="ml-1">
+                  {whatsappInstanceCount}/{limits.whatsappInstances}
+                </Badge>
+              )}
             </Button>
           </div>
 

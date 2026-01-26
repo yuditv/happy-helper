@@ -1,22 +1,15 @@
 import { WhatsAppWarming } from "@/components/WhatsAppWarming";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Flame, Lock, CreditCard } from "lucide-react";
+import { Flame } from "lucide-react";
 import { motion } from "framer-motion";
-import { useSubscription } from "@/hooks/useSubscription";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { SubscriptionPlansDialog } from "@/components/SubscriptionPlansDialog";
-import { useState } from "react";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { PlanLimitAlert } from "@/components/PlanLimitAlert";
 
 export default function WarmChips() {
-  const { isActive, isOnTrial, getRemainingDays } = useSubscription();
-  const { isAdmin } = useUserPermissions();
-  const [showPlans, setShowPlans] = useState(false);
+  const { planType, canAccessChipWarming } = usePlanLimits();
   
-  // Admins bypass subscription check
-  const subscriptionExpired = !isActive() && !isAdmin;
-  const trialActive = isOnTrial();
-  const daysRemaining = getRemainingDays();
+  const isBlocked = !canAccessChipWarming();
+  const isTrial = planType === 'trial';
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -41,28 +34,17 @@ export default function WarmChips() {
         </div>
       </motion.div>
 
-      {/* Subscription Expired Banner */}
-      {subscriptionExpired && (
+      {/* Blocked Alert */}
+      {isBlocked && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card border-destructive/50 bg-destructive/5 p-6 rounded-xl"
         >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-destructive/10">
-              <Lock className="h-6 w-6 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">Assinatura Expirada</h3>
-              <p className="text-muted-foreground">
-                Renove sua assinatura para continuar usando o aquecimento de chips.
-              </p>
-            </div>
-            <Button onClick={() => setShowPlans(true)} className="gap-2">
-              <CreditCard className="h-4 w-4" />
-              Renovar Agora
-            </Button>
-          </div>
+          <PlanLimitAlert 
+            type={isTrial ? 'trial_blocked' : 'blocked'}
+            feature="Aquecimento de Chips"
+            planType={planType}
+          />
         </motion.div>
       )}
 
@@ -72,17 +54,9 @@ export default function WarmChips() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="relative"
       >
-        {/* Overlay when expired */}
-        {subscriptionExpired && (
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-xl flex items-center justify-center">
-            <div className="text-center space-y-4">
-              <Lock className="h-12 w-12 text-muted-foreground mx-auto" />
-              <p className="text-lg font-medium">Funcionalidade bloqueada</p>
-              <Button onClick={() => setShowPlans(true)} variant="default">
-                Renovar Assinatura
-              </Button>
-            </div>
-          </div>
+        {/* Overlay when blocked */}
+        {isBlocked && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-xl" />
         )}
 
         <Card className="glass-card">
@@ -97,8 +71,6 @@ export default function WarmChips() {
           </CardContent>
         </Card>
       </motion.div>
-
-      <SubscriptionPlansDialog open={showPlans} onOpenChange={setShowPlans} />
     </div>
   );
 }
