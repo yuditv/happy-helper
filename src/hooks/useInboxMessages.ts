@@ -205,12 +205,14 @@ export function useInboxMessages(conversationId: string | null) {
             }
             
             // Replace optimistic message (temp-*) with real one
-            // Match by sender_type='agent', same content, recent timestamp
+            // Match by sender_type='agent', same content/media, recent timestamp
             const optimisticIndex = prev.findIndex(m => 
               m.id.startsWith('temp-') && 
               m.sender_type === 'agent' &&
-              m.content === newMessage.content &&
               newMessage.sender_type === 'agent' &&
+              // Match by content OR media_url (for media-only messages)
+              ((m.content && m.content === newMessage.content) || 
+               (m.media_url && m.media_url === newMessage.media_url)) &&
               // Only match if created within last 10 seconds
               (Date.now() - new Date(m.created_at).getTime()) < 10000
             );
