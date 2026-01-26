@@ -33,7 +33,8 @@ import {
   SquareStack,
   GalleryHorizontal,
   Tv,
-  Wifi
+  Wifi,
+  QrCode
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ import { SyncOptionsDialog } from "./SyncOptionsDialog";
 import { DeleteMessageDialog } from "./DeleteMessageDialog";
 import { TestGeneratorDialog } from "./TestGeneratorDialog";
 import { VPNTestGeneratorDialog } from "./VPNTestGeneratorDialog";
+import { GeneratePIXDialog } from "./GeneratePIXDialog";
 
 interface ChatPanelProps {
   conversation: Conversation | null;
@@ -175,6 +177,7 @@ export function ChatPanel({
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [showTestGenerator, setShowTestGenerator] = useState(false);
   const [showVPNTestGenerator, setShowVPNTestGenerator] = useState(false);
+  const [showPIXDialog, setShowPIXDialog] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1191,6 +1194,21 @@ export function ChatPanel({
 
               <Tooltip>
                 <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setShowPIXDialog(true)}
+                    disabled={isSending}
+                  >
+                    <QrCode className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Gerar PIX</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
                   <AudioRecorder
                     onAudioReady={handleAudioReady}
                     disabled={isSending || attachments.length > 0}
@@ -1451,6 +1469,19 @@ export function ChatPanel({
         open={showVPNTestGenerator}
         onOpenChange={setShowVPNTestGenerator}
       />
+
+      {/* PIX Generation Dialog */}
+      {conversation && (
+        <GeneratePIXDialog
+          open={showPIXDialog}
+          onOpenChange={setShowPIXDialog}
+          conversationId={conversation.id}
+          instanceId={conversation.instance_id}
+          clientPhone={conversation.phone}
+          clientName={conversation.contact_name || undefined}
+          onSendMessage={onSendMessage}
+        />
+      )}
     </div>
   );
 }

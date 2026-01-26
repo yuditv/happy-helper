@@ -941,6 +941,91 @@ export type Database = {
           },
         ]
       }
+      client_pix_payments: {
+        Row: {
+          amount: number
+          client_phone: string
+          conversation_id: string | null
+          created_at: string
+          description: string | null
+          duration_days: number | null
+          expires_at: string | null
+          external_id: string | null
+          id: string
+          instance_id: string | null
+          paid_at: string | null
+          pix_code: string | null
+          pix_qr_code: string | null
+          plan_id: string | null
+          plan_name: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          client_phone: string
+          conversation_id?: string | null
+          created_at?: string
+          description?: string | null
+          duration_days?: number | null
+          expires_at?: string | null
+          external_id?: string | null
+          id?: string
+          instance_id?: string | null
+          paid_at?: string | null
+          pix_code?: string | null
+          pix_qr_code?: string | null
+          plan_id?: string | null
+          plan_name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          client_phone?: string
+          conversation_id?: string | null
+          created_at?: string
+          description?: string | null
+          duration_days?: number | null
+          expires_at?: string | null
+          external_id?: string | null
+          id?: string
+          instance_id?: string | null
+          paid_at?: string | null
+          pix_code?: string | null
+          pix_qr_code?: string | null
+          plan_id?: string | null
+          plan_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_pix_payments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_pix_payments_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_pix_payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "bot_proxy_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_tag_assignments: {
         Row: {
           client_id: string
