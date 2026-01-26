@@ -72,8 +72,8 @@ export function AIMaintenanceDialog({ open, onOpenChange }: AIMaintenanceDialogP
   }>({ type: null, title: '', description: '' });
 
   const [options, setOptions] = useState({
-    clearOldOnly: true, // Default to true for safety
-    daysOld: 7,
+    clearOldOnly: false, // Default to false for complete cleanup
+    daysOld: 30,
   });
 
   const handleConfirmAction = () => {
@@ -177,9 +177,16 @@ export function AIMaintenanceDialog({ open, onOpenChange }: AIMaintenanceDialogP
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="clear-old-only">Limpar apenas dados antigos</Label>
+                      <Label htmlFor="clear-old-only" className="flex items-center gap-2">
+                        Modo seguro (apenas dados antigos)
+                        {!options.clearOldOnly && (
+                          <Badge variant="destructive" className="text-xs">TUDO SERÁ APAGADO</Badge>
+                        )}
+                      </Label>
                       <p className="text-xs text-muted-foreground">
-                        Remove apenas dados com mais de {options.daysOld} dias
+                        {options.clearOldOnly 
+                          ? `Remove apenas dados com mais de ${options.daysOld} dias`
+                          : '⚠️ Remove TODOS os dados, incluindo recentes'}
                       </p>
                     </div>
                     <Switch
