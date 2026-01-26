@@ -68,27 +68,31 @@ serve(async (req: Request) => {
       );
     }
 
-    // Find the instance by key or ID
+    // SECURITY: Require instanceKey or instanceId for validation
+    if (!instanceId && !instanceKey) {
+      console.error('[whatsapp-ai-webhook] No instanceKey or instanceId provided');
+      return new Response(
+        JSON.stringify({ error: 'instanceKey or instanceId is required for validation' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Find the instance by key or ID - this validates the request comes from a valid source
     let query = supabase.from('whatsapp_instances').select('*');
     
     if (instanceId) {
       query = query.eq('id', instanceId);
     } else if (instanceKey) {
       query = query.eq('instance_key', instanceKey);
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'instanceKey or instanceId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     const { data: instance, error: instanceError } = await query.single();
 
     if (instanceError || !instance) {
-      console.error('Instance not found:', instanceError);
+      console.error('[whatsapp-ai-webhook] Instance validation failed - instance not found:', instanceError);
       return new Response(
-        JSON.stringify({ error: 'WhatsApp instance not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Unauthorized - invalid instance credentials' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
