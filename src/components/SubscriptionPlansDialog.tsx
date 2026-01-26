@@ -31,11 +31,12 @@ const professionalPlans = [
     features: {
       dailyDispatches: 200,
       whatsappConnections: 1,
+      aiAgents: 0,
     },
     featureList: [
       '200 disparos por dia',
       '1 conexão WhatsApp',
-      'Suporte por email',
+      'Suporte',
       'Atualizações gratuitas',
     ],
   },
@@ -48,13 +49,14 @@ const professionalPlans = [
     isPopular: true,
     features: {
       dailyDispatches: 500,
-      whatsappConnections: 5,
+      whatsappConnections: 3,
+      aiAgents: 1,
     },
     featureList: [
       '500 disparos por dia',
-      '5 conexões WhatsApp',
-      'Suporte prioritário',
-      'Agente IA incluído',
+      '3 conexões WhatsApp',
+      '1 Agente IA',
+      'Suporte',
       'Atualizações gratuitas',
     ],
   },
@@ -67,13 +69,14 @@ const professionalPlans = [
     features: {
       dailyDispatches: -1, // ilimitado
       whatsappConnections: -1, // ilimitado
+      aiAgents: -1, // ilimitado
     },
     featureList: [
       'Disparos ilimitados',
       'WhatsApp ilimitado',
-      'Suporte VIP 24/7',
-      'Agente IA avançado',
-      'API personalizada',
+      'Agentes IA ilimitados',
+      'Aquecimento de chips',
+      'Suporte',
       'Atualizações gratuitas',
     ],
   },
