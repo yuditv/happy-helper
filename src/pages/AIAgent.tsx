@@ -72,10 +72,7 @@ export default function AIAgent() {
         <div>
           <h1 className="text-3xl font-bold text-gradient">Agente IA</h1>
           <p className="text-muted-foreground">
-            {isAdmin 
-              ? "Configure agentes de IA conectados ao n8n para automatizar conversas"
-              : "Converse com agentes de IA inteligentes"
-            }
+            Configure e gerencie seus agentes de IA para automatizar conversas
           </p>
         </div>
       </motion.div>
@@ -111,64 +108,43 @@ export default function AIAgent() {
           </motion.div>
         )}
 
-        {isAdmin ? (
-          // Admin View - Show both management and chat tabs
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Tabs defaultValue="manage" className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="manage" className="gap-2">
-                  <Bot className="h-4 w-4" />
-                  Gerenciar Agentes
-                </TabsTrigger>
-                <TabsTrigger value="chat" className="gap-2">
-                  <Bot className="h-4 w-4" />
-                  Testar Chat
-                </TabsTrigger>
-              </TabsList>
+        {/* Show management interface for all users (admins and regular users) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <Tabs defaultValue="manage" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="manage" className="gap-2">
+                <Bot className="h-4 w-4" />
+                {isAdmin ? "Gerenciar Agentes" : "Meus Agentes"}
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="gap-2">
+                <Bot className="h-4 w-4" />
+                Testar Chat
+              </TabsTrigger>
+            </TabsList>
 
-              <TabsContent value="manage">
-                <AIAgentAdmin />
-              </TabsContent>
+            <TabsContent value="manage">
+              <AIAgentAdmin />
+            </TabsContent>
 
-              <TabsContent value="chat">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle>Testar Agente</CardTitle>
-                    <CardDescription>
-                      Teste a conversa com seus agentes configurados
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <AIAgentChat />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </motion.div>
-        ) : (
-          // User View - Show only chat
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Assistentes Virtuais</CardTitle>
-                <CardDescription>
-                  Converse com nossos agentes de IA para obter ajuda
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AIAgentChat />
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+            <TabsContent value="chat">
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle>Testar Agente</CardTitle>
+                  <CardDescription>
+                    Teste a conversa com seus agentes configurados
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AIAgentChat />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </motion.div>
       </div>
 
       {/* Subscription Plans Dialog */}
