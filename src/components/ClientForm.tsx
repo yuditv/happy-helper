@@ -97,10 +97,27 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   const [appName, setAppName] = useState('');
   const [device, setDevice] = useState('');
 
+  // Helper function to format phone number for form (remove 55 prefix, format as (DD) 9XXXX-XXXX)
+  const formatPhoneForForm = (phone: string): string => {
+    // Remove all non-digit characters
+    let numbers = phone.replace(/\D/g, '');
+    
+    // Remove 55 prefix if present
+    if (numbers.startsWith('55') && numbers.length >= 12) {
+      numbers = numbers.slice(2);
+    }
+    
+    // Format as (DD) 9XXXX-XXXX
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
+
   useEffect(() => {
     if (initialData) {
       setName(initialData.name);
-      setWhatsapp(initialData.whatsapp);
+      setWhatsapp(formatPhoneForForm(initialData.whatsapp));
       setEmail(initialData.email || '');
       setService(initialData.service);
       setPlan(initialData.plan);
@@ -120,7 +137,9 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
       setPlan('monthly');
       setPrice('');
       setNotes('');
+      // Always use today's date for new registrations
       setCreatedAt(format(new Date(), 'yyyy-MM-dd'));
+      // Calculate expiration based on plan duration from today
       setExpiresAt(format(addMonths(new Date(), planDurations['monthly']), 'yyyy-MM-dd'));
       setServiceUsername('');
       setServicePassword('');
@@ -132,7 +151,10 @@ export function ClientForm({ open, onOpenChange, onSubmit, initialData }: Client
   // Update expiration date when plan changes (only for new clients)
   useEffect(() => {
     if (!initialData) {
-      setExpiresAt(format(addMonths(new Date(), planDurations[plan]), 'yyyy-MM-dd'));
+      // Always calculate from today's date
+      const today = new Date();
+      setCreatedAt(format(today, 'yyyy-MM-dd'));
+      setExpiresAt(format(addMonths(today, planDurations[plan]), 'yyyy-MM-dd'));
     }
   }, [plan, initialData]);
 
