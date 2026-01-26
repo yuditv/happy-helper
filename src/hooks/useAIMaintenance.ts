@@ -48,33 +48,23 @@ export function useAIMaintenance() {
     mutationFn: async ({ oldOnly, daysOld }: { oldOnly: boolean; daysOld: number }) => {
       console.log('[Maintenance] Clearing memories:', { oldOnly, daysOld });
       
+      // Get authenticated user - CRITICAL for RLS to work
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+      const userId = userData.user.id;
+      
+      let query = supabase.from('ai_client_memories').delete({ count: 'exact' }).eq('user_id', userId);
+      
       if (oldOnly) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-        const { error, count } = await supabase
-          .from('ai_client_memories')
-          .delete({ count: 'exact' })
-          .lt('updated_at', cutoffDate.toISOString());
-        
-        console.log('[Maintenance] Deleted old memories:', count);
-        if (error) throw error;
-      } else {
-        // Delete all - need to select first to get IDs, then delete
-        const { data: memories } = await supabase
-          .from('ai_client_memories')
-          .select('id');
-        
-        if (memories && memories.length > 0) {
-          const ids = memories.map(m => m.id);
-          const { error, count } = await supabase
-            .from('ai_client_memories')
-            .delete({ count: 'exact' })
-            .in('id', ids);
-          
-          console.log('[Maintenance] Deleted all memories:', count);
-          if (error) throw error;
-        }
+        query = query.lt('updated_at', cutoffDate.toISOString());
       }
+      
+      const { error, count } = await query;
+      console.log('[Maintenance] Deleted memories:', count);
+      if (error) throw error;
+      return count;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-maintenance-stats'] });
@@ -99,33 +89,23 @@ export function useAIMaintenance() {
     mutationFn: async ({ oldOnly, daysOld }: { oldOnly: boolean; daysOld: number }) => {
       console.log('[Maintenance] Clearing chat history:', { oldOnly, daysOld });
       
+      // Get authenticated user - CRITICAL for RLS to work
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+      const userId = userData.user.id;
+      
+      let query = supabase.from('ai_chat_messages').delete({ count: 'exact' }).eq('user_id', userId);
+      
       if (oldOnly) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-        const { error, count } = await supabase
-          .from('ai_chat_messages')
-          .delete({ count: 'exact' })
-          .lt('created_at', cutoffDate.toISOString());
-        
-        console.log('[Maintenance] Deleted old chat messages:', count);
-        if (error) throw error;
-      } else {
-        // Delete all
-        const { data: messages } = await supabase
-          .from('ai_chat_messages')
-          .select('id');
-        
-        if (messages && messages.length > 0) {
-          const ids = messages.map(m => m.id);
-          const { error, count } = await supabase
-            .from('ai_chat_messages')
-            .delete({ count: 'exact' })
-            .in('id', ids);
-          
-          console.log('[Maintenance] Deleted all chat messages:', count);
-          if (error) throw error;
-        }
+        query = query.lt('created_at', cutoffDate.toISOString());
       }
+      
+      const { error, count } = await query;
+      console.log('[Maintenance] Deleted chat messages:', count);
+      if (error) throw error;
+      return count;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-maintenance-stats'] });
@@ -150,21 +130,19 @@ export function useAIMaintenance() {
     mutationFn: async () => {
       console.log('[Maintenance] Clearing message buffers');
       
-      // Get all buffer IDs first, then delete by IDs
-      const { data: buffers } = await supabase
-        .from('ai_message_buffer')
-        .select('id');
+      // Get authenticated user - CRITICAL for RLS to work
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+      const userId = userData.user.id;
       
-      if (buffers && buffers.length > 0) {
-        const ids = buffers.map(b => b.id);
-        const { error, count } = await supabase
-          .from('ai_message_buffer')
-          .delete({ count: 'exact' })
-          .in('id', ids);
-        
-        console.log('[Maintenance] Deleted buffers:', count);
-        if (error) throw error;
-      }
+      const { error, count } = await supabase
+        .from('ai_message_buffer')
+        .delete({ count: 'exact' })
+        .eq('user_id', userId);
+      
+      console.log('[Maintenance] Deleted buffers:', count);
+      if (error) throw error;
+      return count;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-maintenance-stats'] });
@@ -188,66 +166,49 @@ export function useAIMaintenance() {
     mutationFn: async ({ oldOnly, daysOld }: { oldOnly: boolean; daysOld: number }) => {
       console.log('[Maintenance] Clearing all data:', { oldOnly, daysOld });
       
+      // Get authenticated user - CRITICAL for RLS to work
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+      const userId = userData.user.id;
+      
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
       const cutoffISO = cutoffDate.toISOString();
 
+      // Build queries with user_id filter (required for RLS)
+      let memoriesQuery = supabase.from('ai_client_memories').delete({ count: 'exact' }).eq('user_id', userId);
+      let chatQuery = supabase.from('ai_chat_messages').delete({ count: 'exact' }).eq('user_id', userId);
+      let buffersQuery = supabase.from('ai_message_buffer').delete({ count: 'exact' }).eq('user_id', userId);
+
       if (oldOnly) {
-        // Delete old data with proper conditions
-        const [memoriesRes, chatRes, buffersRes] = await Promise.all([
-          supabase.from('ai_client_memories').delete({ count: 'exact' }).lt('updated_at', cutoffISO),
-          supabase.from('ai_chat_messages').delete({ count: 'exact' }).lt('created_at', cutoffISO),
-          supabase.from('ai_message_buffer').delete({ count: 'exact' }).lt('created_at', cutoffISO),
-        ]);
-
-        console.log('[Maintenance] Deleted old data:', {
-          memories: memoriesRes.count,
-          chat: chatRes.count,
-          buffers: buffersRes.count,
-        });
-
-        const errors = [memoriesRes, chatRes, buffersRes].filter(r => r.error);
-        if (errors.length > 0) {
-          throw new Error('Alguns dados não puderam ser removidos');
-        }
-      } else {
-        // Delete all - get IDs first for each table
-        const [memories, messages, buffers] = await Promise.all([
-          supabase.from('ai_client_memories').select('id'),
-          supabase.from('ai_chat_messages').select('id'),
-          supabase.from('ai_message_buffer').select('id'),
-        ]);
-
-        const deletePromises = [];
-        
-        if (memories.data && memories.data.length > 0) {
-          deletePromises.push(
-            supabase.from('ai_client_memories').delete({ count: 'exact' }).in('id', memories.data.map(m => m.id))
-          );
-        }
-        
-        if (messages.data && messages.data.length > 0) {
-          deletePromises.push(
-            supabase.from('ai_chat_messages').delete({ count: 'exact' }).in('id', messages.data.map(m => m.id))
-          );
-        }
-        
-        if (buffers.data && buffers.data.length > 0) {
-          deletePromises.push(
-            supabase.from('ai_message_buffer').delete({ count: 'exact' }).in('id', buffers.data.map(b => b.id))
-          );
-        }
-
-        if (deletePromises.length > 0) {
-          const results = await Promise.all(deletePromises);
-          console.log('[Maintenance] Deleted all data:', results.map(r => r.count));
-          
-          const errors = results.filter(r => r.error);
-          if (errors.length > 0) {
-            throw new Error('Alguns dados não puderam ser removidos');
-          }
-        }
+        memoriesQuery = memoriesQuery.lt('updated_at', cutoffISO);
+        chatQuery = chatQuery.lt('created_at', cutoffISO);
+        buffersQuery = buffersQuery.lt('created_at', cutoffISO);
       }
+
+      const [memoriesRes, chatRes, buffersRes] = await Promise.all([
+        memoriesQuery,
+        chatQuery,
+        buffersQuery,
+      ]);
+
+      console.log('[Maintenance] Deleted data:', {
+        memories: memoriesRes.count,
+        chat: chatRes.count,
+        buffers: buffersRes.count,
+      });
+
+      const errors = [memoriesRes, chatRes, buffersRes].filter(r => r.error);
+      if (errors.length > 0) {
+        console.error('[Maintenance] Errors:', errors.map(e => e.error));
+        throw new Error('Alguns dados não puderam ser removidos');
+      }
+      
+      return {
+        memories: memoriesRes.count || 0,
+        chat: chatRes.count || 0,
+        buffers: buffersRes.count || 0,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-maintenance-stats'] });
