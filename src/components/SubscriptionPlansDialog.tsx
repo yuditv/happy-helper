@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Crown, Sparkles, Zap } from 'lucide-react';
+import { Check, Crown, Sparkles, Zap, MessageSquare, Smartphone, Infinity } from 'lucide-react';
 import { SubscriptionPlan, formatCurrencyBRL } from '@/types/subscription';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -20,48 +20,119 @@ interface SubscriptionPlansDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const planIcons: Record<string, typeof Crown> = {
-  'Mensal': Zap,
-  'Trimestral': Sparkles,
-  'Semestral': Crown,
-  'Anual': Crown,
-};
+// Novos planos profissionais
+const professionalPlans = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    icon: Zap,
+    color: 'from-blue-500 to-blue-600',
+    basePrice: 39.90,
+    features: {
+      dailyDispatches: 200,
+      whatsappConnections: 1,
+    },
+    featureList: [
+      '200 disparos por dia',
+      '1 conexão WhatsApp',
+      'Suporte por email',
+      'Atualizações gratuitas',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    icon: Sparkles,
+    color: 'from-purple-500 to-purple-600',
+    basePrice: 79.90,
+    isPopular: true,
+    features: {
+      dailyDispatches: 500,
+      whatsappConnections: 5,
+    },
+    featureList: [
+      '500 disparos por dia',
+      '5 conexões WhatsApp',
+      'Suporte prioritário',
+      'Agente IA incluído',
+      'Atualizações gratuitas',
+    ],
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    icon: Crown,
+    color: 'from-amber-500 to-orange-500',
+    basePrice: 149.90,
+    features: {
+      dailyDispatches: -1, // ilimitado
+      whatsappConnections: -1, // ilimitado
+    },
+    featureList: [
+      'Disparos ilimitados',
+      'WhatsApp ilimitado',
+      'Suporte VIP 24/7',
+      'Agente IA avançado',
+      'API personalizada',
+      'Atualizações gratuitas',
+    ],
+  },
+];
 
-const planColors: Record<string, string> = {
-  'Mensal': 'from-blue-500 to-blue-600',
-  'Trimestral': 'from-purple-500 to-purple-600',
-  'Semestral': 'from-amber-500 to-orange-500',
-  'Anual': 'from-emerald-500 to-emerald-600',
-};
+// Opções de duração com desconto
+const durationOptions = [
+  { months: 1, label: '1 mês', discount: 0 },
+  { months: 3, label: '3 meses', discount: 15 },
+  { months: 6, label: '6 meses', discount: 25 },
+  { months: 12, label: '12 meses', discount: 40 },
+];
 
 export function SubscriptionPlansDialog({
   open,
   onOpenChange,
 }: SubscriptionPlansDialogProps) {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState(1);
   const [showPayment, setShowPayment] = useState(false);
   const [selectedPlanData, setSelectedPlanData] = useState<SubscriptionPlan | null>(null);
-  const { plans, isLoading } = useSubscription();
+
+  const currentDuration = durationOptions.find(d => d.months === selectedDuration) || durationOptions[0];
+
+  const calculatePrice = (basePrice: number) => {
+    const totalWithoutDiscount = basePrice * selectedDuration;
+    const discountAmount = totalWithoutDiscount * (currentDuration.discount / 100);
+    return totalWithoutDiscount - discountAmount;
+  };
+
+  const calculateMonthlyPrice = (basePrice: number) => {
+    return calculatePrice(basePrice) / selectedDuration;
+  };
+
+  const calculateSavings = (basePrice: number) => {
+    const totalWithoutDiscount = basePrice * selectedDuration;
+    return totalWithoutDiscount - calculatePrice(basePrice);
+  };
 
   const handleSelect = () => {
     if (selectedPlan) {
-      const plan = plans.find(p => p.id === selectedPlan);
+      const plan = professionalPlans.find(p => p.id === selectedPlan);
       if (plan) {
-        setSelectedPlanData(plan);
+        // Criar objeto compatível com SubscriptionPlan
+        const planData: SubscriptionPlan = {
+          id: `${plan.id}-${selectedDuration}`,
+          name: `${plan.name} (${currentDuration.label})`,
+          duration_months: selectedDuration,
+          price: calculatePrice(plan.basePrice),
+          discount_percentage: currentDuration.discount,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setSelectedPlanData(planData);
         setShowPayment(true);
         onOpenChange(false);
       }
     }
-  };
-
-  const getMonthlyPrice = (plan: SubscriptionPlan) => {
-    return plan.price / plan.duration_months;
-  };
-
-  const getSavings = (plan: SubscriptionPlan) => {
-    const baseMonthly = plans.find(p => p.duration_months === 1)?.price || 39.90;
-    const fullPrice = baseMonthly * plan.duration_months;
-    return fullPrice - plan.price;
   };
 
   return (
@@ -77,14 +148,40 @@ export function SubscriptionPlansDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 py-6">
+          {/* Seletor de duração */}
+          <div className="flex justify-center gap-2 py-4">
+            {durationOptions.map((duration) => (
+              <button
+                key={duration.months}
+                onClick={() => setSelectedDuration(duration.months)}
+                className={cn(
+                  'px-4 py-2 rounded-full text-sm font-medium transition-all',
+                  selectedDuration === duration.months
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                )}
+              >
+                {duration.label}
+                {duration.discount > 0 && (
+                  <Badge 
+                    variant="secondary" 
+                    className="ml-2 bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5"
+                  >
+                    -{duration.discount}%
+                  </Badge>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
             <AnimatePresence>
-              {plans.map((plan, index) => {
-                const Icon = planIcons[plan.name] || Zap;
-                const colorClass = planColors[plan.name] || 'from-primary to-primary/80';
-                const isPopular = plan.name === 'Semestral';
-                const savings = getSavings(plan);
+              {professionalPlans.map((plan, index) => {
+                const Icon = plan.icon;
                 const isSelected = selectedPlan === plan.id;
+                const totalPrice = calculatePrice(plan.basePrice);
+                const monthlyPrice = calculateMonthlyPrice(plan.basePrice);
+                const savings = calculateSavings(plan.basePrice);
 
                 return (
                   <motion.div
@@ -99,11 +196,11 @@ export function SubscriptionPlansDialog({
                       isSelected
                         ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
                         : 'border-border/50 bg-card/50 hover:border-primary/50',
-                      isPopular && 'ring-2 ring-amber-500/50'
+                      plan.isPopular && 'ring-2 ring-amber-500/50'
                     )}
                   >
                     {/* Badge Popular */}
-                    {isPopular && (
+                    {plan.isPopular && (
                       <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                         <Sparkles className="h-3 w-3 mr-1" />
                         Mais Popular
@@ -113,32 +210,49 @@ export function SubscriptionPlansDialog({
                     {/* Ícone do plano */}
                     <div className={cn(
                       'w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4',
-                      colorClass
+                      plan.color
                     )}>
                       <Icon className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Nome do plano */}
-                    <h3 className="text-lg font-bold text-foreground mb-1">
+                    <h3 className="text-xl font-bold text-foreground mb-2">
                       {plan.name}
                     </h3>
 
-                    {/* Desconto */}
-                    {plan.discount_percentage > 0 && (
-                      <Badge variant="secondary" className="mb-3 bg-green-500/20 text-green-400 border-green-500/30">
-                        {plan.discount_percentage}% de desconto
-                      </Badge>
-                    )}
+                    {/* Limites principais */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+                        <MessageSquare className="h-3 w-3" />
+                        {plan.features.dailyDispatches === -1 ? (
+                          <span className="flex items-center gap-0.5">
+                            <Infinity className="h-3 w-3" /> disparos
+                          </span>
+                        ) : (
+                          <span>{plan.features.dailyDispatches}/dia</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+                        <Smartphone className="h-3 w-3" />
+                        {plan.features.whatsappConnections === -1 ? (
+                          <span className="flex items-center gap-0.5">
+                            <Infinity className="h-3 w-3" /> WhatsApp
+                          </span>
+                        ) : (
+                          <span>{plan.features.whatsappConnections} WhatsApp</span>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Preço */}
                     <div className="mb-4">
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-bold text-foreground">
-                          {formatCurrencyBRL(plan.price)}
+                          {formatCurrencyBRL(totalPrice)}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {formatCurrencyBRL(getMonthlyPrice(plan))}/mês
+                        {formatCurrencyBRL(monthlyPrice)}/mês
                       </p>
                     </div>
 
@@ -151,18 +265,12 @@ export function SubscriptionPlansDialog({
 
                     {/* Features */}
                     <ul className="space-y-2 text-sm">
-                      <li className="flex items-center gap-2 text-muted-foreground">
-                        <Check className="h-4 w-4 text-green-400" />
-                        Acesso completo
-                      </li>
-                      <li className="flex items-center gap-2 text-muted-foreground">
-                        <Check className="h-4 w-4 text-green-400" />
-                        Suporte prioritário
-                      </li>
-                      <li className="flex items-center gap-2 text-muted-foreground">
-                        <Check className="h-4 w-4 text-green-400" />
-                        Atualizações gratuitas
-                      </li>
+                      {plan.featureList.map((feature, i) => (
+                        <li key={i} className="flex items-center gap-2 text-muted-foreground">
+                          <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+                          {feature}
+                        </li>
+                      ))}
                     </ul>
 
                     {/* Indicador de seleção */}
@@ -183,18 +291,12 @@ export function SubscriptionPlansDialog({
           <div className="flex justify-center pt-4">
             <Button
               size="lg"
-              disabled={!selectedPlan || isLoading}
+              disabled={!selectedPlan}
               onClick={handleSelect}
               className="min-w-[200px] bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
             >
-              {isLoading ? (
-                'Carregando...'
-              ) : (
-                <>
-                  <Zap className="h-5 w-5 mr-2" />
-                  Continuar com Pagamento
-                </>
-              )}
+              <Zap className="h-5 w-5 mr-2" />
+              Continuar com Pagamento
             </Button>
           </div>
         </DialogContent>
